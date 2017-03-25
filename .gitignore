@@ -1,1 +1,6 @@
+*.Rproj
+*.Rproj.user
+.httr-oauth
+.Rhistory
+.DS_Store
 .Rproj.user
