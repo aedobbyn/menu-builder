@@ -34,7 +34,8 @@ bar <- GET(url = "https://api.nal.usda.gov/ndb/reports/V2?ndbno=01009&ndbno=0100
 
 # Dairy and Egg Products (fg = 0100) and Poultry Products (fg =0500)
 # woot
-baz <- fromJSON(paste0("https://api.nal.usda.gov/ndb/nutrients/?format=json&api_key=", key, "&nutrients=205&nutrients=204&nutrients=208&nutrients=269&fg=0100&fg=0500", flatten = TRUE))
+baz <- fromJSON(paste0("https://api.nal.usda.gov/ndb/nutrients/?format=json&api_key=", key, "&nutrients=205&nutrients=204&nutrients=208&nutrients=269&fg=0100&fg=0500", 
+                       flatten = TRUE))
 
 dairy_and_eggs <- as_tibble(baz$report$foods)
 
@@ -55,9 +56,9 @@ dairy_and_eggs$nutrients[1][[1]][1]
 dairy_and_eggs$nutrients[[1]]$unit
 
 
-
-
-dairy_and_eggs
+# each food has multiple nutrients
+# want to unnest everything in nutrients or keep them nested?
+dairy_and_eggs$nutrients[[1]]
 
 
 
