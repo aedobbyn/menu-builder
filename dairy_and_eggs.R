@@ -29,10 +29,20 @@ cooked <- as_tibble(raw$report$foods)
 cooked$nutrients[[1]]$gm <- as.character(cooked$nutrients[[1]]$gm)
 cooked$nutrients[[2]]$gm <- as.character(cooked$nutrients[[2]]$gm)
 cooked$nutrients[[3]]$gm <- as.character(cooked$nutrients[[3]]$gm)
-
 breakfast <- cooked[1:3, ]
-
 free_range <- breakfast %>% unnest()
+
+
+lunch <- cooked
+
+for (i in 1:length(lunch$nutrients)) {
+  for (j in 1:4) {
+    lunch$nutrients[[i]]$gm[j] <- as.character(lunch$nutrients[[i]]$gm[j])
+  }
+}
+
+home_on_range <- lunch %>% unnest()
+
 
 
 
