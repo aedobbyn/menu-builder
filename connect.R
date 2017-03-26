@@ -34,8 +34,10 @@ bar <- GET(url = "https://api.nal.usda.gov/ndb/reports/V2?ndbno=01009&ndbno=0100
 
 # Dairy and Egg Products (fg = 0100) and Poultry Products (fg =0500)
 # woot
-baz <- fromJSON(paste0("https://api.nal.usda.gov/ndb/nutrients/?format=json&api_key=", key, "&nutrients=205&nutrients=204&nutrients=208&nutrients=269&fg=0100&fg=0500", 
-                       flatten = TRUE))
+baz <- fromJSON(paste0("https://api.nal.usda.gov/ndb/nutrients/?format=json&api_key=", key, "&nutrients=205&nutrients=204&nutrients=208&nutrients=269&fg=0100&fg=0500"))
+                       # , 
+                       # flatten = TRUE,
+                       # simplifyDataFrame = TRUE))
 
 dairy_and_eggs <- as_tibble(baz$report$foods)
 
@@ -53,12 +55,59 @@ head(dairy_and_eggs$nutrients)
 dairy_and_eggs$nutrients[1][[1]][1]
 
 # vector of units for first nutrient
-dairy_and_eggs$nutrients[[1]]$unit
+dairy_and_eggs$nutrients[[3]]$gm <- as.character(dairy_and_eggs$nutrients[[3]]$gm)
+
+
+dairy_and_eggs$nutrients$gm
+
+
+dairy_and_eggs %>% unnest()
+
+
+
+
 
 
 # each food has multiple nutrients
 # want to unnest everything in nutrients or keep them nested?
-dairy_and_eggs$nutrients[[1]]
+dairy_and_eggs$nutrients[[1]] %>% unnest()
 
 
+
+dairy_and_eggs$nutrients[[1:2]] %>% unnest(nutrients)
+
+
+
+df <- data_frame(
+  x = 1:3,
+  y = c("a", "d,e,f", "g,h")
+)
+
+
+
+
+library(tidyjson)
+
+dairy_and_eggs <- tbl_json(dairy_and_eggs)
+
+
+dairy_and_eggs$nutrients[] <- dairy_and_eggs$nutrients[][4]
+
+
+
+unnested <- dairy_and_eggs %>% unnest()
+
+dairy_and_eggs %>%
+  gather_array(column.name = "nutrients") %>%                                     # stack the users 
+  spread_values(person = jstring("nutrients"))
+
+
+baz <- tbl_json(baz)
+
+library(data.tree)
+b <- as.Node(baz)
+
+de <- as.Node(dairy_and_eggs)
+
+d <- ToDataFrameTable(de)
 
