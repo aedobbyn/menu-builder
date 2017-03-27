@@ -1,113 +1,76 @@
+# pull in data from the usda db
+# help site: https://ndb.nal.usda.gov/ndb/doc/index#
 
 library(httr)
 library(tidyverse)
 library(jsonlite)
-
-# help site: https://ndb.nal.usda.gov/ndb/doc/index#
-
-# key
-key = "2fj5UPgl5SjzhpJ43fsGD9Olxi6UgjNXrtoVJ2Wm"
-
-# example
-example = "https://api.data.gov/nrel/alt-fuel-stations/v1/nearest.json?api_key=2fj5UPgl5SjzhpJ43fsGD9Olxi6UgjNXrtoVJ2Wm&location=Denver+CO"
-
-
-foo <- GET(url = "https://api.data.gov/nrel/alt-fuel-stations/v1/nearest.json?api_key=2fj5UPgl5SjzhpJ43fsGD9Olxi6UgjNXrtoVJ2Wm&location=Denver+CO")
-
-head(foo)
-content(foo)
-
-
-# 
-all_foods <- GET(url = "http://api.nal.usda.gov/ndb/reports/?nutrients=204&nutrients=208&nutrients=205&nutrients=269&max=50&offset=25&format=xml&api_key=DEMO_KEY")
-head(all_foods$content)
-
-str(all_foods$content)
-
-
-
-b <- fromJSON(bar)
-
-
-bar <- GET(url = "https://api.nal.usda.gov/ndb/reports/V2?ndbno=01009&ndbno=01009&ndbno=45202763&ndbno=35193&type=b&format=json&api_key=DEMO_KEY")
-
-
-# Dairy and Egg Products (fg = 0100) and Poultry Products (fg =0500)
-# woot
-baz <- fromJSON(paste0("https://api.nal.usda.gov/ndb/nutrients/?format=json&api_key=", key, "&nutrients=205&nutrients=204&nutrients=208&nutrients=269&fg=0100&fg=0500"))
-                       # , 
-                       # flatten = TRUE,
-                       # simplifyDataFrame = TRUE))
-
-dairy_and_eggs <- as_tibble(baz$report$foods)
-
-names(dairy_and_eggs)
-
-
-dim(dairy_and_eggs)
-
-
-# each ingredient has a df of nutrient values
-head(dairy_and_eggs$nutrients)
-
-
-# df of nutrient IDs for first nutrient
-dairy_and_eggs$nutrients[1][[1]][1]
-
-# vector of units for first nutrient
-dairy_and_eggs$nutrients[[3]]$gm <- as.character(dairy_and_eggs$nutrients[[3]]$gm)
-
-
-dairy_and_eggs$nutrients$gm
-
-
-dairy_and_eggs %>% unnest()
-
-
-
-
-
-
-# each food has multiple nutrients
-# want to unnest everything in nutrients or keep them nested?
-dairy_and_eggs$nutrients[[1]] %>% unnest()
-
-
-
-dairy_and_eggs$nutrients[[1:2]] %>% unnest(nutrients)
-
-
-
-df <- data_frame(
-  x = 1:3,
-  y = c("a", "d,e,f", "g,h")
-)
-
-
-
-
 library(tidyjson)
 
-dairy_and_eggs <- tbl_json(dairy_and_eggs)
+key = "2fj5UPgl5SjzhpJ43fsGD9Olxi6UgjNXrtoVJ2Wm"
+
+# get all foods
+# max per request is 1500, default is 50 so specify 1500 
+# use offset to specify beginning row
+# set subset to 1 so get most common foods. else a 1:1500 query only brings you from a to beef
+dat <- fromJSON(paste0("http://api.nal.usda.gov/ndb/nutrients/?format=json&api_key=", 
+                       key, "&subset=1&max=1500&nutrients=205&nutrients=204&nutrients=208&nutrients=269"),
+                flatten = TRUE) # same if false
 
 
-dairy_and_eggs$nutrients[] <- dairy_and_eggs$nutrients[][4]
+# grab the foods report
+all_foods <- as_tibble(dat$report$foods)
+
+# make all gm elements in the nutrients list-column characters so that we can unnest
+# this list-column
+for (i in 1:length(all_foods$nutrients)) {
+  for (j in 1:4) {
+    all_foods$nutrients[[i]]$gm[j] <- as.character(all_foods$nutrients[[i]]$gm[j])
+  }
+}
+
+# unnest it
+all_foods <- all_foods %>% unnest()
+
+# code NAs
+all_foods <- all_foods %>% 
+  mutate(
+    gm = ifelse(gm == "--", NA, gm),
+    value = ifelse(gm == "--", NA, value)
+  )
 
 
 
-unnested <- dairy_and_eggs %>% unnest()
+# --------------------- set datatypes --------------------
+# numeric: ndbno, nutrient_id, value, gm
+all_foods$ndbno <- as.numeric(all_foods$ndbno)
+all_foods$nutrient_id <- as.numeric(all_foods$nutrient_id)
+all_foods$value <- as.numeric(all_foods$value)
+all_foods$gm <- as.numeric(all_foods$gm)
 
-dairy_and_eggs %>%
-  gather_array(column.name = "nutrients") %>%                                     # stack the users 
-  spread_values(person = jstring("nutrients"))
+# factors: name, nutrient, unit
+all_foods$name <- factor(all_foods$name)
+all_foods$nutrient <- factor(all_foods$nutrient)
+all_foods$unit <- factor(all_foods$unit)
 
 
-baz <- tbl_json(baz)
 
-library(data.tree)
-b <- as.Node(baz)
+# value: 100 g equivalent value of the nutrient
+# get per gram 
 
-de <- as.Node(dairy_and_eggs)
 
-d <- ToDataFrameTable(de)
+
+ggplot(data = na.omit(all_foods), aes(x = ndbno, y = value, colour = nutrient)) +
+  geom_point() +
+  theme_light()
+
+
+some_foods <- sample_n(all_foods, 100)
+
+ggplot(data = na.omit(some_foods[some_foods[["nutrient"]] == "Energy", ]), aes(x = name, y = value)) +
+  geom_point() +
+  theme_light()
+
+
+
+
 
