@@ -1,5 +1,4 @@
-# 
-
+# get all the dairy and egg data
 
 library(httr)
 library(tidyverse)
@@ -8,30 +7,14 @@ library(tidyjson)
 
 key = "2fj5UPgl5SjzhpJ43fsGD9Olxi6UgjNXrtoVJ2Wm"
 
-
-
 # Dairy and Egg Products (fg = 0100) and Poultry Products (fg =0500)
-# woot
-raw <- fromJSON(paste0("https://api.nal.usda.gov/ndb/nutrients/?format=json&api_key=", key, "&nutrients=205&nutrients=204&nutrients=208&nutrients=269&fg=0100&fg=0500"))
-# , 
-# flatten = TRUE,
-# simplifyDataFrame = TRUE))
+raw <- fromJSON(paste0("https://api.nal.usda.gov/ndb/nutrients/?format=json&api_key=", 
+                       key, "&nutrients=205&nutrients=204&nutrients=208&nutrients=269&fg=0100&fg=0500"),
+                flatten = TRUE) # same if false
 
+
+# grab the foods report
 cooked <- as_tibble(raw$report$foods)
-
-
-# cooked2 <- tbl_json(cooked)
-
-# dairy_and_eggs$nutrients[[1]]$gm <- as.character(dairy_and_eggs$nutrients[[1]]$gm)
-
-# cooked$nutrients <- as.character(cooked$nutrients)
-
-cooked$nutrients[[1]]$gm <- as.character(cooked$nutrients[[1]]$gm)
-cooked$nutrients[[2]]$gm <- as.character(cooked$nutrients[[2]]$gm)
-cooked$nutrients[[3]]$gm <- as.character(cooked$nutrients[[3]]$gm)
-breakfast <- cooked[1:3, ]
-free_range <- breakfast %>% unnest()
-
 
 lunch <- cooked
 
@@ -42,6 +25,13 @@ for (i in 1:length(lunch$nutrients)) {
 }
 
 home_on_range <- lunch %>% unnest()
+
+# code NAs
+hor <- home_on_range %>% 
+  mutate(
+    gm2 = ifelse(gm == "--", NA, gm),
+    value2 = ifelse(gm == "--", NA, value)
+  )
 
 
 
