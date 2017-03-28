@@ -207,3 +207,41 @@ d <- ToDataFrameTable(de)
 
 
 
+
+# ---- tidyjson
+
+
+'{"name": {"first": "bob", "last": "jones"}, "age": 32}' %>%
+  spread_values(
+    first.name = jstring("name", "first"), 
+    age = jnumber("age")
+  )
+
+
+test <- GET(url = paste0("http://api.nal.usda.gov/ndb/nutrients/?format=json&api_key=", 
+                           key, "&subset=1&max=1500&nutrients=205&nutrients=204&nutrients=208&nutrients=269"))
+
+t <- test$content
+
+
+
+
+
+
+
+test <- toJSON(dat)
+test <- as.character(test) %>% as.tbl_json
+
+test %>% 
+  enter_object("report", "foods", "nutrients") %>% gather_array %>% 
+  spread_values(
+    nut_value = jstring("unit")
+  )
+
+test %>% spread_values(
+  nut_unit = jstring("nutrients", "unit")
+)
+
+
+
+
