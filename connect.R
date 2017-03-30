@@ -127,3 +127,27 @@ ggplot(data = some_foods[some_foods[["nutrient"]] == "Energy", ], aes(x = some_f
   theme_bw()
 
 
+
+
+# ---------
+
+# order by most sugar
+
+fried <- all_foods %>% 
+  filter(
+    nutrient == "Sugars, total"
+  ) %>% 
+  arrange(
+    desc(gm)
+  )
+
+
+by_nutrient <- all_foods %>% 
+  group_by(
+    nutrient
+  ) %>% 
+  arrange(
+    desc(value)
+  )
+
+
