@@ -25,6 +25,7 @@ all_foods <- as_tibble(dat$report$foods)
 for (i in 1:length(all_foods$nutrients)) {
   for (j in 1:4) {
     all_foods$nutrients[[i]]$gm[j] <- as.character(all_foods$nutrients[[i]]$gm[j])
+    all_foods$nutrients[[i]]$value[j] <- as.character(all_foods$nutrients[[i]]$value[j])
   }
 }
 
@@ -35,7 +36,7 @@ all_foods <- all_foods %>% unnest()
 all_foods <- all_foods %>% 
   mutate(
     gm = ifelse(gm == "--", NA, gm),
-    value = ifelse(gm == "--", NA, value)
+    value = ifelse(value == "--", NA, value)
   )
 
 
@@ -149,5 +150,14 @@ by_nutrient <- all_foods %>%
   arrange(
     desc(value)
   )
+
+
+
+all_nutrients <- fromJSON(paste0("http://api.nal.usda.gov/ndb/nutrients/?format=json&api_key=", 
+                                        key, "&subset=1&max=1500&nutrients=205&nutrients=204&nutrients=208&nutrients=269"),
+                                 flatten = TRUE) # same if false
+
+
+
 
 

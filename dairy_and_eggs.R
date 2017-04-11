@@ -1,6 +1,11 @@
 # get all the dairy and egg data
 
+library(httr)
+library(tidyverse)
+library(jsonlite)
+library(tidyjson)
 
+key = "2fj5UPgl5SjzhpJ43fsGD9Olxi6UgjNXrtoVJ2Wm"
 
 # Dairy and Egg Products (fg = 0100) and Poultry Products (fg =0500)
 raw <- fromJSON(paste0("https://api.nal.usda.gov/ndb/nutrients/?format=json&api_key=", 
@@ -11,9 +16,19 @@ raw <- fromJSON(paste0("https://api.nal.usda.gov/ndb/nutrients/?format=json&api_
 # grab the foods report
 cooked <- as_tibble(raw$report$foods)
 
+
+gm_vec <- cooked$nutrients %>% 
+  map(., "gm") 
+
+val_vec <- cooked$nutrients %>% 
+  map(., "value") 
+
+
+
 for (i in 1:length(cooked$nutrients)) {
   for (j in 1:4) {
     cooked$nutrients[[i]]$gm[j] <- as.character(cooked$nutrients[[i]]$gm[j])
+    cooked$nutrients[[i]]$value[j] <- as.character(cooked$nutrients[[i]]$value[j])
   }
 }
 
@@ -23,7 +38,7 @@ cooked <- cooked %>% unnest()
 cooked <- cooked %>% 
   mutate(
     gm = ifelse(gm == "--", NA, gm),
-    value = ifelse(gm == "--", NA, value)
+    value = ifelse(value == "--", NA, value)
   )
 
 
