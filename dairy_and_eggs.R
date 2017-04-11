@@ -17,11 +17,11 @@ raw <- fromJSON(paste0("https://api.nal.usda.gov/ndb/nutrients/?format=json&api_
 cooked <- as_tibble(raw$report$foods)
 
 
-gm_vec <- cooked$nutrients %>% 
-  map(., "gm") 
-
-val_vec <- cooked$nutrients %>% 
-  map(., "value") 
+# gm_vec <- cooked %>% 
+#   map(., c("nutrients", "gm")) 
+# 
+# val_vec <- cooked$nutrients %>% 
+#   map(., "value") 
 
 
 
@@ -40,9 +40,4 @@ cooked <- cooked %>%
     gm = ifelse(gm == "--", NA, gm),
     value = ifelse(value == "--", NA, value)
   )
-
-
-
-
-
 
