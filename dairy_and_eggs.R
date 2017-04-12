@@ -1,4 +1,8 @@
 # get all the dairy and egg data
+# this is a nutrient report
+  # documentation: 
+    # Up to 20 nutrient_ids may be specified. 
+    # Likewise, you may request up to 10 food group id's in the fg parameter.
 
 library(httr)
 library(tidyverse)
