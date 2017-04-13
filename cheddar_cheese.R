@@ -1,5 +1,8 @@
 # documentation for food report: https://ndb.nal.usda.gov/ndb/doc/apilist/API-FOOD-REPORT.md
 
+# value: 100 g equivalent value of the nutrient
+# evalue: gram equivalent value of the measure
+
 source("./connect.R")
 
 # all nutrients for cheddar cheese
@@ -14,6 +17,7 @@ cheese <- as_tibble(cheese$report$food$nutrients)
 cheese <- cheese %>% unnest()
 
 # change nested value to evalue so we don't have two columns with the same name
+# evalue is the gram equivalent value of the measure
 names(cheese)[10] <- "evalue"
 
 
