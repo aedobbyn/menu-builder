@@ -63,28 +63,4 @@ dbWriteTable(con, "foods",
 
 
 
-# add food to db
-
-
-add_foods <- function () {
-  df <- NULL
-  offset <- 0
-  while (offset < 5000) {
-    raw_req <- fromJSON(paste0("https://api.nal.usda.gov/ndb/list?format=json&lt=f&sort=n&offset=", offset,
-                               "&api_key=", 
-                               key),
-                        flatten = TRUE)
-    this_food_list <- as_tibble(raw_req$list$item)
-    dbWriteTable(con, "all_foods", 
-                 value = this_food_list, append = TRUE, row.names = FALSE)
-    offset <- offset + nrow(this_food_list)
-  }
-}
-
-add_foods()
-
-
-
-
-
 
