@@ -15,3 +15,6 @@ raw_nut <- fromJSON(paste0("https://api.nal.usda.gov/ndb/list?format=json&lt=n&s
                     flatten = TRUE)
 
 nutrients <- as_tibble(raw_nut $list$item)
+
+
+
