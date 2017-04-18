@@ -11,14 +11,18 @@ cheese <- fromJSON(paste0("https://api.nal.usda.gov/ndb/reports/?ndbno=01009&typ
                    flatten = TRUE) # same if false 
 
 
-cheese <- as_tibble(cheese$report$food$nutrients)
+cheese_nested <- as_tibble(cheese$report$food$nutrients)
 
 # looks like we can unnest straight away as everything was imported as character
-cheese <- cheese %>% unnest()
+cheese <- cheese_nested %>% unnest()
 
 # change nested value to evalue so we don't have two columns with the same name
 # evalue is the gram equivalent value of the measure
 names(cheese)[10] <- "evalue"
+
+
+
+
 
 
 

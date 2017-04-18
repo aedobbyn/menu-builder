@@ -14,7 +14,9 @@ raw_nut <- fromJSON(paste0("https://api.nal.usda.gov/ndb/list?format=json&lt=n&s
                            key),
                     flatten = TRUE)
 
-nutrients <- as_tibble(raw_nut $list$item)
+nutrients <- as_tibble(raw_nut$list$item)
 
+# set type of id column
+nutrients$id <- as.numeric(nutrients$id)
 
 
