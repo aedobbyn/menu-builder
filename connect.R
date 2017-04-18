@@ -7,13 +7,15 @@ library(jsonlite)
 library(tidyjson)
 
 key = "2fj5UPgl5SjzhpJ43fsGD9Olxi6UgjNXrtoVJ2Wm"
+key2 = "JpZKpLFyYzRToNxCrcKSDHy6aJZKDdzo65MNZ1AH"
+
 
 # get all foods
 # max per request is 1500, default is 50 so specify 1500 
 # use offset to specify beginning row
 # set subset to 1 so get most common foods. else a 1:1500 query only brings you from a to beef
 dat <- fromJSON(paste0("http://api.nal.usda.gov/ndb/nutrients/?format=json&api_key=", 
-                       key, "&subset=1&max=1500&nutrients=205&nutrients=204&nutrients=208&nutrients=269"),
+                       key2, "&subset=1&max=1500&nutrients=205&nutrients=204&nutrients=208&nutrients=269"),
                 flatten = TRUE) # same if false
 
 

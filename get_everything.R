@@ -19,20 +19,21 @@ source("./nutrient_list.R")
 get_all_things <- function () {
   df <- NULL
   offset <- 0
-  while (offset < 10) {
+  while (offset < 50) {
     for (nut in seq_along(nutrients$id)) {
-      # print(offset)
-      print(nut)
+      
+      print(paste0("offset: ", offset))
+      print(paste0("nutrient: ", nutrients$id[nut]))
+      
       raw_req <- fromJSON(paste0("http://api.nal.usda.gov/ndb/nutrients/?format=json&api_key=", 
-                                 key, "&offset=", offset, "&subset=0&max=10&nutrients=", nutrients$id[nut]),
+                                 key, "&offset=", offset, "&subset=0&max=1&nutrients=", nutrients$id[nut]),
                           flatten = TRUE)
       this_food_list <- as_tibble(raw_req$report$foods)
       df <- rbind(df, this_food_list)
       # dbWriteTable(con, "everything", 
       #              value = this_food_list, append = TRUE, row.names = FALSE)
-      offset <- offset + nrow(this_food_list)
     }
-    # nut <- nut+1
+  offset <- offset + 1
   }
   df
 }
@@ -82,5 +83,5 @@ baz %>% group_by(
 unique(baz$nutrient_id)
 
 for (nut in seq_along(nutrients$id)) {
-  print(nutrients$id[nut])
+  print(paste0("nutrient: ", nutrients$id[nut]))
 }
