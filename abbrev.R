@@ -129,20 +129,83 @@ salty_foods <- abbrev %>%
 worst_foods <- abbrev %>% 
   filter(
     Lipid_Tot_g > mr_st_dev_join[mr_st_dev_join$nut_name=="Lipid_Tot_g", ][["one_above"]],
-    Sodium_mg > mr_st_dev_join[mr_st_dev_join$nut_name=="Sodium_mg", ][["one_above"]],
-    FA_Sat_g > mr_st_dev_join[mr_st_dev_join$nut_name=="FA_Sat_g", ][["one_above"]],
-    Cholestrl_mg > mr_st_dev_join[mr_st_dev_join$nut_name=="Cholestrl_mg", ][["one_above"]]
+    Sodium_mg > mr_st_dev_join[mr_st_dev_join$nut_name=="Sodium_mg", ][["one_above"]]
+    # FA_Sat_g > mr_st_dev_join[mr_st_dev_join$nut_name=="FA_Sat_g", ][["one_above"]],
+    # Cholestrl_mg > mr_st_dev_join[mr_st_dev_join$nut_name=="Cholestrl_mg", ][["one_above"]]
   )
 
 worst_foods
 
 
 get_worst_foods <- function(dat, nut, ...) {
-  dat %>% 
-    filter(nut > mr_st_dev_join[mr_st_dev_join$nut_name==nut, ][["one_above"]])
+    filtered <- dat %>% 
+      filter(nut > mr_st_dev_join[mr_st_dev_join$nut_name==nut, ][["one_above"]])
+  filtered
 }
 
-wf <- get_worst_foods(abbrev, "Lipid_Tot_g")
+get_worst_foods(abbrev, "Sodium_mg")
+wf <- get_worst_foods(abbrev, "Sodium_mg")
+
+
+# z-score everything
+scaled <- abbrev %>% 
+  select(
+    3:which(names(abbrev)=="Cholestrl_mg")
+  ) %>% 
+  mutate_all(
+    scale
+  )
+
+# cbind the ndbno and description
+scaled <- bind_cols(abbrev[, 1:2], scaled) # cbind freaks out (?)
+
+
+
+
+# build a random meal by adding foods until Energ_Kcal reaches 2300
+build_meal <- function() {
+  cal_vec <- abbrev$Energ_Kcal 
+  this_food_cal <- cal_vec[sample(cal_vec, 1)]
+  
+  cals <- 0
+  meal <- NULL
+  
+  while (cals < 2300) {
+    cals <- cals + this_food_cal
+    i <- sample(cal_vec, 1)
+    
+    # print(cal_vec[i])
+    print(abbrev[i,])
+    
+    meal <- rbind(meal, abbrev[i,])
+  }
+  cals
+  meal
+}
+
+my_first_meal <- build_meal()
+
+View(my_first_meal)
+
+
+
+
+
+# not done
+# get_worst_foods_multiple <- function(dat, nut_vec, ...) {
+#   for (nut in seq_along(nut_vec)) {
+#     print(nut)
+#     print(nut_vec[nut])
+#    filtered <- dat %>% 
+#       filter(nut_vec[nut] > mr_st_dev_join[mr_st_dev_join$nut_name==nut_vec[nut], ][["one_above"]])
+#    filtered
+#    print(filtered[1, ])
+#   }
+#   filtered
+# }
+# 
+# get_worst_foods(abbrev, c("Lipid_Tot_g", "Sodium_mg"))
+
 
 
 
