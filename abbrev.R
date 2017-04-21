@@ -112,11 +112,37 @@ mr_st_dev <- abbrev_st_dev_df[(abbrev_st_dev_df$nut_name %in% mr), ]
 mr_st_dev_join <- left_join(mr_st_dev, mr_df, 
                             by = c("nut_name" = "must_restrict"))
 
-mr_st_dev_join <- 
+mr_st_dev_join <- mr_st_dev_join %>% 
+  mutate(
+    one_above = mean + std_dev,
+    one_below = mean - std_dev
+  )
 
 
+# get foods that are > 1 sd above mean on sodium
+salty_foods <- abbrev %>% 
+  filter(
+    Sodium_mg > mr_st_dev_join[mr_st_dev_join$nut_name=="Sodium_mg", ][["one_above"]]
+  )
 
 
+worst_foods <- abbrev %>% 
+  filter(
+    Lipid_Tot_g > mr_st_dev_join[mr_st_dev_join$nut_name=="Lipid_Tot_g", ][["one_above"]],
+    Sodium_mg > mr_st_dev_join[mr_st_dev_join$nut_name=="Sodium_mg", ][["one_above"]],
+    FA_Sat_g > mr_st_dev_join[mr_st_dev_join$nut_name=="FA_Sat_g", ][["one_above"]],
+    Cholestrl_mg > mr_st_dev_join[mr_st_dev_join$nut_name=="Cholestrl_mg", ][["one_above"]]
+  )
+
+worst_foods
+
+
+get_worst_foods <- function(dat, nut, ...) {
+  dat %>% 
+    filter(nut > mr_st_dev_join[mr_st_dev_join$nut_name==nut, ][["one_above"]])
+}
+
+wf <- get_worst_foods(abbrev, "Lipid_Tot_g")
 
 
 
