@@ -266,6 +266,71 @@ View(my_third_meal)
 
 
 
+
+
+
+
+
+set.seed(8)
+build_meal4 <- function() {
+  i <- sample(nrow(abbrev), 1) # sample a random row from df
+  
+  cals <- 0   # set the builder variables to 0
+  sodium <- 0
+  meal <- NULL
+  
+  while (cals < 2300) {
+    this_food_cal <- (abbrev$Energ_Kcal[i] * abbrev$GmWt_1[i])/100    # get the number of calories in 1 serving of this food
+    cals <- cals + this_food_cal    # add i's calories to the calorie sum variable
+    
+    this_food_sodium <- (abbrev$Sodium_mg[i] * abbrev$GmWt_1[i])/100  # get the amount of sodium in 1 serving of this food
+    sodium <- sodium + this_food_sodium    # add i's sodium to the sodium sum variable
+    
+    meal <- rbind(meal, abbrev[i,])
+    print(paste0("sodium is ", sodium))
+    
+    i <- sample(nrow(abbrev), 1)   # resample a new i
+    
+  }
+  meal    # return the full meal
+}
+
+my_fourth_meal <- build_meal4()
+my_fourth_meal
+
+View(my_fourth_meal)
+
+
+
+
+resamp_sodium <- function(orig_meal) {
+  sodium <- (sum(orig_meal$Sodium_mg * orig_meal$GmWt_1))/100
+  
+  if (sodium > 2400) {
+    print(paste0("sodium is ", sodium))
+    while (sodium > 2400) {
+      for (j in seq_along(orig_meal)) {
+        print(paste0("index of orig meal is ", j))
+        new_row <- sample(nrow(abbrev), 1)
+        orig_meal[j, ] <- new_row
+        
+        print(orig_meal)
+        
+      }
+      sodium <- (sum(orig_meal$Sodium_mg * orig_meal$GmWt_1))/100
+    }
+
+  }
+  orig_meal
+}
+
+resamp_sodium(my_fourth_meal)
+
+
+
+
+
+
 # not done
 # get_worst_foods_multiple <- function(dat, nut_vec, ...) {
 #   for (nut in seq_along(nut_vec)) {
