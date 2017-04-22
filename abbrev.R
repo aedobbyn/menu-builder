@@ -302,29 +302,32 @@ View(my_fourth_meal)
 
 
 
-
+# swap out the single biggest sodium offender 
 resamp_sodium <- function(orig_meal) {
   sodium <- (sum(orig_meal$Sodium_mg * orig_meal$GmWt_1))/100
   
   if (sodium > 2400) {
     print(paste0("sodium is ", sodium))
-    while (sodium > 2400) {
-      for (j in seq_along(orig_meal)) {
-        print(paste0("index of orig meal is ", j))
-        new_row <- sample(nrow(abbrev), 1)
-        orig_meal[j, ] <- new_row
-        
-        print(orig_meal)
-        
-      }
-      sodium <- (sum(orig_meal$Sodium_mg * orig_meal$GmWt_1))/100
-    }
-
+    
+    max_sodium_offender <- which(my_fourth_meal$Sodium_mg == max(my_fourth_meal$Sodium_mg))   # get index of food with max sodium
+    
+    orig_meal[max_sodium_offender, ] <- abbrev[sample(nrow(abbrev), 1), ]
+    
+    # print(orig_meal)
+    # while (sodium > 2400) {
+    #   for (j in seq_along(orig_meal)) {
+    #     print(paste0("index of orig meal is ", j))
+    #     new_row <- sample(nrow(abbrev), 1)
+    #     orig_meal[j, ] <- new_row
+    #   }
+    sodium <- (sum(orig_meal$Sodium_mg * orig_meal$GmWt_1))/100
   }
   orig_meal
 }
+  
 
-resamp_sodium(my_fourth_meal)
+lower_sodium <- resamp_sodium(my_fourth_meal)
+lower_sodium
 
 
 
