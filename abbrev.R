@@ -196,19 +196,24 @@ View(my_first_meal)
 
 # multiply this_food_cal by GmWt_1
 
+# nutrient value per household measure
+# N = (V*W)/100
+# where:
+#   N = nutrient value per household measure,
+# V = nutrient value per 100 g (Nutr_Val in the Nutrient Data file), and W = g weight of portion (Gm_Wgt in the Weight file).
 
 build_meal2 <- function() {
   i <- sample(nrow(abbrev), 1)
   # cal_vec <- abbrev$Energ_Kcal 
   # this_food_cal <- cal_vec[sample(cal_vec, 1)]
-  this_food_cal <- (abbrev$Energ_Kcal[i] * abbrev$GmWt_1[i])
+  this_food_cal <- (abbrev$Energ_Kcal[i] * abbrev$GmWt_1[i])/100
   
   cals <- 0
   meal <- NULL
   
-  while (cals < 23000) {
+  while (cals < 2300) {
     print(i)
-    this_food_cal <- (abbrev$Energ_Kcal[i] * abbrev$GmWt_1[i])
+    this_food_cal <- (abbrev$Energ_Kcal[i] * abbrev$GmWt_1[i])/100
     cals <- cals + this_food_cal
     
     # print(cal_vec[i])
@@ -224,9 +229,47 @@ build_meal2 <- function() {
 my_second_meal <- build_meal2()
 my_second_meal
 
+View(my_second_meal)
+
 
 
 # now check whether we've hit our nutrient count for a few nutrients. if not, keep resampling until we hit it.
+
+
+
+
+build_meal3 <- function() {
+  i <- sample(nrow(abbrev), 1)
+  # cal_vec <- abbrev$Energ_Kcal 
+  # this_food_cal <- cal_vec[sample(cal_vec, 1)]
+  this_food_cal <- (abbrev$Energ_Kcal[i] * abbrev$GmWt_1[i])/100
+  
+  cals <- 0
+  sodium <- 0
+  meal <- NULL
+  
+  while (cals < 2300 & sodium < 2400) {
+    print(i)
+    this_food_cal <- (abbrev$Energ_Kcal[i] * abbrev$GmWt_1[i])/100
+    cals <- cals + this_food_cal
+    
+    sodium <- this_food_sodium <- (abbrev$Sodium_mg[i] * abbrev$GmWt_1[i])/100
+    sodium <- sodium + this_food_sodium
+    
+    # print(cal_vec[i])
+    # print(abbrev[i,])
+    
+    meal <- rbind(meal, abbrev[i,])
+    i <- sample(nrow(abbrev), 1)
+  }
+  cals
+  meal
+}
+
+my_third_meal <- build_meal3()
+my_third_meal
+
+View(my_third_meal)
 
 
 
