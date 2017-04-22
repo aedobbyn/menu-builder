@@ -237,33 +237,26 @@ View(my_second_meal)
 
 
 
-
+set.seed(8)
 build_meal3 <- function() {
-  i <- sample(nrow(abbrev), 1)
-  # cal_vec <- abbrev$Energ_Kcal 
-  # this_food_cal <- cal_vec[sample(cal_vec, 1)]
-  this_food_cal <- (abbrev$Energ_Kcal[i] * abbrev$GmWt_1[i])/100
+  i <- sample(nrow(abbrev), 1) # sample a random row from df
   
-  cals <- 0
+  cals <- 0   # set the builder variables to 0
   sodium <- 0
   meal <- NULL
   
   while (cals < 2300 & sodium < 2400) {
-    print(i)
-    this_food_cal <- (abbrev$Energ_Kcal[i] * abbrev$GmWt_1[i])/100
-    cals <- cals + this_food_cal
+    this_food_cal <- (abbrev$Energ_Kcal[i] * abbrev$GmWt_1[i])/100    # get the number of calories in 1 serving of this food
+    cals <- cals + this_food_cal    # add i's calories to the calorie sum variable
     
-    sodium <- this_food_sodium <- (abbrev$Sodium_mg[i] * abbrev$GmWt_1[i])/100
-    sodium <- sodium + this_food_sodium
-    
-    # print(cal_vec[i])
-    # print(abbrev[i,])
-    
+    this_food_sodium <- (abbrev$Sodium_mg[i] * abbrev$GmWt_1[i])/100  # get the amount of sodium in 1 serving of this food
+    sodium <- sodium + this_food_sodium    # add i's sodium to the sodium sum variable
+
     meal <- rbind(meal, abbrev[i,])
-    i <- sample(nrow(abbrev), 1)
+    
+    i <- sample(nrow(abbrev), 1)   # resample a new i
   }
-  cals
-  meal
+  meal    # return the full meal
 }
 
 my_third_meal <- build_meal3()
