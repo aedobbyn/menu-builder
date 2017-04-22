@@ -157,7 +157,7 @@ scaled <- abbrev %>%
   )
 
 # cbind the ndbno and description
-scaled <- bind_cols(abbrev[, 1:2], scaled) # cbind freaks out (?)
+scaled <- bind_cols(abbrev[, 1:2], scaled, abbrev[, 49:ncol(abbrev)]) # cbind freaks out (?)
 
 
 
@@ -175,7 +175,7 @@ build_meal <- function() {
     i <- sample(cal_vec, 1)
     
     # print(cal_vec[i])
-    print(abbrev[i,])
+    # print(abbrev[i,])
     
     meal <- rbind(meal, abbrev[i,])
   }
@@ -188,6 +188,45 @@ my_first_meal <- build_meal()
 View(my_first_meal)
 
 
+
+
+
+
+
+
+# multiply this_food_cal by GmWt_1
+
+
+build_meal2 <- function() {
+  i <- sample(nrow(abbrev), 1)
+  # cal_vec <- abbrev$Energ_Kcal 
+  # this_food_cal <- cal_vec[sample(cal_vec, 1)]
+  this_food_cal <- (abbrev$Energ_Kcal[i] * abbrev$GmWt_1[i])
+  
+  cals <- 0
+  meal <- NULL
+  
+  while (cals < 23000) {
+    print(i)
+    this_food_cal <- (abbrev$Energ_Kcal[i] * abbrev$GmWt_1[i])
+    cals <- cals + this_food_cal
+    
+    # print(cal_vec[i])
+    # print(abbrev[i,])
+    
+    meal <- rbind(meal, abbrev[i,])
+    i <- sample(nrow(abbrev), 1)
+  }
+  cals
+  meal
+}
+
+my_second_meal <- build_meal2()
+my_second_meal
+
+
+
+# now check whether we've hit our nutrient count for a few nutrients. if not, keep resampling until we hit it.
 
 
 
