@@ -271,9 +271,9 @@ View(my_third_meal)
 
 
 
-set.seed(9)
+set.seed(12)
 build_meal4 <- function() {
-  abbrev <- abbrev %>% filter(!(is.na(Sodium_mg)) & !(is.na(Energ_Kcal)))
+  abbrev <- abbrev %>% filter(!(is.na(Sodium_mg)) & !(is.na(Energ_Kcal)) & !(is.na(GmWt_1)))
   i <- sample(nrow(abbrev), 1) # sample a random row from df
   
   cals <- 0   # set the builder variables to 0
@@ -299,26 +299,31 @@ build_meal4 <- function() {
 my_fourth_meal <- build_meal4()
 my_fourth_meal
 
+(sum(my_fourth_meal$Sodium_mg * my_fourth_meal$GmWt_1))/100
+
 View(my_fourth_meal)
 
 
 
 # swap out the single biggest sodium offender 
 resamp_sodium <- function(orig_meal) {
-  abbrev <- abbrev %>% filter(!(is.na(Sodium_mg)))
+  abbrev <- abbrev %>% filter(!(is.na(Sodium_mg)) & !(is.na(Energ_Kcal)) & !(is.na(GmWt_1)))
   sodium <- (sum(orig_meal$Sodium_mg * orig_meal$GmWt_1))/100
   print(paste0("original sodium is", sodium))
   
-  if (sodium > 2400) {
+  while (sodium > 2400) {
     print(paste0("sodium is ", sodium))
     
     max_sodium_offender <- which(my_fourth_meal$Sodium_mg == max(my_fourth_meal$Sodium_mg))   # get index of food with max sodium
     
-    orig_meal[max_sodium_offender, ] <- abbrev[sample(nrow(abbrev), 1), ]
+    j <- sample(nrow(abbrev), 1)
+    print(paste0("j is ", j))
+    orig_meal[max_sodium_offender, ] <- abbrev[j, ]
     
     sodium <- (sum(orig_meal$Sodium_mg * orig_meal$GmWt_1))/100
+    print(paste0("sodium is now", sodium))
+    
   }
-  print(paste0("sodium is ", sodium))
   orig_meal
 }
   
@@ -326,6 +331,7 @@ resamp_sodium <- function(orig_meal) {
 lower_sodium <- resamp_sodium(my_fourth_meal)
 lower_sodium
 
+(sum(lower_sodium$Sodium_mg * lower_sodium$GmWt_1))/100
 
 
 
