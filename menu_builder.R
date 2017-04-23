@@ -1,10 +1,22 @@
 
+# load in the abbreviated data from the USDA database
 source("./abbrev.R")
 
-set.seed(41)
+# minimum daily calories: 2300 kcal
+# max sodium: 2400 mg
+
+# according to USDA documentation, to get nutrients in 1 serving of food: 
+# N = (V*W)/100
+# where:
+#   N = nutrient value per household measure,
+# V = nutrient value per 100 g and W = g weight of portion (Gm_Wgt in the Weight file).
 
 
-# build a daily menu from scratch by sampling foods at random from our dataframe until we're at or over 2300 calories
+set.seed(9)
+
+
+# build a daily menu from scratch by sampling one serving of a food at random from our dataframe 
+# until we're at or over 2300 calories
 
 build_menu <- function(df) {
   df <- df %>% filter(!(is.na(Sodium_mg)) & !(is.na(Energ_Kcal)) & !(is.na(GmWt_1)))    # filter out rows that have NAs in columns that we need
@@ -15,7 +27,7 @@ build_menu <- function(df) {
   menu <- NULL
   
   while (cals < 2300) {
-    this_food_cal <- (df$Energ_Kcal[i] * df$GmWt_1[i])/100    # get the number of calories in 1 serving of this food
+    this_food_cal <- (df$Energ_Kcal[i] * df$GmWt_1[i])/100    # get the number of calories in 1 serving of this food (see N = (V*W)/100 formula)
     cals <- cals + this_food_cal    # add the calories in row of index i to the calorie sum variable
     
     menu <- rbind(menu, df[i,])   # add that row to our menu
@@ -37,8 +49,8 @@ View(menu)
 # and putting a random one in its place
 
 restrict_sodium <- function(orig_menu) {
-  randomized <- abbrev[sample(nrow(abbrev)),]  # take our original df of all foods and randomize it
-  randomized <- randomized %>% filter(!(is.na(Sodium_mg)) & !(is.na(Energ_Kcal)) & !(is.na(GmWt_1)))   # filter out the columns that can't be NA
+  randomized <- abbrev[sample(nrow(abbrev)),] %>%  # take our original df of all foods, randomize it, and
+    filter(!(is.na(Sodium_mg)) & !(is.na(Energ_Kcal)) & !(is.na(GmWt_1)))   # filter out the columns that can't be NA
   
   sodium <- (sum(orig_menu$Sodium_mg * orig_menu$GmWt_1))/100   # get the amount of sodium in our original menu
 
