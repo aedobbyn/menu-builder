@@ -245,3 +245,24 @@ test %>% spread_values(
 
 
 
+
+
+
+
+
+
+
+
+
+# heatmap
+
+
+library(shiny)
+library(heatmaply)
+library(shinyHeatmaply)
+runApp(system.file("shinyapp", package = "shinyHeatmaply"))
+
+
+data(abbrev)
+launch_heatmaply(abbrev)
+

@@ -350,6 +350,51 @@ lower_sodium2
 View(lower_sodium2)
 
 
+randomized <- abbrev[sample(nrow(abbrev)),] %>%  # take our original df of all foods, randomize it, and
+  filter(!(is.na(Sodium_mg)))
+
+
+
+# generalize the must-restrict
+
+restrict_all <- function(orig_menu) {
+  randomized <- abbrev[sample(nrow(abbrev)),] %>%  # take our original df of all foods, randomize it, and
+    filter(!(is.na(Lipid_Tot_g)) & !(is.na(Sodium_mg)) & !(is.na(Cholestrl_mg)) & !(is.na(FA_Sat_g)) & !(is.na(GmWt_1)))   # filter out the columns that can't be NA
+  
+  for (m in seq_along(mr_df$must_restrict)) {    # for each row in the df of must_restricts
+    nut_to_restrict <- mr_df$must_restrict[m]    # grab the name of the nutrient we're restricting
+    print(paste0("nutrient we're restricting is ", nut_to_restrict))
+    to_restrict <- (sum(orig_menu[[nut_to_restrict]] * orig_menu$GmWt_1))/100   # get the amount of that must restrict nutrient in our original menu
+    print(paste0("original value of that nutrient is ", to_restrict))
+    
+    # for (j in seq_along(1:nrow(randomized))) {     # loop through the randomized df in order (equivalent to sampling randomly from our orignal df)
+      while (to_restrict > mr_df$value[m]) {     # if the amount of the must restrict in our current menu is above the max value it should be according to mr_df
+        max_offender <- which(orig_menu[[nut_to_restrict]] == max(orig_menu[[nut_to_restrict]]))   # get index of food that's the worst offender in this respect
+        
+        print(paste0("the worst offender in this respect is ", orig_menu[max_offender, ]$Shrt_Desc))
+        orig_menu[max_offender, ] <- randomized[sample(nrow(randomized), 1), ]   # replace the max offender with the next row in the randomzied df
+        
+        to_restrict <- (sum(orig_menu[[nut_to_restrict]] * orig_menu$GmWt_1))/100   # recalculate the must restrict nutrient content
+        print(paste0("our new value of this must restrict is ", to_restrict))
+        
+      # } else {
+        # next
+        # break     # if we're below the max, exit the loop
+      }
+    # }
+  }
+  orig_menu
+}
+
+
+
+restricted_menu <- restrict_all(menu)
+restricted_menu
+
+
+which(menu[["Cholestrl_mg"]] == max(menu[["Cholestrl_mg"]]))
+
+menu[14, ]$Shrt_Desc
 
 
 

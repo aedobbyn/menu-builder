@@ -75,3 +75,68 @@ low_sodium_menu
 
 View(low_sodium_menu)
 
+# what did we swap out?
+setdiff(menu, low_sodium_menu)
+
+
+
+
+
+# generalize the must-restrict
+
+restrict_all <- function(orig_menu) {
+  randomized <- abbrev[sample(nrow(abbrev)),] %>%  # take our original df of all foods, randomize it, and
+    filter(!(is.na(Sodium_mg)) & !(is.na(Energ_Kcal)) & !(is.na(GmWt_1)))   # filter out the columns that can't be NA
+  
+  for (m in seq_along(mr_df$must_restrict)) {    # for each row in the df of must_restricts
+    nut_to_restrict <- mr_df$must_restrict[m]    # grab the name of the nutrient we're restricting
+    to_restrict <- (sum(orig_menu[[nut_to_restrict]] * orig_menu$GmWt_1))/100   # get the amount of that must restrict nutrient in our original menu
+    
+    for (j in seq_along(1:nrow(randomized))) {     # loop through the randomized df in order (equivalent to sampling randomly from our orignal df)
+      if (to_restrict > mr_df$value[m]) {     # if the amount of the must restrict in our current menu is above the max value it should be according to mr_df
+        max_offender <- which(orig_menu[[nut_to_restrict]] == max(orig_menu[[nut_to_restrict]]))   # get index of food that's the worst offender in this respect
+        
+        orig_menu[max_offender, ] <- randomized[j, ]   # replace the max offender with the next row in the randomzied df
+        
+        to_restrict <- (sum(orig_menu[[nut_to_restrict]] * orig_menu$GmWt_1))/100   # recalculate the must restrict nutrient content
+        
+      } else {
+        break     # if we're below the max, exit the loop
+      }
+    }
+  }
+  orig_menu
+}
+
+
+
+restricted_menu <- restrict_all(menu)
+restricted_menu
+
+
+# for (m in seq_along(mr_df$must_restrict)) {
+#   nut_to_restrict <- mr_df$must_restrict[m]
+#   print(nut_to_restrict)
+#   to_restrict <- (sum(menu[[nut_to_restrict]] * menu$GmWt_1))/100
+#   print(to_restrict)
+# }
+
+
+
+
+
+# ------ next up
+# for each nutriet in <array of nutrients>, check whether we've met the required amount. if so, move on to the next
+  # if not, either
+    # a) adjust serving sizes of current foods (Gm_Wt1) until we've met the requirements
+        # increase the serving size of a food that is high in that nutrient. find out how many calories we incrased by when we made this adjustment
+        # correspondingly decrease the serving size of all other foods such that the calorie count stays the same after
+          # we make thse adjustments
+    # b) swap in food that is > 1 std_dev above the mean on the nutrient we're lacking for a food on our current menu that
+        # is low in that nutrient
+
+# need to keep checking that we're under the max calorie number
+
+
+
+
