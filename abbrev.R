@@ -336,6 +336,44 @@ lower_sodium
 
 
 
+#a different approach
+set.seed(105)
+resamp_sodium2 <- function(orig_meal) {
+  randomized <- abbrev[sample(nrow(abbrev)),]
+  randomized <- randomized %>% filter(!(is.na(Sodium_mg)) & !(is.na(Energ_Kcal)) & !(is.na(GmWt_1)))
+  
+  sodium <- (sum(orig_meal$Sodium_mg * orig_meal$GmWt_1))/100
+  print(paste0("original sodium is", sodium))
+  
+
+    for (j in seq_along(randomized)) {
+      if (sodium > 2400) {
+        print(paste0("sodium is ", sodium))
+        
+      max_sodium_offender <- which(orig_meal$Sodium_mg == max(orig_meal$Sodium_mg))   # get index of food with max sodium
+      print(paste0("index of max offender is ", max_sodium_offender))
+      
+      print(paste0("j is ", j))
+      orig_meal[max_sodium_offender, ] <- randomized[j, ]
+      
+      sodium <- (sum(orig_meal$Sodium_mg * orig_meal$GmWt_1))/100
+      print(paste0("sodium is now ", sodium))
+    }
+    print(paste0("sodium is now last", sodium))
+  }
+  orig_meal
+}
+
+
+lower_sodium2 <- resamp_sodium2(my_fourth_meal)
+lower_sodium2
+
+View(lower_sodium2)
+
+
+
+
+
 
 # not done
 # get_worst_foods_multiple <- function(dat, nut_vec, ...) {
