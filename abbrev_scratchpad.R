@@ -475,3 +475,93 @@ tsne_ab = tsne(ab[,3:6], epoch_callback = ecb, perplexity=20)
 
 
 
+
+
+
+
+# combine menu builder and nutrient restrictor
+
+build_menu2 <- function(df) {
+  randomized <- df[sample(nrow(df)),] %>%  # take our original df of all foods, randomize it, and
+    filter(!(is.na(Lipid_Tot_g)) & !(is.na(Sodium_mg)) & !(is.na(Cholestrl_mg)) & !(is.na(FA_Sat_g)) & !(is.na(GmWt_1)))   # filter out the columns that can't be NA
+  i <- sample(nrow(df), 1) # sample a random row from df and save its index in i
+  
+  cals <- 0   # set the builder variables to 0
+  sodium <- 0
+  menu <- NULL
+  
+  while (cals < 2300) {
+    this_food_cal <- (df$Energ_Kcal[i] * df$GmWt_1[i])/100    # get the number of calories in 1 serving of this food (see N = (V*W)/100 formula)
+    cals <- cals + this_food_cal    # add the calories in row of index i to the calorie sum variable
+    
+    menu <- rbind(menu, df[i,])   # add that row to our menu
+    
+    i <- sample(nrow(df), 1)   # resample a new index
+    
+    
+    for (m in seq_along(mr_df$must_restrict)) {    # for each row in the df of must_restricts
+      nut_to_restrict <- mr_df$must_restrict[m]    # grab the name of the nutrient we're restricting
+      print(paste0("------- nutrient we're restricting is ", nut_to_restrict, ". It has to be below ", mr_df$value[m]))
+      to_restrict <- (sum(orig_menu[[nut_to_restrict]] * orig_menu$GmWt_1))/100   # get the amount of that must restrict nutrient in our original menu
+      print(paste0("original total value of that nutrient in our menu is ", to_restrict))
+      
+      while (to_restrict > mr_df$value[m]) {     # if the amount of the must restrict in our current menu is above the max value it should be according to mr_df
+        max_offender <- which(orig_menu[[nut_to_restrict]] == max(orig_menu[[nut_to_restrict]]))   # get index of food that's the worst offender in this respect
+        
+        print(paste0("the worst offender in this respect is ", orig_menu[max_offender, ]$Shrt_Desc))
+        rand_row <- randomized[sample(nrow(randomized), 1), ]   # grab a random row from our df of all foods
+        print(paste0("we're replacing the worst offender with ", rand_row[["Shrt_Desc"]]))
+        orig_menu[max_offender, ] <- rand_row   # replace the max offender with the next row in the randomzied df
+        
+        to_restrict <- (sum(orig_menu[[nut_to_restrict]] * orig_menu$GmWt_1))/100   # recalculate the must restrict nutrient content
+        print(paste0("our new value of this must restrict is ", to_restrict))
+      }
+    }
+  }
+  menu    # return the full menu
+}
+
+menu2 <- build_menu2(abbrev)
+menu2
+
+View(menu)
+
+
+
+
+
+
+build_menu3 <- function(df) {
+  df <- df %>% filter(!(is.na(Lipid_Tot_g)) & !(is.na(Sodium_mg)) & !(is.na(Cholestrl_mg)) & !(is.na(FA_Sat_g)) & !(is.na(GmWt_1)))    # filter out rows that have NAs in columns that we need
+  i <- sample(nrow(df), 1) # sample a random row from df and save its index in i
+  
+  cals <- 0   # set the builder variables to 0
+  sodium <- 0
+  menu <- NULL
+  
+  while (cals < 2300) {
+    this_food_cal <- (df$Energ_Kcal[i] * df$GmWt_1[i])/100    # get the number of calories in 1 serving of this food (see N = (V*W)/100 formula)
+    cals <- cals + this_food_cal    # add the calories in row of index i to the calorie sum variable
+    
+    menu <- rbind(menu, df[i,])   # add that row to our menu
+    
+    i <- sample(nrow(df), 1)   # resample a new index
+    menu <- restrict_all(menu)    # work in progress incorporating restrict_all()
+  }
+  menu    # return the full menu
+}
+
+menu3 <- build_menu3(abbrev)
+menu3
+
+View(menu3)
+
+menu3_cals <- sum((menu3$Energ_Kcal * menu3$GmWt_1)/100)
+menu3_cals
+
+
+menu3_lipids <- (sum(menu3$Lipid_Tot_g * menu3$GmWt_1))/100
+menu3_lipids
+
+
+
