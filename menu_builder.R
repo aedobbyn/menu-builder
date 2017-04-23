@@ -19,7 +19,7 @@ set.seed(9)
 # until we're at or over 2300 calories
 
 build_menu <- function(df) {
-  df <- df %>% filter(!(is.na(Sodium_mg)) & !(is.na(Energ_Kcal)) & !(is.na(GmWt_1)))    # filter out rows that have NAs in columns that we need
+  df <- df %>% filter(!(is.na(Lipid_Tot_g)) & !(is.na(Sodium_mg)) & !(is.na(Cholestrl_mg)) & !(is.na(FA_Sat_g)) & !(is.na(GmWt_1)))    # filter out rows that have NAs in columns that we need
   i <- sample(nrow(df), 1) # sample a random row from df and save its index in i
   
   cals <- 0   # set the builder variables to 0
@@ -33,6 +33,7 @@ build_menu <- function(df) {
     menu <- rbind(menu, df[i,])   # add that row to our menu
     
     i <- sample(nrow(df), 1)   # resample a new index
+    # menu <- restrict_all(menu)    # work in progress incorporating restrict_all()
   }
   menu    # return the full menu
 }
@@ -42,6 +43,8 @@ menu
 
 View(menu)
 
+menu_cals <- sum((menu$Energ_Kcal * menu$GmWt_1)/100)
+menu_cals
 
 
 
@@ -114,8 +117,9 @@ restricted_menu
 setdiff(menu, restricted_menu)
 
 
-
-
+new_cals <- sum((restricted_menu$Energ_Kcal * restricted_menu$GmWt_1)/100)
+new_cals
+# too low!
 
 # ------ next up
 # for each nutriet in <array of nutrients>, check whether we've met the required amount. if so, move on to the next
