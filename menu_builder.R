@@ -82,44 +82,36 @@ setdiff(menu, low_sodium_menu)
 
 
 
-# generalize the must-restrict
 
 restrict_all <- function(orig_menu) {
   randomized <- abbrev[sample(nrow(abbrev)),] %>%  # take our original df of all foods, randomize it, and
-    filter(!(is.na(Sodium_mg)) & !(is.na(Energ_Kcal)) & !(is.na(GmWt_1)))   # filter out the columns that can't be NA
+    filter(!(is.na(Lipid_Tot_g)) & !(is.na(Sodium_mg)) & !(is.na(Cholestrl_mg)) & !(is.na(FA_Sat_g)) & !(is.na(GmWt_1)))   # filter out the columns that can't be NA
   
   for (m in seq_along(mr_df$must_restrict)) {    # for each row in the df of must_restricts
     nut_to_restrict <- mr_df$must_restrict[m]    # grab the name of the nutrient we're restricting
+    print(paste0("------- nutrient we're restricting is ", nut_to_restrict, ". It has to be below ", mr_df$value[m]))
     to_restrict <- (sum(orig_menu[[nut_to_restrict]] * orig_menu$GmWt_1))/100   # get the amount of that must restrict nutrient in our original menu
+    print(paste0("original total value of that nutrient in our menu is ", to_restrict))
     
-    for (j in seq_along(1:nrow(randomized))) {     # loop through the randomized df in order (equivalent to sampling randomly from our orignal df)
-      if (to_restrict > mr_df$value[m]) {     # if the amount of the must restrict in our current menu is above the max value it should be according to mr_df
-        max_offender <- which(orig_menu[[nut_to_restrict]] == max(orig_menu[[nut_to_restrict]]))   # get index of food that's the worst offender in this respect
-        
-        orig_menu[max_offender, ] <- randomized[j, ]   # replace the max offender with the next row in the randomzied df
-        
-        to_restrict <- (sum(orig_menu[[nut_to_restrict]] * orig_menu$GmWt_1))/100   # recalculate the must restrict nutrient content
-        
-      } else {
-        break     # if we're below the max, exit the loop
-      }
+    while (to_restrict > mr_df$value[m]) {     # if the amount of the must restrict in our current menu is above the max value it should be according to mr_df
+      max_offender <- which(orig_menu[[nut_to_restrict]] == max(orig_menu[[nut_to_restrict]]))   # get index of food that's the worst offender in this respect
+      
+      print(paste0("the worst offender in this respect is ", orig_menu[max_offender, ]$Shrt_Desc))
+      rand_row <- randomized[sample(nrow(randomized), 1), ]   # grab a random row from our df of all foods
+      print(paste0("we're replacing the worst offender with ", rand_row[["Shrt_Desc"]]))
+      orig_menu[max_offender, ] <- rand_row   # replace the max offender with the next row in the randomzied df
+      
+      to_restrict <- (sum(orig_menu[[nut_to_restrict]] * orig_menu$GmWt_1))/100   # recalculate the must restrict nutrient content
+      print(paste0("our new value of this must restrict is ", to_restrict))
     }
   }
   orig_menu
 }
 
-
-
 restricted_menu <- restrict_all(menu)
 restricted_menu
 
-
-# for (m in seq_along(mr_df$must_restrict)) {
-#   nut_to_restrict <- mr_df$must_restrict[m]
-#   print(nut_to_restrict)
-#   to_restrict <- (sum(menu[[nut_to_restrict]] * menu$GmWt_1))/100
-#   print(to_restrict)
-# }
+setdiff(menu, restricted_menu)
 
 
 
