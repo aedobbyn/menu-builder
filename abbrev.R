@@ -346,7 +346,7 @@ resamp_sodium2 <- function(orig_meal) {
   print(paste0("original sodium is", sodium))
   
 
-    for (j in seq_along(randomized)) {
+    for (j in seq_along(1:nrow(randomized))) {
       if (sodium > 2400) {
         print(paste0("sodium is ", sodium))
         
@@ -358,6 +358,8 @@ resamp_sodium2 <- function(orig_meal) {
       
       sodium <- (sum(orig_meal$Sodium_mg * orig_meal$GmWt_1))/100
       print(paste0("sodium is now ", sodium))
+      } else {
+      break
     }
     print(paste0("sodium is now last", sodium))
   }
