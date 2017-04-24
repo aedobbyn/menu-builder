@@ -565,3 +565,44 @@ menu3_lipids
 
 
 
+
+
+
+
+# ---- stable lower sodium menu function 
+
+
+# now get below the daily sodium threshold of 2400 by subbing out the food with the highest sodium
+# and putting a random one in its place
+
+restrict_sodium <- function(orig_menu) {
+  randomized <- abbrev[sample(nrow(abbrev)),] %>%  # take our original df of all foods, randomize it, and
+    filter(!(is.na(Sodium_mg)) & !(is.na(Energ_Kcal)) & !(is.na(GmWt_1)))   # filter out the columns that can't be NA
+
+  sodium <- (sum(orig_menu$Sodium_mg * orig_menu$GmWt_1))/100   # get the amount of sodium in our original menu
+
+  for (j in seq_along(1:nrow(randomized))) {     # loop through the randomized df in order (equivalent to sampling randomly from our orignal df)
+    if (sodium > 2400) {
+      max_sodium_offender <- which(orig_menu$Sodium_mg == max(orig_menu$Sodium_mg))   # get index of food with max sodium
+
+      orig_menu[max_sodium_offender, ] <- randomized[j, ]   # replace the max offender with the next row in the randomzied df
+
+      sodium <- (sum(orig_menu$Sodium_mg * orig_menu$GmWt_1))/100   # recalculate the sodium content
+
+    } else {
+      break     # if we're below 2400, exit the loop
+    }
+  }
+  orig_menu
+}
+
+
+low_sodium_menu <- restrict_sodium(menu)
+low_sodium_menu
+
+View(low_sodium_menu)
+
+# what did we swap out?
+setdiff(menu, low_sodium_menu)
+
+
