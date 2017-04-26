@@ -502,21 +502,23 @@ build_menu2 <- function(df) {
     for (m in seq_along(mr_df$must_restrict)) {    # for each row in the df of must_restricts
       nut_to_restrict <- mr_df$must_restrict[m]    # grab the name of the nutrient we're restricting
       print(paste0("------- nutrient we're restricting is ", nut_to_restrict, ". It has to be below ", mr_df$value[m]))
-      to_restrict <- (sum(orig_menu[[nut_to_restrict]] * orig_menu$GmWt_1))/100   # get the amount of that must restrict nutrient in our original menu
+      to_restrict <- (sum(menu[[nut_to_restrict]] * menu$GmWt_1))/100   # get the amount of that must restrict nutrient in our original menu
       print(paste0("original total value of that nutrient in our menu is ", to_restrict))
       
       while (to_restrict > mr_df$value[m]) {     # if the amount of the must restrict in our current menu is above the max value it should be according to mr_df
-        max_offender <- which(orig_menu[[nut_to_restrict]] == max(orig_menu[[nut_to_restrict]]))   # get index of food that's the worst offender in this respect
+        max_offender <- which(menu[[nut_to_restrict]] == max(menu[[nut_to_restrict]]))   # get index of food that's the worst offender in this respect
         
-        print(paste0("the worst offender in this respect is ", orig_menu[max_offender, ]$Shrt_Desc))
+        print(paste0("the worst offender in this respect is ", menu[max_offender, ]$Shrt_Desc))
         rand_row <- randomized[sample(nrow(randomized), 1), ]   # grab a random row from our df of all foods
         print(paste0("we're replacing the worst offender with ", rand_row[["Shrt_Desc"]]))
-        orig_menu[max_offender, ] <- rand_row   # replace the max offender with the next row in the randomzied df
+        menu[max_offender, ] <- rand_row   # replace the max offender with the next row in the randomzied df
         
-        to_restrict <- (sum(orig_menu[[nut_to_restrict]] * orig_menu$GmWt_1))/100   # recalculate the must restrict nutrient content
+        to_restrict <- (sum(menu[[nut_to_restrict]] * menu$GmWt_1))/100   # recalculate the must restrict nutrient content
         print(paste0("our new value of this must restrict is ", to_restrict))
       }
+      menu
     }
+    menu
   }
   menu    # return the full menu
 }
@@ -524,8 +526,10 @@ build_menu2 <- function(df) {
 menu2 <- build_menu2(abbrev)
 menu2
 
-View(menu)
+View(menu2)
 
+menu2_cals <- sum((menu2$Energ_Kcal * menu2$GmWt_1)/100)
+menu2_cals
 
 
 
@@ -606,3 +610,34 @@ View(low_sodium_menu)
 setdiff(menu, low_sodium_menu)
 
 
+
+
+
+
+# take just the firt three positives
+pos_df_pared <- pos_df[1:3, ]
+
+adjust_portion_sizes <- function(orig_menu) {
+  orig_menu <- orig_menu %>% filter(
+    (!(is.na(Manganese_mg)) & !(is.na(GmWt_1)) & !(is.na(Magnesium_mg))))
+  for (p in seq_along(pos_df$positive_nut)) {    # for each row in the df of must_restricts
+    nut_to_augment <- pos_df$positive_nut[p]    # grab the name of the nutrient we're restricting
+    print(paste0("------- nutrient we need more of is is ", nut_to_augment, ". It has to be above ", pos_df$value[p]))
+    to_augment <- (sum(orig_menu[[nut_to_augment]] * orig_menu$GmWt_1))/100   # get the amount of that must restrict nutrient in our original menu
+    print(paste0("original total value of that nutrient in our menu is ", to_augment))
+    
+    while (to_augment < pos_df$value[p]) {     # if the amount of the must restrict in our current menu is above the max value it should be according to mr_df
+      max_pos <- which(orig_menu[[to_augment]] == max(orig_menu[[to_augment]]))   # get index of food that's the worst offender in this respect
+      
+      print(paste0("the best food in this respect is ", orig_menu[max_pos, ]$Shrt_Desc))
+      
+      orig_menu[max_pos, ]$GmWt_1 <- (orig_menu[max_pos, ]$GmWt_1) * 1.1   # augment by 10%
+      
+      to_augment <- (sum(orig_menu[[nut_to_augment]] * orig_menu$GmWt_1))/100   # recalculate the must restrict nutrient content
+      print(paste0("our new value of this nutrient is ", to_augment))
+    }
+  }
+}
+  
+more_nutritious <- adjust_portion_sizes(menu)
+more_nutritious

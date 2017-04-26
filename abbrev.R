@@ -33,7 +33,7 @@ positives
 pos_nuts <- positives[4:18]
 pos_vals <- c(1000, 18, 400, 1000, 3500, 15, 2, 2, 70, 60, 2, 2, 20, 10, 2)
 
-pos_df <- as_tibble(list(must_restrict = pos_nuts, value = pos_vals))
+pos_df <- as_tibble(list(positive_nut = pos_nuts, value = pos_vals))
 pos_hash <- hash(pos_nuts, pos_vals)
 pos_hash
 

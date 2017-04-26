@@ -3,7 +3,8 @@
 source("./abbrev.R")
 
 # minimum daily calories: 2300 kcal
-# max sodium: 2400 mg
+# maximum daily must_restrict values appear in mr_df and mr_hash
+# minimum daily positive nutrient values a
 
 # according to USDA documentation, to get nutrients in 1 serving of food: 
 # N = (V*W)/100
