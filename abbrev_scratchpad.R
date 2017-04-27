@@ -615,7 +615,7 @@ setdiff(menu, low_sodium_menu)
 
 
 # take just the firt three positives
-pos_df_pared <- pos_df[1:3, ]
+pos_df <- pos_df[-c(3,8) ]
 
 orig_menu <- orig_menu %>% drop_na(
   pos_df$positive_nut
@@ -623,42 +623,40 @@ orig_menu <- orig_menu %>% drop_na(
 
 
 adjust_portion_sizes <- function(orig_menu) {
-  orig_menu <- orig_menu %>% drop_na_(pos_df$positive_nut) %>% filter(!(is.na(Energ_Kcal)) & !(is.na(GmWt_1)))
-  print(orig_menu)
-  for (p in seq_along(pos_df$positive_nut)) {    # for each row in the df of must_restricts
-    nut_to_augment <- pos_df$positive_nut[p]    # grab the name of the nutrient we're restricting
+  orig_menu <- orig_menu %>% drop_na_(pos_df$positive_nut) %>% filter(!(is.na(Energ_Kcal)) & !(is.na(GmWt_1))) %>% select(-Magnesium_mg)
+  for (p in seq_along(pos_df$positive_nut)) {    # for each row in the df of positives
+    nut_to_augment <- pos_df$positive_nut[p]    # grab the name of the nutrient we're examining
     print(paste0("------- nutrient we're considering is ", nut_to_augment, ". It has to be above ", pos_df$value[p]))
-    to_augment <- (sum(orig_menu[[nut_to_augment]] * orig_menu$GmWt_1))/100   # get the amount of that must restrict nutrient in our original menu
+    to_augment <- (sum(orig_menu[[nut_to_augment]] * orig_menu$GmWt_1))/100   # get the total amount of that nutrient in our original menu
     print(paste0("original total value of that nutrient in our menu is ", to_augment))
     
-    while (to_augment < pos_df$value[p]) {     # if the amount of the must restrict in our current menu is above the max value it should be according to mr_df
-      max_pos <- which(orig_menu[[to_augment]] == max(orig_menu[[to_augment]]))   # get index of food that's the worst offender in this respect
-      print(paste0("this max pos is", max_pos))
-      
+    while (to_augment < pos_df$value[p]) {     # if the amount of the must restrict in our current menu is below the min daily value it should be according to pos_df
+      max_pos <- which(orig_menu[[nut_to_augment]] == max(orig_menu[[nut_to_augment]]))   # get index of food that's the best in this respect
+
       print(paste0("the best food in this respect is ", orig_menu[max_pos, ]$Shrt_Desc))
       
-      orig_menu[max_pos, ]$GmWt_1 <- (orig_menu[max_pos, ]$GmWt_1) * 1.1   # augment by 10%
+      new_gmwt <- (orig_menu[max_pos, ]$GmWt_1) * 1.1
       
+      orig_menu[max_pos, ]$GmWt_1 <- new_gmwt   # augment by 10%
+      
+      # cal_increase <- 
       
       # figure out how many calories we increased by and reduce all other ingredients by that / number of ingredients in meal
       
       
-      to_augment <- (sum(orig_menu[[nut_to_augment]] * orig_menu$GmWt_1))/100   # recalculate the must restrict nutrient content
+      to_augment <- (sum(orig_menu[[nut_to_augment]] * new_gmwt))/100   # recalculate the nutrient content
       print(paste0("our new value of this nutrient is ", to_augment))
     }
+    to_augment
   }
+  orig_menu
 }
   
 more_nutritious <- adjust_portion_sizes(menu)
 more_nutritious
 
-(sum(menu[["Phosphorus_mg"]] * menu$GmWt_1))/100
 
+pared_menu <- menu %>% drop_na_(pos_df$positive_nut) %>% filter(!(is.na(Energ_Kcal)) & !(is.na(GmWt_1))) %>% select(-Magnesium_mg)
+which(pared_menu[["Manganese_mg"]] == max(pared_menu[["Manganese_mg"]]))
 
-menu_pared <- menu %>% drop_na_(
-  pos_df$positive_nut)
-
-
-orig_menu <- orig_menu %>% drop_na(
-  pos_df$positive_nut
-)
+menu[19, ]$GmWt_1
