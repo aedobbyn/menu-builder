@@ -632,17 +632,17 @@ adjust_portion_sizes <- function(orig_menu) {
     
     while (to_augment < pos_df$value[p]) {     # if the amount of the must restrict in our current menu is below the min daily value it should be according to pos_df
       max_pos <- which(orig_menu[[nut_to_augment]] == max(orig_menu[[nut_to_augment]]))   # get index of food that's the best in this respect
+      starting_cals <- (orig_menu[max_pos, ]$Energ_Kcal * orig_menu[max_pos, ]$GmWt_1)/100
+      print(paste0("the best food in this respect is ", orig_menu[max_pos, ]$Shrt_Desc, ". It contributes ", starting_cals, " calories."))
+      
+      new_gmwt <- (orig_menu[max_pos, ]$GmWt_1) * 1.1 # augment by 10%
+      orig_menu[max_pos, ]$GmWt_1 <- new_gmwt   # replace the value with the augmented one
+      
+      new_cals <- (orig_menu[max_pos, ]$Energ_Kcal * orig_menu[max_pos, ]$GmWt_1)/100
+      print(paste0("New cals are ", new_cals, " calories."))
+      
+      cal_diff <- new_cals - starting_cals
 
-      print(paste0("the best food in this respect is ", orig_menu[max_pos, ]$Shrt_Desc))
-      
-      new_gmwt <- (orig_menu[max_pos, ]$GmWt_1) * 1.1
-      
-      orig_menu[max_pos, ]$GmWt_1 <- new_gmwt   # augment by 10%
-      
-      # cal_increase <- 
-      
-      # figure out how many calories we increased by and reduce all other ingredients by that / number of ingredients in meal
-      
       
       to_augment <- (sum(orig_menu[[nut_to_augment]] * new_gmwt))/100   # recalculate the nutrient content
       print(paste0("our new value of this nutrient is ", to_augment))
