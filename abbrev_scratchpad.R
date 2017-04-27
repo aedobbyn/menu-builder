@@ -641,10 +641,22 @@ adjust_portion_sizes <- function(orig_menu) {
       new_cals <- (orig_menu[max_pos, ]$Energ_Kcal * orig_menu[max_pos, ]$GmWt_1)/100
       print(paste0("New cals are ", new_cals, " calories."))
       
-      cal_diff <- new_cals - starting_cals
+            cal_diff <- new_cals - starting_cals
+            
+            food_w_max_cals <- which(orig_menu[-max_pos, ]$Energ_Kcal == max(orig_menu[-max_pos, ]$Energ_Kcal))   # what is the index of the food that isn't our max_pos is currently most calorie dense?
+            cals_of_food_w_max_cals <- (menu[-max_pos, ]$Energ_Kcal[food_w_max_cals] * menu[-max_pos, ]$GmWt_1[food_w_max_cals])/100
+            print(paste0("Food with max cals is  ", orig_menu[-max_pos, ]$Shrt_Desc[food_w_max_cals], " at ", cals_of_food_w_max_cals))
+            
+            new_cals_need_to_be <- cals_of_food_w_max_cals - cal_diff
+            print(paste0("New cals of max cal food is  ", new_cals_need_to_be))
+            
+            new_weight_needs_to_be <- new_cals_need_to_be*100 / menu[-max_pos, ]$Energ_Kcal[food_w_max_cals]
+            
+            orig_menu[food_w_max_cals, ]$GmWt_1 <- new_weight_needs_to_be
 
-      
       to_augment <- (sum(orig_menu[[nut_to_augment]] * new_gmwt))/100   # recalculate the nutrient content
+      
+      
       print(paste0("our new value of this nutrient is ", to_augment))
     }
     to_augment
@@ -660,3 +672,13 @@ pared_menu <- menu %>% drop_na_(pos_df$positive_nut) %>% filter(!(is.na(Energ_Kc
 which(pared_menu[["Manganese_mg"]] == max(pared_menu[["Manganese_mg"]]))
 
 menu[19, ]$GmWt_1
+
+
+
+which(menu[-2, ]$Energ_Kcal * menu[-2, ]$GmWt_1 == max(menu[-2, ]$Energ_Kcal * menu[-2, ]$GmWt_1))
+
+menu[-2, ]$Energ_Kcal[4] * menu[-2, ]$GmWt_1[4]
+menu[-2, ]$Energ_Kcal[9] * menu[-2, ]$GmWt_1[9]
+
+
+
