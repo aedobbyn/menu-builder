@@ -926,6 +926,7 @@ test_pos_compliance <- function(orig_menu) {
     if (val_nut_to_augment < pos_df$value[p]) {
       this_compliance <- paste0("Not compliant on ", nut_to_augment)
       compliance <- c(this_compliance, compliance)
+      
     }
   }
   compliance
@@ -936,6 +937,26 @@ test_pos_compliance(menu)
 test_pos_compliance(restricted_menu)
 
 test_pos_compliance(more_nutritious)
+
+
+test_all_compliance <- function(orig_menu) {
+  combined_compliance <- "Undetermined"
+  
+  if (length(test_mr_compliance(orig_menu)) + length(test_pos_compliance(orig_menu)) > 0) {
+    combined_compliance <- "Not Compliant"
+  } else if (length(test_mr_compliance(orig_menu)) + length(test_pos_compliance(orig_menu)) > 0) {
+    combined_compliance <- "Compliant"
+  } else {
+    combined_compliance <- "Undetermined"
+  }
+  
+  combined_compliance
+}
+
+test_all_compliance(menu)
+
+
+
 
 
 
