@@ -134,7 +134,7 @@ adjust_portion_sizes <- function(orig_menu) {
 
 more_nutritious <- adjust_portion_sizes(menu)
 more_nutritious
-
+View(more_nutritious)
 
 
 

@@ -638,17 +638,17 @@ adjust_portion_sizes <- function(orig_menu) {
       new_gmwt <- (orig_menu[max_pos, ]$GmWt_1) * 1.1 # augment by 10%
       orig_menu[max_pos, ]$GmWt_1 <- new_gmwt   # replace the value with the augmented one
       
-      new_cals <- (orig_menu[max_pos, ]$Energ_Kcal * orig_menu[max_pos, ]$GmWt_1)/100
-      print(paste0("New cals are ", new_cals, " calories."))
+            new_cals <- (orig_menu[max_pos, ]$Energ_Kcal * orig_menu[max_pos, ]$GmWt_1)/100
+            print(paste0("New cals contributed by our max positive are ", new_cals, " calories."))
       
             cal_diff <- new_cals - starting_cals
             
             food_w_max_cals <- which(orig_menu[-max_pos, ]$Energ_Kcal == max(orig_menu[-max_pos, ]$Energ_Kcal))   # what is the index of the food that isn't our max_pos is currently most calorie dense?
             cals_of_food_w_max_cals <- (menu[-max_pos, ]$Energ_Kcal[food_w_max_cals] * menu[-max_pos, ]$GmWt_1[food_w_max_cals])/100
-            print(paste0("Food with max cals is  ", orig_menu[-max_pos, ]$Shrt_Desc[food_w_max_cals], " at ", cals_of_food_w_max_cals))
+            print(paste0("The food with the most calories that isn't our max positive is  ", orig_menu[-max_pos, ]$Shrt_Desc[food_w_max_cals], " at ", cals_of_food_w_max_cals))
             
             new_cals_need_to_be <- cals_of_food_w_max_cals - cal_diff
-            print(paste0("New cals of max cal food is  ", new_cals_need_to_be))
+            print(paste0("We've reduced the calories of the food with the most calories to  ", new_cals_need_to_be))
             
             new_weight_needs_to_be <- new_cals_need_to_be*100 / menu[-max_pos, ]$Energ_Kcal[food_w_max_cals]
             
@@ -659,7 +659,7 @@ adjust_portion_sizes <- function(orig_menu) {
       
       print(paste0("our new value of this nutrient is ", to_augment))
     }
-    to_augment
+    # orig_menu
   }
   orig_menu
 }
@@ -680,5 +680,44 @@ which(menu[-2, ]$Energ_Kcal * menu[-2, ]$GmWt_1 == max(menu[-2, ]$Energ_Kcal * m
 menu[-2, ]$Energ_Kcal[4] * menu[-2, ]$GmWt_1[4]
 menu[-2, ]$Energ_Kcal[9] * menu[-2, ]$GmWt_1[9]
 
+
+
+
+reduce_calories <- function(orig_menu) {
+  nut_to_augment <- "Riboflavin_mg"
+  to_augment <- (sum(orig_menu[[nut_to_augment]] * orig_menu$GmWt_1))/100
+  
+  while (to_augment < 20) { 
+    
+    max_pos <- which(orig_menu[[nut_to_augment]] == max(orig_menu[[nut_to_augment]]))   # get index of food that's the best in this respect
+    starting_cals <- (orig_menu[max_pos, ]$Energ_Kcal * orig_menu[max_pos, ]$GmWt_1)/100
+    print(paste0("the best food in this respect is ", orig_menu[max_pos, ]$Shrt_Desc, ". It contributes ", starting_cals, " calories."))
+    
+    new_gmwt <- (orig_menu[max_pos, ]$GmWt_1) * 1.1 # augment by 10%
+    orig_menu[max_pos, ]$GmWt_1 <- new_gmwt   # replace the value with the augmented one
+    
+    
+    new_cals <- (orig_menu[max_pos, ]$Energ_Kcal * new_gmwt)/100
+    print(paste0("New cals contributed by our max positive are ", new_cals, " calories."))
+    
+    to_augment <- (sum(orig_menu[[nut_to_augment]] * orig_menu$GmWt_1))/100
+    
+    cal_diff <- new_cals - starting_cals
+    
+    food_w_max_cals <- which(orig_menu[-max_pos, ]$Energ_Kcal == max(orig_menu[-max_pos, ]$Energ_Kcal))   # what is the index of the food that isn't our max_pos is currently most calorie dense?
+    cals_of_food_w_max_cals <- (menu[-max_pos, ]$Energ_Kcal[food_w_max_cals] * menu[-max_pos, ]$GmWt_1[food_w_max_cals])/100
+    print(paste0("The food with the most calories that isn't our max positive is  ", orig_menu[-max_pos, ]$Shrt_Desc[food_w_max_cals], " at ", cals_of_food_w_max_cals))
+    
+    new_cals_need_to_be <- cals_of_food_w_max_cals - cal_diff
+    print(paste0("We've reduced the calories of the food with the most calories to  ", new_cals_need_to_be))
+    
+    new_weight_needs_to_be <- new_cals_need_to_be*100 / menu[-max_pos, ]$Energ_Kcal[food_w_max_cals]
+    
+    orig_menu[food_w_max_cals, ]$GmWt_1 <- new_weight_needs_to_be
+  }
+  orig_menu
+}
+  
+reduced_calories <- reduce_calories(menu)
 
 
