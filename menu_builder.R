@@ -173,3 +173,118 @@ diff
 which(!menu$GmWt_1 %in% more_nutritious3$GmWt_1)
 
 
+
+
+
+
+
+
+# -------- Compliance Tests ---------
+
+
+test_mr_compliance <- function(orig_menu) {
+  compliance <- vector()
+  
+  for (m in seq_along(mr_df$must_restrict)) {    # for each row in the df of must_restricts
+    nut_to_restrict <- mr_df$must_restrict[m]    # grab the name of the nutrient we're restricting
+    to_restrict <- (sum(orig_menu[[nut_to_restrict]] * orig_menu$GmWt_1))/100   # get the amount of that must restrict nutrient in our original menu
+    
+    if (to_restrict > mr_df$value[m]) {
+      this_compliance <- paste0("Not compliant on ", nut_to_restrict)
+      compliance <- c(this_compliance, compliance)
+    }
+  }
+  compliance
+}
+
+
+test_mr_compliance(menu)
+test_mr_compliance(restricted_menu)
+
+
+
+
+
+test_pos_compliance <- function(orig_menu) {
+  orig_menu <- orig_menu %>% drop_na_(pos_df$positive_nut) %>% filter(!(is.na(Energ_Kcal)) & !(is.na(GmWt_1)))
+  compliance <- vector()
+  
+  for (p in seq_along(pos_df$positive_nut)) {    # for each row in the df of positives
+    nut_to_augment <- pos_df$positive_nut[p]    # grab the name of the nutrient we're examining
+    val_nut_to_augment <- (sum(orig_menu[[nut_to_augment]] * orig_menu$GmWt_1))/100   # get the total amount of that nutrient in our original menu
+
+    
+    if (val_nut_to_augment < pos_df$value[p]) {
+      this_compliance <- paste0("Not compliant on ", nut_to_augment)
+      compliance <- c(this_compliance, compliance)
+      
+    }
+  }
+  compliance
+}
+
+
+test_pos_compliance(menu)
+test_pos_compliance(restricted_menu)
+test_pos_compliance(more_nutritious)
+
+
+test_all_compliance <- function(orig_menu) {
+  combined_compliance <- "Undetermined"
+  
+  if (length(test_mr_compliance(orig_menu)) + length(test_pos_compliance(orig_menu)) > 0) {
+    combined_compliance <- "Not Compliant"
+  } else if (length(test_mr_compliance(orig_menu)) + length(test_pos_compliance(orig_menu)) > 0) {
+    combined_compliance <- "Compliant"
+  } else {
+    combined_compliance <- "Undetermined"
+  }
+  
+  combined_compliance
+}
+
+test_all_compliance(menu)
+
+
+
+
+
+master_builder <- function(our_menu) {
+  # our_menu <- menu(build_menu)   # seed with a random menu
+  
+  # first put it through the restrictor
+  our_menu <- restrict_all(our_menu)
+  
+  # define conditions
+  total_cals <- sum((our_menu$Energ_Kcal * our_menu$GmWt_1))/100 
+  
+  if (total_cals < 2300 | 
+         (length(test_mr_compliance(our_menu)) + length(test_pos_compliance(our_menu)) > 0)) {
+    
+    if (total_cals < 2300) {
+      our_menu <- build_menu(our_menu)
+      
+    } else if (length(test_mr_compliance(our_menu))) {
+      our_menu <- restrict_all(our_menu)
+      
+    } else if (length(test_pos_compliance(our_menu))) {
+      our_menu <- adjust_portion_sizes(our_menu)
+      
+    } else {
+      print("idk what's up")
+    }
+    
+  }
+  our_menu
+}
+
+master_menu <- master_builder(menu)
+master_menu
+
+
+setdiff(master_menu, menu)
+
+
+
+
+

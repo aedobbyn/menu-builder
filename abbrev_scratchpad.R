@@ -850,39 +850,6 @@ which(!menu$GmWt_1 %in% more_nutritious3$GmWt_1)
 
 
 
-master_builder <- function(our_menu) {
-  # our_menu <- menu(build_menu)   # seed with a random menu
-  
-  # first put it through the restrictor
-  our_menu <- restrict_all(our_menu)
-  
-  # define conditions
-  total_cals <- sum((our_menu$Energ_Kcal * our_menu$GmWt_1))/100 
-  
-  while (total_cals < 2300 | to_restrict > mr_df$value[m] | val_nut_to_augment < pos_df$value[p]) {
-    
-    if (total_cals < 2300) {
-      our_menu <- build_menu(our_menu)
-      
-    } else if (to_restrict > mr_df$value[m]) {
-      our_menu <- restrict_all(our_menu)
-      
-    } else if (val_nut_to_augment < pos_df$value[p]) {
-      our_menu <- adjust_portion_sizes(our_menu)
-      
-    } else {
-      print("idk what's up")
-    }
-    
-  }
-  our_menu
-}
-
-master_menu <- master_builder(menu)
-master_menu
-
-
-setdiff(master_menu, menu)
 
 
 
@@ -956,6 +923,43 @@ test_all_compliance <- function(orig_menu) {
 test_all_compliance(menu)
 
 
+
+
+
+
+master_builder <- function(our_menu) {
+  # our_menu <- menu(build_menu)   # seed with a random menu
+  
+  # first put it through the restrictor
+  our_menu <- restrict_all(our_menu)
+  
+  # define conditions
+  total_cals <- sum((our_menu$Energ_Kcal * our_menu$GmWt_1))/100 
+  
+  while (length(test_mr_compliance(our_menu)) + length(test_pos_compliance(our_menu)) > 0) {
+    
+    if (total_cals < 2300) {
+      our_menu <- build_menu(our_menu)
+      
+    } else if (to_restrict > mr_df$value[m]) {
+      our_menu <- restrict_all(our_menu)
+      
+    } else if (val_nut_to_augment < pos_df$value[p]) {
+      our_menu <- adjust_portion_sizes(our_menu)
+      
+    } else {
+      print("idk what's up")
+    }
+    
+  }
+  our_menu
+}
+
+master_menu <- master_builder(menu)
+master_menu
+
+
+setdiff(master_menu, menu)
 
 
 
