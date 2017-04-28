@@ -721,3 +721,55 @@ reduce_calories <- function(orig_menu) {
 reduced_calories <- reduce_calories(menu)
 
 
+
+
+
+
+
+
+
+adjust_portion_sizes2 <- function(orig_menu) {
+  orig_menu <- orig_menu %>% drop_na_(pos_df$positive_nut) %>% filter(!(is.na(Energ_Kcal)) & !(is.na(GmWt_1))) %>% select(-Magnesium_mg)
+  for (p in seq_along(pos_df$positive_nut)) {    # for each row in the df of positives
+    nut_to_augment <- pos_df$positive_nut[p]    # grab the name of the nutrient we're examining
+    print(paste0("------- nutrient we're considering is ", nut_to_augment, ". It has to be above ", pos_df$value[p]))
+    to_augment <- (sum(orig_menu[[nut_to_augment]] * orig_menu$GmWt_1))/100   # get the total amount of that nutrient in our original menu
+    print(paste0("original total value of that nutrient in our menu is ", to_augment))
+    
+    while (to_augment < pos_df$value[p]) {     # if the amount of the must restrict in our current menu is below the min daily value it should be according to pos_df
+      max_pos <- which(orig_menu[[nut_to_augment]] == max(orig_menu[[nut_to_augment]]))   # get index of food that's the best in this respect
+      starting_cals <- (orig_menu[max_pos, ]$Energ_Kcal * orig_menu[max_pos, ]$GmWt_1)/100
+      print(paste0("the best food in this respect is ", orig_menu[max_pos, ]$Shrt_Desc, ". It contributes ", starting_cals, " calories."))
+      
+      new_gmwt <- (orig_menu[max_pos, ]$GmWt_1) * 1.1 # augment by 10%
+      orig_menu[max_pos, ]$GmWt_1 <- new_gmwt   # replace the value with the augmented one
+      
+      
+      new_cals <- (orig_menu[max_pos, ]$Energ_Kcal * new_gmwt)/100
+      print(paste0("New cals contributed by our max positive are ", new_cals, " calories."))
+      
+      to_augment <- (sum(orig_menu[[nut_to_augment]] * orig_menu$GmWt_1))/100
+      
+      cal_diff <- new_cals - starting_cals
+      
+      food_w_max_cals <- which(orig_menu[-max_pos, ]$Energ_Kcal == max(orig_menu[-max_pos, ]$Energ_Kcal))   # what is the index of the food that isn't our max_pos is currently most calorie dense?
+      cals_of_food_w_max_cals <- (menu[-max_pos, ]$Energ_Kcal[food_w_max_cals] * menu[-max_pos, ]$GmWt_1[food_w_max_cals])/100
+      print(paste0("The food with the most calories that isn't our max positive is  ", orig_menu[-max_pos, ]$Shrt_Desc[food_w_max_cals], " at ", cals_of_food_w_max_cals))
+      
+      new_cals_need_to_be <- cals_of_food_w_max_cals - cal_diff
+      print(paste0("We've reduced the calories of the food with the most calories to  ", new_cals_need_to_be))
+      
+      new_weight_needs_to_be <- new_cals_need_to_be*100 / menu[-max_pos, ]$Energ_Kcal[food_w_max_cals]
+      
+      orig_menu[food_w_max_cals, ]$GmWt_1 <- new_weight_needs_to_be
+      
+      print(paste0("our new value of this nutrient is ", to_augment))
+    }
+    # orig_menu
+  }
+  orig_menu
+}
+
+more_nutritious2 <- adjust_portion_sizes2(menu)
+more_nutritious2
+
