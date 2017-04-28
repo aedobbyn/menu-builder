@@ -910,3 +910,32 @@ test_mr_compliance(restricted_menu)
 
 
 
+
+test_pos_compliance <- function(orig_menu) {
+  orig_menu <- orig_menu %>% drop_na_(pos_df$positive_nut) %>% filter(!(is.na(Energ_Kcal)) & !(is.na(GmWt_1)))
+  compliance <- vector()
+  
+  for (p in seq_along(pos_df$positive_nut)) {    # for each row in the df of positives
+    nut_to_augment <- pos_df$positive_nut[p]    # grab the name of the nutrient we're examining
+    print(paste0("------- The nutrient we're considering is ", nut_to_augment, ". It has to be above ", pos_df$value[p]))
+    
+    val_nut_to_augment <- (sum(orig_menu[[nut_to_augment]] * orig_menu$GmWt_1))/100   # get the total amount of that nutrient in our original menu
+    print(paste0("The original total value of that nutrient in our menu is ", val_nut_to_augment))
+    
+    
+    if (val_nut_to_augment < pos_df$value[p]) {
+      this_compliance <- paste0("Not compliant on ", nut_to_augment)
+      compliance <- c(this_compliance, compliance)
+    }
+  }
+  compliance
+}
+
+
+test_pos_compliance(menu)
+test_pos_compliance(restricted_menu)
+
+test_pos_compliance(more_nutritious)
+
+
+
