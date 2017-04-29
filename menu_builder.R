@@ -178,7 +178,6 @@ add_calories <- function(orig_menu) {
   
   while (cals < 2300) {
     this_food_cal <- (df$Energ_Kcal[i] * df$GmWt_1[i])/100    # get the number of calories in 1 serving of this food (see N = (V*W)/100 formula)
-    print(paste0("cals: ", df$Energ_Kcal[i], "gmwt: ", df$GmWt_1[i]))
     cals <- cals + this_food_cal    # add the calories in row of index i to the calorie sum variable
     
     menu <- rbind(menu, df[i,])   # add that row to our menu
@@ -249,7 +248,7 @@ test_all_compliance <- function(orig_menu) {
   
   if (length(test_mr_compliance(orig_menu)) + length(test_pos_compliance(orig_menu)) > 0) {
     combined_compliance <- "Not Compliant"
-  } else if (length(test_mr_compliance(orig_menu)) + length(test_pos_compliance(orig_menu)) > 0) {
+  } else if (length(test_mr_compliance(orig_menu)) + length(test_pos_compliance(orig_menu)) == 0) {
     combined_compliance <- "Compliant"
   } else {
     combined_compliance <- "Undetermined"
@@ -313,6 +312,11 @@ setdiff(master_menu, menu)
 
 # test its compliance
 test_all_compliance(master_menu)
+
+
+test_mr_compliance(master_menu)
+test_pos_compliance(master_menu)
+
 
 
 

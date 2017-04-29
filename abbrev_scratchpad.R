@@ -1102,7 +1102,7 @@ add_calories <- function(orig_menu) {
 
     while (cals < 2300) {
       this_food_cal <- (df$Energ_Kcal[i] * df$GmWt_1[i])/100    # get the number of calories in 1 serving of this food (see N = (V*W)/100 formula)
-      print(paste0("cals: ", df$Energ_Kcal[i], "gmwt: ", df$GmWt_1[i]))
+      # print(paste0("cals: ", df$Energ_Kcal[i], "gmwt: ", df$GmWt_1[i]))
       cals <- cals + this_food_cal    # add the calories in row of index i to the calorie sum variable
       
       menu <- rbind(menu, df[i,])   # add that row to our menu
@@ -1115,7 +1115,7 @@ add_calories <- function(orig_menu) {
 
 restricted_plus_cals <- add_calories(restricted_menu)
 
-
+test_calories(restricted_plus_cals)
 
 
 
