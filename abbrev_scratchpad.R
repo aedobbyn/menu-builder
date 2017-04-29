@@ -980,3 +980,142 @@ setdiff(master_menu, menu)
 
 
 
+
+
+# -------------------------------------------------------------
+
+restrict_all <- function(orig_menu) {
+  randomized <- abbrev[sample(nrow(abbrev)),] %>%  # take our original df of all foods, randomize it, and
+    filter(!(is.na(Lipid_Tot_g)) & !(is.na(Sodium_mg)) & !(is.na(Cholestrl_mg)) & !(is.na(FA_Sat_g)) & !(is.na(GmWt_1)))   # filter out the columns that can't be NA
+  
+  while(length(test_mr_compliance(orig_menu)) > 0) {
+    
+    for (m in seq_along(mr_df$must_restrict)) {    # for each row in the df of must_restricts
+      nut_to_restrict <- mr_df$must_restrict[m]    # grab the name of the nutrient we're restricting
+      print(paste0("------- nutrient we're restricting is ", nut_to_restrict, ". It has to be below ", mr_df$value[m]))
+      to_restrict <- (sum(orig_menu[[nut_to_restrict]] * orig_menu$GmWt_1))/100   # get the amount of that must restrict nutrient in our original menu
+      print(paste0("original total value of that nutrient in our menu is ", to_restrict))
+      
+      while (to_restrict > mr_df$value[m]) {     # if the amount of the must restrict in our current menu is above the max value it should be according to mr_df
+        max_offender <- which(orig_menu[[nut_to_restrict]] == max(orig_menu[[nut_to_restrict]]))   # get index of food that's the worst offender in this respect
+        
+        print(paste0("the worst offender in this respect is ", orig_menu[max_offender, ]$Shrt_Desc))
+        rand_row <- randomized[sample(nrow(randomized), 1), ]   # grab a random row from our df of all foods
+        print(paste0("we're replacing the worst offender with ", rand_row[["Shrt_Desc"]]))
+        orig_menu[max_offender, ] <- rand_row   # replace the max offender with the next row in the randomzied df
+        
+        to_restrict <- (sum(orig_menu[[nut_to_restrict]] * orig_menu$GmWt_1))/100   # recalculate the must restrict nutrient content
+        print(paste0("our new value of this must restrict is ", to_restrict))
+      }
+    }
+  }
+  orig_menu
+}
+
+restricted_menu <- restrict_all(menu)
+restricted_menu
+
+test_mr_compliance(restricted_menu)
+
+
+
+
+
+
+
+adjust_portion_sizes <- function(orig_menu) {
+  orig_menu <- orig_menu %>% drop_na_(pos_df$positive_nut) %>% filter(!(is.na(Energ_Kcal)) & !(is.na(GmWt_1)))
+  
+  
+  while(length(test_pos_compliance(orig_menu)) > 0) {
+  
+    for (p in seq_along(pos_df$positive_nut)) {    # for each row in the df of positives
+      nut_to_augment <- pos_df$positive_nut[p]    # grab the name of the nutrient we're examining
+      print(paste0("------- The nutrient we're considering is ", nut_to_augment, ". It has to be above ", pos_df$value[p]))
+      
+      val_nut_to_augment <- (sum(orig_menu[[nut_to_augment]] * orig_menu$GmWt_1))/100   # get the total amount of that nutrient in our original menu
+      print(paste0("The original total value of that nutrient in our menu is ", val_nut_to_augment))
+      
+      
+      while (val_nut_to_augment < pos_df$value[p]) {     # if the amount of the must restrict in our current menu is below the min daily value it should be according to pos_df
+        
+        # Find the max_pos and its starting calorie count
+        max_pos <- which(orig_menu[[nut_to_augment]] == max(orig_menu[[nut_to_augment]]))   # get index of food that's the best in this respect
+        max_pos_starting_cals <- (orig_menu[max_pos, ]$Energ_Kcal * orig_menu[max_pos, ]$GmWt_1)/100
+        print(paste0("The best food in this respect is ", orig_menu[max_pos, ]$Shrt_Desc, ". It contributes ", max_pos_starting_cals, " calories."))
+        
+        # Augment max_pos's weight by 10%
+        new_gmwt <- (orig_menu[max_pos, ]$GmWt_1) * 1.1 # augment by 10%
+        orig_menu[max_pos, ]$GmWt_1 <- new_gmwt   # replace the value with the augmented one
+        
+        # Find how much we increased max_pos's calorie count by
+        max_pos_new_cals <- (orig_menu[max_pos, ]$Energ_Kcal * new_gmwt)/100   # get the amount that we increased our menu's calories by in augmenting the max_pos
+        print(paste0("After an increase of 10% weight the calories contributed by our max positive are ", max_pos_new_cals, " calories."))
+        cal_diff <- max_pos_new_cals - max_pos_starting_cals
+        
+        # Find the newly augmented nutrient value to see if we need to continue the loop
+        val_nut_to_augment <- (sum(orig_menu[[nut_to_augment]] * orig_menu$GmWt_1))/100   # save the new value of the nutrient
+        print(paste0("Our new value of this nutrient is ", val_nut_to_augment))
+        
+        # # --------------
+        # 
+        # # Find the max_cals and its calorie count
+        # food_w_max_cals <- which(orig_menu[-max_pos, ]$Energ_Kcal == max(orig_menu[-max_pos, ]$Energ_Kcal))   # what is the index of the food that isn't our max_pos is currently most calorie dense?
+        # cals_of_food_w_max_cals <- (orig_menu[-max_pos, ]$Energ_Kcal[food_w_max_cals] * orig_menu[-max_pos, ]$GmWt_1[food_w_max_cals])/100
+        # print(paste0("The food with the most calories that isn't our max positive is  ", orig_menu[-max_pos, ]$Shrt_Desc[food_w_max_cals], " at ", (orig_menu[-max_pos, ]$Energ_Kcal[food_w_max_cals] * orig_menu[-max_pos, ]$GmWt_1[food_w_max_cals])/100))
+        # 
+        # # Find what the new calorie count and weight of max_cals needs to be
+        # max_cals_new_cals_need_to_be <- cals_of_food_w_max_cals - cal_diff
+        # print(paste0("We've reduced the calories of the food with the most calories to  ", max_cals_new_cals_need_to_be))
+        # max_cals_new_weight_needs_to_be <- max_cals_new_cals_need_to_be*100 / menu[-max_pos, ]$Energ_Kcal[food_w_max_cals]
+        # 
+        # # Decrement max_cal's weight by the amount it needs to be decreased by
+        # orig_menu[food_w_max_cals, ]$GmWt_1 <- max_cals_new_weight_needs_to_be
+        # print(paste0("We've reduced the weight of the food with the most calories to  ", orig_menu[food_w_max_cals, ]$GmWt_1))
+      }
+    }
+  }
+  orig_menu
+}
+
+
+more_nutritious <- adjust_portion_sizes(menu)
+more_nutritious
+
+test_pos_compliance(more_nutritious)
+
+
+
+
+
+
+
+test_calories(restricted_menu)
+
+add_calories <- function(orig_menu) {
+    orig_menu <- orig_menu %>% drop_na_(all_nut_and_mr_df$nutrient) %>%  filter(!(is.na(Energ_Kcal)) & !(is.na(GmWt_1))) 
+    df <- abbrev %>% drop_na_(all_nut_and_mr_df$nutrient) %>%  filter(!(is.na(Energ_Kcal)) & !(is.na(GmWt_1)))    # filter out rows that have NAs in columns that we need
+    
+    i <- sample(nrow(df), 1) # sample a random row from df and save its index in i  
+  
+    cals <- sum((orig_menu$Energ_Kcal * orig_menu$GmWt_1))/100   # set calories to our current number of calories
+
+    while (cals < 2300) {
+      this_food_cal <- (df$Energ_Kcal[i] * df$GmWt_1[i])/100    # get the number of calories in 1 serving of this food (see N = (V*W)/100 formula)
+      print(paste0("cals: ", df$Energ_Kcal[i], "gmwt: ", df$GmWt_1[i]))
+      cals <- cals + this_food_cal    # add the calories in row of index i to the calorie sum variable
+      
+      menu <- rbind(menu, df[i,])   # add that row to our menu
+      
+      i <- sample(nrow(df), 1)   # resample a new index
+    }
+  menu    # return the full menu
+}
+
+
+restricted_plus_cals <- add_calories(restricted_menu)
+
+
+
+
+
