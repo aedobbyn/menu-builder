@@ -904,6 +904,7 @@ test_pos_compliance(menu)
 test_pos_compliance(restricted_menu)
 
 test_pos_compliance(more_nutritious)
+test_pos_compliance(master_menu)
 
 
 test_all_compliance <- function(orig_menu) {
@@ -924,6 +925,19 @@ test_all_compliance(menu)
 
 
 
+test_calories <- function(our_menu) {
+  total_cals <- sum((our_menu$Energ_Kcal * our_menu$GmWt_1))/100 
+  if (total_cals < 2300) {
+    cal_compliance <- "Calories too low"
+  } else {
+    cal_compliance <- "Calorie compliant"
+  }
+  cal_compliance
+}
+
+test_calories(menu)
+test_calories(master_menu)
+
 
 
 
@@ -936,10 +950,12 @@ master_builder <- function(our_menu) {
   # define conditions
   total_cals <- sum((our_menu$Energ_Kcal * our_menu$GmWt_1))/100 
   
-  while (length(test_mr_compliance(our_menu)) + length(test_pos_compliance(our_menu)) > 0) {
+  while (length(test_mr_compliance(our_menu)) + length(test_pos_compliance(our_menu)  > 0
+                                                       | test_calories(our_menu) == "Calories too low")) {
     
     if (total_cals < 2300) {
       our_menu <- build_menu(our_menu)
+      total_cals <- sum((our_menu$Energ_Kcal * our_menu$GmWt_1))/100
       
     } else if (to_restrict > mr_df$value[m]) {
       our_menu <- restrict_all(our_menu)

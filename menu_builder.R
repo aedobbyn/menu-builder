@@ -200,6 +200,7 @@ test_mr_compliance <- function(orig_menu) {
 
 test_mr_compliance(menu)
 test_mr_compliance(restricted_menu)
+test_mr_compliance(master_menu)
 
 
 
@@ -227,6 +228,7 @@ test_pos_compliance <- function(orig_menu) {
 test_pos_compliance(menu)
 test_pos_compliance(restricted_menu)
 test_pos_compliance(more_nutritious)
+test_pos_compliance(master_menu)
 
 
 test_all_compliance <- function(orig_menu) {
@@ -246,6 +248,18 @@ test_all_compliance <- function(orig_menu) {
 test_all_compliance(menu)
 
 
+test_calories <- function(our_menu) {
+  total_cals <- sum((our_menu$Energ_Kcal * our_menu$GmWt_1))/100 
+  if (total_cals < 2300) {
+    cal_compliance <- "Calories too low"
+  } else {
+    cal_compliance <- "Calorie compliant"
+  }
+  cal_compliance
+}
+
+test_calories(menu)
+test_calories(master_menu)
 
 
 
@@ -283,6 +297,9 @@ master_menu
 
 
 setdiff(master_menu, menu)
+
+# test its compliance
+test_all_compliance(master_menu)
 
 
 
