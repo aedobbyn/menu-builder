@@ -149,8 +149,8 @@ test_calories(menu)
 # for each must_restrict, find the food in our menu that has the highest level of this must_restrict per gram
 # and replace it with one serving of a random food in our dataframe of all foods
 
-restrict_all <- function(df, orig_menu) {
-  randomized <- df[sample(nrow(df)),] %>%  # take our original df of all foods, randomize it, and
+restrict_all <- function(orig_menu) {
+  randomized <- abbrev[sample(nrow(abbrev)),] %>%  # take our original df of all foods, randomize it, and
     drop_na_(all_nut_and_mr_df$nutrient) %>% filter(!(is.na(Energ_Kcal)) & !(is.na(GmWt_1)))   # filter out the columns that can't be NA
   
   while(length(test_mr_compliance(orig_menu)) > 0) {
@@ -177,7 +177,7 @@ restrict_all <- function(df, orig_menu) {
   orig_menu
 }
 
-restricted_menu <- restrict_all(abbrev, menu)
+restricted_menu <- restrict_all(menu)
 
 
 # ------------ Increase Positive Nutrients ---------
@@ -264,7 +264,7 @@ master_builder <- function(our_menu) {
   # our_menu <- build_menu(abbrev)   # seed with a random menu
   
   # first put it through the restrictor
-  our_menu <- restrict_all(abbrev, our_menu)
+  our_menu <- restrict_all(our_menu)
   
   # define conditions
   total_cals <- sum((our_menu$Energ_Kcal * our_menu$GmWt_1))/100 
@@ -277,7 +277,7 @@ master_builder <- function(our_menu) {
       our_menu <- add_calories(our_menu)
       
     } else if (length(test_mr_compliance(our_menu))) {
-      our_menu <- restrict_all(abbrev, our_menu)
+      our_menu <- restrict_all(our_menu)
       
     } else if (length(test_pos_compliance(our_menu))) {
       our_menu <- adjust_portion_sizes(our_menu)
