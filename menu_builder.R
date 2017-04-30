@@ -177,28 +177,22 @@ restrict_all <- function(df, orig_menu) {
   orig_menu
 }
 
-
 restricted_menu <- restrict_all(abbrev, menu)
-# restricted_menu
-# View(restricted_menu)
-# setdiff(menu, restricted_menu)
 
 
+# ------------ Increase Positive Nutrients ---------
+# Here we'll take a different tack. Instead of swapping in better foods, we'll adjust the serving sizes of foods that already exist
+# on our menu until we get in compliance with the minimum daily positive values.
 
-# ------ next up
+# To see a more complicated version of this function that decreases the calorie count of the overall menu by the same amount as the
+# increase, see adjust_portion_sizes_and_square_calories.R
+
 # for each nutriet in <array of nutrients>, check whether we've met the required amount. if so, move on to the next
-  # if not, either
-    # a) adjust serving sizes of current foods (Gm_Wt1) until we've met the requirements
-        # increase the serving size of a food that is high in that nutrient. find out how many calories we incrased by when we made this adjustment
-        # correspondingly decrease the serving size of all other foods such that the calorie count stays the same after
-          # we make thse adjustments
-    # b) swap in food that is > 1 std_dev above the mean on the nutrient we're lacking for a food on our current menu that
-        # is low in that nutrient
-
+# if not, adjust serving sizes of current foods (Gm_Wt1) until we've met the requirements by finding the food on the menu that is
+# highest in that nutrient per gram and increasing its weight by 10% until we've met that requirement.
 
 adjust_portion_sizes <- function(orig_menu) {
   orig_menu <- orig_menu %>% drop_na_(all_nut_and_mr_df$nutrient) %>% filter(!(is.na(Energ_Kcal)) & !(is.na(GmWt_1)))
-  
   
   while(length(test_pos_compliance(orig_menu)) > 0) {
     
@@ -208,7 +202,6 @@ adjust_portion_sizes <- function(orig_menu) {
       
       val_nut_to_augment <- (sum(orig_menu[[nut_to_augment]] * orig_menu$GmWt_1))/100   # get the total amount of that nutrient in our original menu
       print(paste0("The original total value of that nutrient in our menu is ", val_nut_to_augment))
-      
       
       while (val_nut_to_augment < pos_df$value[p]) {     # if the amount of the must restrict in our current menu is below the min daily value it should be according to pos_df
         
@@ -238,7 +231,10 @@ adjust_portion_sizes <- function(orig_menu) {
 
 
 
+# ---------------- Add Calories -------------
 
+# swapping in a single serving size of a given food for another might have put us below the minimum calorie requirement of 2300. If our
+# menu's total calories are too low, increase them by adding one serving of a random food from our database to the menu
 
 add_calories <- function(orig_menu) {
   orig_menu <- orig_menu %>% drop_na_(all_nut_and_mr_df$nutrient) %>%  filter(!(is.na(Energ_Kcal)) & !(is.na(GmWt_1))) 
@@ -262,13 +258,10 @@ add_calories <- function(orig_menu) {
 
 
 
-
-
-
-
+# ---------------- Combine all of the above to build a menu that is compliant in all three respects ---------------
 
 master_builder <- function(our_menu) {
-  # our_menu <- menu(build_menu)   # seed with a random menu
+  # our_menu <- build_menu(abbrev)   # seed with a random menu
   
   # first put it through the restrictor
   our_menu <- restrict_all(abbrev, our_menu)
@@ -276,9 +269,9 @@ master_builder <- function(our_menu) {
   # define conditions
   total_cals <- sum((our_menu$Energ_Kcal * our_menu$GmWt_1))/100 
   
-  while (test_all_compliance(our_menu) == "Not Compliant") {
-  # while (total_cals < 2300 | 
-         # (length(test_mr_compliance(our_menu)) + length(test_pos_compliance(our_menu)) > 0)) {
+  # while (test_all_compliance(our_menu) == "Not Compliant") {
+  while (total_cals < 2300 |
+  (length(test_mr_compliance(our_menu)) + length(test_pos_compliance(our_menu)) > 0)) {
     
     if (total_cals < 2300) {
       our_menu <- add_calories(our_menu)
@@ -290,7 +283,7 @@ master_builder <- function(our_menu) {
       our_menu <- adjust_portion_sizes(our_menu)
       
     } else {
-      print("idk what's up")
+      print("Something went wrong")
     }
     
   }
@@ -301,22 +294,37 @@ master_menu <- master_builder(menu)
 master_menu
 
 
-setdiff(master_menu, menu)
 
-# test its compliance
+
+
+# --------- Test Compliances ------
+
+# all
+test_all_compliance(menu)
 test_all_compliance(master_menu)
 
-# if not compliant, where does it fail?
+# must_restricts
+test_mr_compliance(menu)
+test_mr_compliance(restricted_menu)
+test_mr_compliance(more_nutritious)
 test_mr_compliance(master_menu)
+
+# positives
+test_pos_compliance(menu)
+test_pos_compliance(restricted_menu)
+test_pos_compliance(more_nutritious)
 test_pos_compliance(master_menu)
+
+# calories
+test_calories(menu)
+test_calories(restricted_menu)
+test_calories(more_nutritious)
 test_calories(master_menu)
 
+# ---------------------------------------
 
 
-
-
-
-# ------------ Test differences between menus -------------
+# ------------ Find the differences between starting and ending menus -------------
 
 # food desriptions and weights that differ between two menus
 
@@ -330,33 +338,7 @@ see_diffs(menu, master_menu)
 # indices that differ between the original and new menu
 which(!menu$GmWt_1 %in% master_menu$GmWt_1)
 
-# ------------------------------------------------------------
-
-
-# --------- Test Compliances ------
-
-# all
-test_all_compliance(menu)
-
-# must_restricts
-test_mr_compliance(menu)
-test_mr_compliance(restricted_menu)
-test_mr_compliance(master_menu)
-
-# positives
-test_pos_compliance(menu)
-test_pos_compliance(restricted_menu)
-test_pos_compliance(more_nutritious)
-test_pos_compliance(master_menu)
-
-# calories
-test_calories(menu)
-test_calories(master_menu)
-
-
-# ---------------------------------------
-
-
+# -----------------------------------------------------------------------------------
 
 
 
