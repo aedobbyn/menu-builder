@@ -114,9 +114,10 @@ test_all_compliance <- function(orig_menu) {
   combined_compliance <- "Undetermined"
   
   if (length(test_mr_compliance(orig_menu)) + length(test_pos_compliance(orig_menu)) > 0 |
-      test_calories(menu) == "Calories too low") {
+      test_calories(orig_menu) == "Calories too low") {
     combined_compliance <- "Not Compliant"
-  } else if (length(test_mr_compliance(orig_menu)) + length(test_pos_compliance(orig_menu)) == 0) {
+  } else if (length(test_mr_compliance(orig_menu)) + length(test_pos_compliance(orig_menu)) == 0 &
+             test_calories(orig_menu) == "Calorie compliant") {
     combined_compliance <- "Compliant"
   } else {
     combined_compliance <- "Undetermined"
