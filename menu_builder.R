@@ -226,26 +226,12 @@ adjust_portion_sizes <- function(orig_menu) {
       val_nut_to_augment <- (sum(orig_menu[[nut_to_augment]] * orig_menu$GmWt_1))/100   # save the new value of the nutrient
       print(paste0("Our new value of this nutrient is ", val_nut_to_augment))
       
-      # --------------
-      
-      # # Find the max_cals and its calorie count
-      # food_w_max_cals <- which(orig_menu[-max_pos, ]$Energ_Kcal == max(orig_menu[-max_pos, ]$Energ_Kcal))   # what is the index of the food that isn't our max_pos is currently most calorie dense?
-      # cals_of_food_w_max_cals <- (orig_menu[-max_pos, ]$Energ_Kcal[food_w_max_cals] * orig_menu[-max_pos, ]$GmWt_1[food_w_max_cals])/100
-      # print(paste0("The food with the most calories that isn't our max positive is  ", orig_menu[-max_pos, ]$Shrt_Desc[food_w_max_cals], " at ", (orig_menu[-max_pos, ]$Energ_Kcal[food_w_max_cals] * orig_menu[-max_pos, ]$GmWt_1[food_w_max_cals])/100))
-      # 
-      # # Find what the new calorie count and weight of max_cals needs to be
-      # max_cals_new_cals_need_to_be <- cals_of_food_w_max_cals - cal_diff
-      # print(paste0("We've reduced the calories of the food with the most calories to  ", max_cals_new_cals_need_to_be))
-      # max_cals_new_weight_needs_to_be <- max_cals_new_cals_need_to_be*100 / menu[-max_pos, ]$Energ_Kcal[food_w_max_cals]
-      # 
-      # # Decrement max_cal's weight by the amount it needs to be decreased by
-      # orig_menu[food_w_max_cals, ]$GmWt_1 <- max_cals_new_weight_needs_to_be
-      # print(paste0("We've reduced the weight of the food with the most calories to  ", orig_menu[food_w_max_cals, ]$GmWt_1))
     }
   }
   orig_menu
 }
 
+more_nutritious <- adjust_portion_sizes(menu)
 
 
 # ---------------- Add Calories -------------
@@ -279,9 +265,6 @@ add_calories <- function(orig_menu) {
 
 master_builder <- function(our_menu) {
   # our_menu <- build_menu(abbrev)   # seed with a random menu
-  
-  # first put it through the restrictor
-  our_menu <- restrict_all(our_menu)
   
   # define conditions
   total_cals <- sum((our_menu$Energ_Kcal * our_menu$GmWt_1))/100 
