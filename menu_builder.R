@@ -12,8 +12,8 @@ source("./abbrev.R")
 # according to USDA documentation, to get nutrients in 1 serving of food: 
 # N = (V*W)/100
 # where:
-#   N = nutrient value per household measure,
-# V = nutrient value per 100 g and W = g weight of portion (Gm_Wgt in the Weight file).
+  # N = nutrient value per household measure,
+  # V = nutrient value per 100 g and W = g weight of portion (Gm_Wgt in the Weight file).
 # --------------------------------------------
 
 
@@ -27,10 +27,7 @@ source("./abbrev.R")
 set.seed(9)
 
 build_menu <- function(df) {
-  # df <- df %>% drop_na_(all_nut_and_mr_df$nutrient) %>% filter(!(is.na(Energ_Kcal)) & !(is.na(GmWt_1)))    # filter out rows that have NAs in columns that we need
-  # i <- sample(nrow(df), 1) # sample a random row from df and save its index in i
-  
-  df <- df %>% filter(!(is.na(Lipid_Tot_g)) & !(is.na(Sodium_mg)) & !(is.na(Cholestrl_mg)) & !(is.na(FA_Sat_g)) & !(is.na(GmWt_1)))    # filter out rows that have NAs in columns that we need
+  df <- df %>% drop_na_(all_nut_and_mr_df$nutrient) %>% filter(!(is.na(Energ_Kcal)) & !(is.na(GmWt_1)))    # filter out rows that have NAs in columns that we need
   i <- sample(nrow(df), 1) # sample a random row from df and save its index in i
   
   cals <- 0   # set the builder variables to 0
@@ -155,8 +152,8 @@ test_calories(menu)
 
 restrict_all <- function(orig_menu) {
   randomized <- abbrev[sample(nrow(abbrev)),] %>%  # take our original df of all foods, randomize it, and
-    filter(!(is.na(Lipid_Tot_g)) & !(is.na(Sodium_mg)) & !(is.na(Cholestrl_mg)) & !(is.na(FA_Sat_g)) & !(is.na(GmWt_1)))   # filter out the columns that can't be NA
-  
+    drop_na_(all_nut_and_mr_df$nutrient) %>% filter(!(is.na(Energ_Kcal)) & !(is.na(GmWt_1)))
+
   while(length(test_mr_compliance(orig_menu)) > 0) {
     
     for (m in seq_along(mr_df$must_restrict)) {    # for each row in the df of must_restricts
@@ -196,8 +193,8 @@ restricted_menu <- restrict_all(menu)
 # highest in that nutrient per gram and increasing its weight by 10% until we've met that requirement.
 
 adjust_portion_sizes <- function(orig_menu) {
-  orig_menu <- orig_menu %>% drop_na_(pos_df$positive_nut) %>% filter(!(is.na(Energ_Kcal)) & !(is.na(GmWt_1)))
-  
+  orig_menu <- orig_menu %>% drop_na_(all_nut_and_mr_df$nutrient) %>% filter(!(is.na(Energ_Kcal)) & !(is.na(GmWt_1)))
+
   for (p in seq_along(pos_df$positive_nut)) {    # for each row in the df of positives
     nut_to_augment <- pos_df$positive_nut[p]    # grab the name of the nutrient we're examining
     print(paste0("------- The nutrient we're considering is ", nut_to_augment, ". It has to be above ", pos_df$value[p]))
@@ -341,4 +338,8 @@ which(!menu$GmWt_1 %in% master_menu$GmWt_1)
 # -----------------------------------------------------------------------------------
 
 
+
+
+
+test_all_compliance(master_menu)
 
