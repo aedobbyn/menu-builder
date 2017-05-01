@@ -27,7 +27,6 @@ positives <- names(abbrev)[c((!names(abbrev) %in% must_restrict) & (!names(abbre
 positives
 
 
-
 # Based on Rick's guidelines, set per the sheet PantryFoods, 100g Nutrient Data
 # Only considering Calcium to B6
 pos_nuts <- positives[4:18]
@@ -35,7 +34,6 @@ pos_vals <- c(1000, 18, 400, 1000, 3500, 15, 2, 2, 70, 60, 2, 2, 20, 10, 2)
 
 pos_df <- as_tibble(list(positive_nut = pos_nuts, value = pos_vals))
 pos_hash <- hash(pos_nuts, pos_vals)
-pos_hash
 
 
 # same for must_restricts
@@ -44,61 +42,11 @@ mr_vals <- c(65, 2400, 300, 20)
 
 mr_df <- as_tibble(list(must_restrict = mr, value = mr_vals))
 mr_hash <- hash(mr, mr_vals)
-mr_hash
-
 
 
 # all nuts and must_restricts
 all_nut_and_mr_df <- rbind(mr_df %>% rename(nutrient = must_restrict), 
                            pos_df %>% rename(nutrient = positive_nut))
-
-
-
-# means and standard deviations
-abbrev_st_dev <- apply(abbrev[, 3:which(names(abbrev)=="Cholestrl_mg")],  # everything after cholesterol is not necc numeric
-                    2, sd, na.rm = TRUE)
-
-abbrev_mean <- apply(abbrev[, 3:which(names(abbrev)=="Cholestrl_mg")],  # everything after cholesterol is not necc numeric
-                       2, mean, na.rm = TRUE)
-
-abbrev_st_dev_names <- names(abbrev_st_dev)
-
-abbrev_st_dev_df <- as_tibble(list(nut_name = abbrev_st_dev_names,
-                                   mean = abbrev_mean,
-                              std_dev = abbrev_st_dev))
-
-
-# must restrict standard devs
-mr_st_dev <- abbrev_st_dev_df[(abbrev_st_dev_df$nut_name %in% mr), ]
-
-mr_st_dev_join <- left_join(mr_st_dev, mr_df, 
-                            by = c("nut_name" = "must_restrict"))
-
-mr_st_dev_join <- mr_st_dev_join %>% 
-  mutate(
-    one_above = mean + std_dev,
-    one_below = mean - std_dev
-  )
-
-
-
-
-
-
-
-# z-score everything
-scaled <- abbrev %>% 
-  select(
-    3:which(names(abbrev)=="Cholestrl_mg")
-  ) %>% 
-  mutate_all(
-    scale
-  )
-
-# cbind the ndbno and description
-scaled <- bind_cols(abbrev[, 1:2], scaled, abbrev[, 49:ncol(abbrev)]) # cbind freaks out (?)
-
-
 
 
 
