@@ -222,27 +222,27 @@ smartly_swapped <- smart_swap(menu)
 
 
 
-replace_food_w_better <- function(orig_menu) {
+replace_food_w_better <- function(orig_menu, m_o, n_t_r) {
   scaled <- scaled %>% 
     drop_na_(all_nut_and_mr_df$nutrient) %>% filter(!(is.na(Energ_Kcal)) & !(is.na(GmWt_1)))
 
   better_on_this_dimension <- abbrev %>% 
     drop_na_(all_nut_and_mr_df$nutrient) %>% filter(!(is.na(Energ_Kcal)) & !(is.na(GmWt_1))) %>% 
-    filter(NDB_No %in% scaled[scaled[[nut_to_restrict]] < -0.25, ][["NDB_No"]])
+    filter(NDB_No %in% scaled[scaled[[n_t_r]] < -.5, ][["NDB_No"]])
   
   rand_better <- better_on_this_dimension[sample(nrow(better_on_this_dimension), 1), ]  # grab a random row from our df of foods better on this dimension
   
-  orig_menu[max_offender, ] <- rand_better
+  orig_menu[m_o, ] <- rand_better
 }
 
 
-replace_food_w_rand <- function(orig_menu) {
+replace_food_w_rand <- function(orig_menu, m_o) {
   randomized <- abbrev[sample(nrow(abbrev)),] %>%  # take our original df of all foods, randomize it, and
     drop_na_(all_nut_and_mr_df$nutrient) %>% filter(!(is.na(Energ_Kcal)) & !(is.na(GmWt_1)))
   
   rand_row <- randomized[sample(nrow(randomized), 1), ]   # grab a random row from our df of all food
   
-  orig_menu[max_offender, ] <- rand_row
+  orig_menu[m_o, ] <- rand_row
 }
 
 
@@ -265,12 +265,12 @@ smart_swap_2 <- function(orig_menu) {
         print(paste0("the worst offender in this respect is ", orig_menu[max_offender, ]$Shrt_Desc))
         
         # ------- smart swap or randomly swap in a food here --------
-        orig_menu[max_offender, ] <- if (inherits(try(replace_food_w_better(menu), silent = TRUE), "try-error")) {
+        orig_menu[max_offender, ] <- if (inherits(try(replace_food_w_better(orig_menu, max_offender, nut_to_restrict), silent = FALSE), "try-error")) {
           print("replacing with random")
-          replace_food_w_rand(orig_menu) 
+          replace_food_w_rand(orig_menu, max_offender) 
           } else {
             print("replacing with better")
-            orig_menu[max_offender, ] <- replace_food_w_better(menu)
+            orig_menu[max_offender, ] <- replace_food_w_better(orig_menu, max_offender, nut_to_restrict)
           }
         
         print(paste0("we're replacing the worst offender with ", orig_menu[max_offender, ][["Shrt_Desc"]]))
