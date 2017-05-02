@@ -214,9 +214,6 @@ replace_food_w_rand <- function(orig_menu, max_offender) {
 
 smart_swap <- function(orig_menu) {
   
-  # scaled <- scaled %>% 
-  #   drop_na_(all_nut_and_mr_df$nutrient) %>% filter(!(is.na(Energ_Kcal)) & !(is.na(GmWt_1)))
-  
   while(length(test_mr_compliance(orig_menu)) > 0) {
     
     for (m in seq_along(mr_df$must_restrict)) {    # for each row in the df of must_restricts
@@ -350,7 +347,7 @@ master_builder <- function(our_menu) {
       our_menu <- add_calories(our_menu)
       
     } else if (length(test_mr_compliance(our_menu))) {
-      our_menu <- restrict_all(our_menu)
+      our_menu <- smart_swap(our_menu)
       
     } else if (length(test_pos_compliance(our_menu))) {
       our_menu <- adjust_portion_sizes(our_menu)
@@ -375,19 +372,19 @@ test_all_compliance(master_menu)
 
 # must_restricts
 test_mr_compliance(menu)
-test_mr_compliance(restricted_menu)
+test_mr_compliance(smartly_swapped)
 test_mr_compliance(more_nutritious)
 test_mr_compliance(master_menu)
 
 # positives
 test_pos_compliance(menu)
-test_pos_compliance(restricted_menu)
+test_pos_compliance(smartly_swapped)
 test_pos_compliance(more_nutritious)
 test_pos_compliance(master_menu)
 
 # calories
 test_calories(menu)
-test_calories(restricted_menu)
+test_calories(smartly_swapped)
 test_calories(more_nutritious)
 test_calories(master_menu)
 # ---------------------------------------
