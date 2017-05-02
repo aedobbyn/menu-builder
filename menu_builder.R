@@ -221,9 +221,9 @@ smartly_swapped <- smart_swap(menu)
 
 
 replace_food_w_better <- function(orig_menu) {
-  max_offender <- 1
-  nut_to_restrict <- "Sodium_mg"
-  
+  scaled <- scaled %>% 
+    drop_na_(all_nut_and_mr_df$nutrient) %>% filter(!(is.na(Energ_Kcal)) & !(is.na(GmWt_1)))
+
   better_on_this_dimension <- abbrev %>% 
     drop_na_(all_nut_and_mr_df$nutrient) %>% filter(!(is.na(Energ_Kcal)) & !(is.na(GmWt_1))) %>% 
     filter(NDB_No %in% scaled[scaled[[nut_to_restrict]] < -1, ][["NDB_No"]])
@@ -246,15 +246,10 @@ replace_food_w_rand <- function(orig_menu) {
 }
 
 
-
-
 smart_swap_2 <- function(orig_menu) {
   
-  randomized <- abbrev[sample(nrow(abbrev)),] %>%  # take our original df of all foods, randomize it, and
-    drop_na_(all_nut_and_mr_df$nutrient) %>% filter(!(is.na(Energ_Kcal)) & !(is.na(GmWt_1)))
-  
-  scaled <- scaled %>% 
-    drop_na_(all_nut_and_mr_df$nutrient) %>% filter(!(is.na(Energ_Kcal)) & !(is.na(GmWt_1)))
+  # scaled <- scaled %>% 
+  #   drop_na_(all_nut_and_mr_df$nutrient) %>% filter(!(is.na(Energ_Kcal)) & !(is.na(GmWt_1)))
   
   while(length(test_mr_compliance(orig_menu)) > 0) {
     
@@ -269,8 +264,8 @@ smart_swap_2 <- function(orig_menu) {
         
         print(paste0("the worst offender in this respect is ", orig_menu[max_offender, ]$Shrt_Desc))
         
-        # ------- smart swap in a food here --------
-        orig_menu[max_offender, ] <- if (inherits(try(replace_food_w_better(menu)), "try-error")) {
+        # ------- smart swap or randomly swap in a food here --------
+        orig_menu[max_offender, ] <- if (inherits(try(replace_food_w_better(menu), silent = TRUE), "try-error")) {
           replace_food_w_rand(orig_menu) }
         
         print(paste0("we're replacing the worst offender with ", orig_menu[max_offender, ][["Shrt_Desc"]]))
@@ -283,7 +278,7 @@ smart_swap_2 <- function(orig_menu) {
   orig_menu
 }
 
-smart_swap_2(menu)
+too_smart_2_swap <- smart_swap_2(menu)
 
 
 

@@ -1283,6 +1283,6 @@ smart_swap_2 <- function(orig_menu) {
 }
 
 # restrict_all(menu)
-smart_swap(menu)
+smart_swap_2(menu)
 
 
