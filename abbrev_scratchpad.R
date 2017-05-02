@@ -1125,8 +1125,8 @@ test_calories(restricted_plus_cals)
 
 smart_swap <- function(orig_menu) {
   
-  # randomized <- abbrev[sample(nrow(abbrev)),] %>%  # take our original df of all foods, randomize it, and
-  #   drop_na_(all_nut_and_mr_df$nutrient) %>% filter(!(is.na(Energ_Kcal)) & !(is.na(GmWt_1)))
+  randomized <- abbrev[sample(nrow(abbrev)),] %>%  # take our original df of all foods, randomize it, and
+    drop_na_(all_nut_and_mr_df$nutrient) %>% filter(!(is.na(Energ_Kcal)) & !(is.na(GmWt_1)))
   
   scaled <- scaled %>% 
     drop_na_(all_nut_and_mr_df$nutrient) %>% filter(!(is.na(Energ_Kcal)) & !(is.na(GmWt_1)))
@@ -1144,14 +1144,16 @@ smart_swap <- function(orig_menu) {
         
         print(paste0("the worst offender in this respect is ", orig_menu[max_offender, ]$Shrt_Desc))
         
-        
+        # ------- smart swap in a food here --------
+        rand_row <- randomized[sample(nrow(randomized), 1), ]   # grab a random row from our df of all foods
+        print(paste0("we're replacing the worst offender with ", rand_row[["Shrt_Desc"]]))
         better_on_this_dimension <- abbrev %>% 
           drop_na_(all_nut_and_mr_df$nutrient) %>% filter(!(is.na(Energ_Kcal)) & !(is.na(GmWt_1))) %>% 
           filter(NDB_No %in% scaled[scaled[[nut_to_restrict]] < -1, ][["NDB_No"]])
         rand_better <- better_on_this_dimension[sample(nrow(better_on_this_dimension), 1), ]  # grab a random row from our df of foods better on this dimension
-          
+        
         print(paste0("we're replacing the worst offender with ", rand_better[["Shrt_Desc"]]))
-        orig_menu[max_offender, ] <- rand_better   # replace the max offender with the next row in the randomzied df
+        tryCatch(orig_menu[max_offender, ] <- rand_better, finally = orig_menu[max_offender, ] <- rand_row)    # replace the max offender with the next row in the randomzied df
         
         to_restrict <- (sum(orig_menu[[nut_to_restrict]] * orig_menu$GmWt_1))/100   # recalculate the must restrict nutrient content
         print(paste0("our new value of this must restrict is ", to_restrict))
@@ -1167,7 +1169,34 @@ smart_swap(menu)
 
 
 better_on_na <- abbrev %>% 
-  # drop_na_(all_nut_and_mr_df$nutrient) %>% filter(!(is.na(Energ_Kcal)) & !(is.na(GmWt_1))) %>% 
+  # drop_na_(all_nut_and_mr_df$nutrient) %>% filter(!(is.na(Energ_Kcal)) & !(is.na(GmWt_1))) %>%
   filter(NDB_No %in% scaled[scaled[["Sodium_mg"]] < -1, ][["NDB_No"]])
+
+
+v_salty <- abbrev %>% 
+  drop_na_(all_nut_and_mr_df$nutrient) %>% filter(!(is.na(Energ_Kcal)) & !(is.na(GmWt_1))) %>%
+  filter(NDB_No %in% scaled[scaled[["Sodium_mg"]] > 10, ][["NDB_No"]])
+
+
+
+
+
+tryCatch(stop(e), error = function(e) e, finally = print("Hello"))
+
+
+t <- try(pJohnson(.18, parms))
+if("try-error" %in% class(t)) alternativeFunction()
+
+
+
+
+if (inherits(t, "try-error")) alternativeFunction()
+
+
+replace_food <- function() {
+  orig_menu[max_offender, ] <- rand_better
+}
+
+
 
 

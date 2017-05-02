@@ -1,6 +1,7 @@
 
 # load in the abbreviated data from the USDA database
 source("./abbrev.R")
+source("./stats.R")
 
 # ----------- Conditions to satisfy ---------
 # minimum daily calories: 2300 kcal
