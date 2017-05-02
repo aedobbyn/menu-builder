@@ -145,38 +145,9 @@ test_calories(menu)
 # while we're not in compliance with must_restrict values (over the daily max in one or more respects),
 # for each must_restrict, find the food in our menu that has the highest level of this must_restrict per gram
 # and replace it with 
-  # if there are any, one serving of a food that is less than or equal to 1 standard deviation below the mean on that given nutrient 
+  # if there are any, one serving of a food that is less than or equal to x standard deviations below the mean on that given nutrient 
+    # x specified in replace_food_w_better()
   # if one serving of a random food in our dataframe of all foods
-
-restrict_all <- function(orig_menu) {
-  randomized <- abbrev[sample(nrow(abbrev)),] %>%  # take our original df of all foods, randomize it, and
-    drop_na_(all_nut_and_mr_df$nutrient) %>% filter(!(is.na(Energ_Kcal)) & !(is.na(GmWt_1)))
-
-  while(length(test_mr_compliance(orig_menu)) > 0) {
-    
-    for (m in seq_along(mr_df$must_restrict)) {    # for each row in the df of must_restricts
-      nut_to_restrict <- mr_df$must_restrict[m]    # grab the name of the nutrient we're restricting
-      print(paste0("------- nutrient we're restricting is ", nut_to_restrict, ". It has to be below ", mr_df$value[m]))
-      to_restrict <- (sum(orig_menu[[nut_to_restrict]] * orig_menu$GmWt_1))/100   # get the amount of that must restrict nutrient in our original menu
-      print(paste0("original total value of that nutrient in our menu is ", to_restrict))
-      
-      while (to_restrict > mr_df$value[m]) {     # if the amount of the must restrict in our current menu is above the max value it should be according to mr_df
-        max_offender <- which(orig_menu[[nut_to_restrict]] == max(orig_menu[[nut_to_restrict]]))   # get index of food that's the worst offender in this respect
-        
-        print(paste0("the worst offender in this respect is ", orig_menu[max_offender, ]$Shrt_Desc))
-        rand_row <- randomized[sample(nrow(randomized), 1), ]   # grab a random row from our df of all foods
-        print(paste0("we're replacing the worst offender with ", rand_row[["Shrt_Desc"]]))
-        orig_menu[max_offender, ] <- rand_row   # replace the max offender with the next row in the randomzied df
-        
-        to_restrict <- (sum(orig_menu[[nut_to_restrict]] * orig_menu$GmWt_1))/100   # recalculate the must restrict nutrient content
-        print(paste0("our new value of this must restrict is ", to_restrict))
-      }
-    }
-  }
-  orig_menu
-}
-
-restricted_menu <- restrict_all(menu)
 
 
 
@@ -212,38 +183,39 @@ replace_food_w_rand <- function(orig_menu, max_offender) {
 }
 # ---------------------------------------------
 
+# do the swapping
+  # if we reduce the original corpus of foods down to foods that are lower than x standard deviations below the mean on a given must_restrict
+  # and we're left with an empty dataframe, trying to replace the max offender with an empty dataframe will throw an error
+  # if we do get an error in trycatch, then replace the max offender with a random food
+    # otherwise, go ahead with replacing it with a better one
+
 smart_swap <- function(orig_menu) {
   
   while(length(test_mr_compliance(orig_menu)) > 0) {
     
     for (m in seq_along(mr_df$must_restrict)) {    # for each row in the df of must_restricts
       nut_to_restrict <- mr_df$must_restrict[m]    # grab the name of the nutrient we're restricting
-      print(paste0("------- nutrient we're restricting is ", nut_to_restrict, ". It has to be below ", mr_df$value[m]))
+      print(paste0("------- The nutrient we're restricting is ", nut_to_restrict, ". It has to be below ", mr_df$value[m]))
       to_restrict <- (sum(orig_menu[[nut_to_restrict]] * orig_menu$GmWt_1))/100   # get the amount of that must restrict nutrient in our original menu
-      print(paste0("original total value of that nutrient in our menu is ", to_restrict))
+      print(paste0("The original total value of that nutrient in our menu is ", to_restrict))
       
       while (to_restrict > mr_df$value[m]) {     # if the amount of the must restrict in our current menu is above the max value it should be according to mr_df
         max_offender <- which(orig_menu[[nut_to_restrict]] == max(orig_menu[[nut_to_restrict]]))   # get index of food that's the worst offender in this respect
         
-        print(paste0("the worst offender in this respect is ", orig_menu[max_offender, ]$Shrt_Desc))
+        print(paste0("The worst offender in this respect is ", orig_menu[max_offender, ]$Shrt_Desc))
         
         # ------- smart swap or randomly swap in a food here --------
-          # if we reduce the original corpus of foods down to foods that are lower than x standard deviations below the mean on a given must_restrict
-          # and we're left with an empty dataframe, trying to replace the max offender with an empty dataframe will throw an error
-          # if we do get an error, then replace the max offender with a random food
-            # otherwise, go ahead with replacing it with a better one
+          
         orig_menu[max_offender, ] <- if (inherits(try(replace_food_w_better(orig_menu, max_offender, nut_to_restrict), silent = FALSE), "try-error")) {
-          print("replacing with random")
+          print(paste0("Replacing the max offender with a random food: ", replace_food_w_rand(orig_menu, max_offender)[["Shrt_Desc"]]))
           replace_food_w_rand(orig_menu, max_offender) 
           } else {
-            print("replacing with better")
+            print(paste0("Replacing the max offender with a better food: ", replace_food_w_better(orig_menu, max_offender, nut_to_restrict)[["Shrt_Desc"]]))
             orig_menu[max_offender, ] <- replace_food_w_better(orig_menu, max_offender, nut_to_restrict)
           }
         
-        print(paste0("we're replacing the worst offender with ", orig_menu[max_offender, ][["Shrt_Desc"]]))
-        
         to_restrict <- (sum(orig_menu[[nut_to_restrict]] * orig_menu$GmWt_1))/100   # recalculate the must restrict nutrient content
-        print(paste0("our new value of this must restrict is ", to_restrict))
+        print(paste0("Our new value of this must restrict is ", to_restrict))
       }
     }
   }
