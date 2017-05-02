@@ -141,14 +141,14 @@ test_calories(menu)
 # -------------------------------- Mechanisms for Adjusting Menus into Compliance --------------------------------
 
 
-# ----------------------- The Restrictor --------------------
+# ----------------------- Restrict must_restricts --------------------
 # while we're not in compliance with must_restrict values (over the daily max in one or more respects),
-# for each must_restrict, find the food in our menu that has the highest level of this must_restrict per gram
+# for each must_restrict, find the food in our menu that has the highest level of this must_restrict per gram (the max offender)
 # and replace it with 
   # if there are any, one serving of a food that is less than or equal to x standard deviations below the mean on that given nutrient 
-    # x specified in replace_food_w_better()
-  # if one serving of a random food in our dataframe of all foods
-
+    # x is specified in replace_food_w_better()
+  # if there aren't any foods that meet the x standard deviations criteria, then replace the max offender with
+    # one serving of a random food in our dataframe of all foods
 
 
 

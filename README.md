@@ -15,15 +15,15 @@ Various forays into daily menu planning and optimization using the [USDA food da
     * Then tests for compliance on the three dimensions we care about: must restricts, positives, and calorie content
     * Then creates a USDA-compliant menu by staying above 2300 calories while:
         * Looping through must restricts
-            * If the daily value of that must restrict is over the max limit, swap out a random food for the "worst offender" until we're compliant
+            * If the daily value of that must restrict is over the max limit, until we're compliant, swap out the "worst offender" that respect for a food from our corpus that is, if possible 
+                * < 0.5 standard deviations below the mean per gram on that nutrient
+                * Or if there are none, a random food 
         * Looping through positives
             * If the combined amount of that nutrient in our menu is below the minimum, find the food in our menu that is highest in this positive nutrient per gram and increase its amount by 10% until we're above that nutrient threshold
 
 * Potential future improvements
     * Implement a calorie ceiling in addition to the floor of 2300
     * Balance menus by food group
-    * Restrictor function: smart swaps rather than random swaps
-        * Maybe foods containing <= 1 standard deviation below the mean per gram of the must restrict
     * Spread the portion adjustment across multiple foods once we hit a certain threshold rather than increasing only the best food incrementally by 10%
     * Build three distinct meals per menu
         * Incorporate food flavor profiles to increase flavor consistency within a meal
