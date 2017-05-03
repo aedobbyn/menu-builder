@@ -27,6 +27,10 @@ Various forays into daily menu planning and optimization using the [USDA food da
     * Spread the portion adjustment across multiple foods once we hit a certain threshold rather than increasing only the best food incrementally by 10%
     * Build three distinct meals per menu
         * Incorporate food flavor profiles to increase flavor consistency within a meal
+    * Cluster analyses
+        * Can we reverse-engineer food groups?
+    * Supermenus
+        * Take the randomness out: what are the best menus overall? (Lowest in must restricts, highest in nutrients, any serving size)
 
 ***
 

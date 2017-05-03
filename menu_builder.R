@@ -373,7 +373,7 @@ see_diffs <- function(menu_1, menu_2) {
 }
 see_diffs(menu, master_menu)
 
-# indices that differ between the original and new menu
+# indices that differ on weight between the original and new menu
 which(!menu$GmWt_1 %in% master_menu$GmWt_1)
 
 # -----------------------------------------------------------------------------------
