@@ -1279,3 +1279,40 @@ smart_swap_2 <- function(orig_menu) {
 smart_swap_2(menu)
 
 
+
+
+
+
+# rank foods by overall best scores
+
+ranked_abbrev <- abbrev_sans_na %>% 
+  # na.omit() %>% 
+  mutate(ranked = score_menu(abbrev_sans_na))
+
+
+rank_foods <- function(this_menu) {
+  food_ranks <- vector()
+  for (i in 1:nrow(this_menu)) {
+    this_food_rank <- score_menu(this_menu[i, ])
+    food_ranks <- c(food_ranks, this_food_rank)
+  }
+  return(food_ranks)
+}
+
+# rank_foods()
+
+rank_foods(abbrev_sans_na[1:40, ])
+
+for (i in seq_along(1:abbrev_sans_na[1:40, ])) {
+  print(i)
+}
+
+
+score_menu(abbrev_sans_na[5, ])
+
+score_menu(abbrev_sans_na[5, ])
+
+pos_score(abbrev_sans_na[1, ])
+abbrev_sans_na[1, ]
+
+
