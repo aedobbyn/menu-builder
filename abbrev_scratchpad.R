@@ -1301,7 +1301,7 @@ rank_foods <- function(this_menu) {
 
 # rank_foods()
 
-rank_foods(abbrev_sans_na[1:40, ])
+ranked_food_vec <- rank_foods(abbrev_sans_na[1:40, ])
 
 for (i in seq_along(1:abbrev_sans_na[1:40, ])) {
   print(i)
@@ -1314,5 +1314,43 @@ score_menu(abbrev_sans_na[5, ])
 
 pos_score(abbrev_sans_na[1, ])
 abbrev_sans_na[1, ]
+
+
+
+
+ranked_start <- cbind(abbrev_sans_na[1:100, ], score = rank_foods(abbrev_sans_na[1:100, ])) %>% 
+  arrange(score)
+
+
+
+
+
+# what happens when we build a menu from the best ranked foods?
+
+build_best_menu <- function(df) {
+  # df <- df %>% drop_na_(all_nut_and_mr_df$nutrient) %>% filter(!(is.na(Energ_Kcal)) & !(is.na(GmWt_1)))    # filter out rows that have NAs in columns that we need
+  # i <- sample(nrow(df), 1) # sample a random row from df and save its index in i
+  i <- 1
+  
+  cals <- 0   # set the builder variables to 0
+  menu <- NULL
+  
+  while (cals < 2300) {
+    this_food_cal <- (df$Energ_Kcal[i] * df$GmWt_1[i])/100    # get the number of calories in 1 serving of this food (see N = (V*W)/100 formula)
+    cals <- cals + this_food_cal    # add the calories in row of index i to the calorie sum variable
+    
+    menu <- rbind(menu, df[i,])   # add that row to our menu
+    
+    i <- i + 1   
+  }
+  menu    # return the full menu
+}
+
+best_menu <- build_best_menu(ranked_foods)
+
+score_menu(best_menu)
+test_all_compliance(best_menu)
+test_pos_compliance(best_menu)
+
 
 
