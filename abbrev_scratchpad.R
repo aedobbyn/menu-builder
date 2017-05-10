@@ -1326,10 +1326,9 @@ ranked_start <- cbind(abbrev_sans_na[1:100, ], score = rank_foods(abbrev_sans_na
 
 
 # what happens when we build a menu from the best ranked foods?
+# build a menu by adding the highest overall rated foods until we hit 2300 cals. are compliant?
 
 build_best_menu <- function(df) {
-  # df <- df %>% drop_na_(all_nut_and_mr_df$nutrient) %>% filter(!(is.na(Energ_Kcal)) & !(is.na(GmWt_1)))    # filter out rows that have NAs in columns that we need
-  # i <- sample(nrow(df), 1) # sample a random row from df and save its index in i
   i <- 1
   
   cals <- 0   # set the builder variables to 0
@@ -1350,7 +1349,69 @@ best_menu <- build_best_menu(ranked_foods)
 
 score_menu(best_menu)
 test_all_compliance(best_menu)
-test_pos_compliance(best_menu)
+test_pos_compliance(best_menu) # "Not compliant on Riboflavin_mg" "Not compliant on Manganese_mg" 
 
 
 
+
+# more informative compliance test
+
+test_all_compliance <- function(orig_menu) {
+  combined_compliance <- "Undetermined"
+  
+  if (length(test_mr_compliance(orig_menu)) + length(test_pos_compliance(orig_menu)) > 0 |
+      test_calories(orig_menu) == "Calories too low") {
+    combined_compliance <- "Not Compliant"
+    
+  } else if (length(test_mr_compliance(orig_menu)) + length(test_pos_compliance(orig_menu)) == 0 &
+             test_calories(orig_menu) == "Calorie compliant") {
+    combined_compliance <- "Compliant"
+    
+  } else {
+    combined_compliance <- "Undetermined"
+  }
+  combined_compliance
+}
+
+
+
+test_all_compliance_verbose <- function(orig_menu) {
+  combined_compliance <- "Undetermined"
+  uncompliant_message <- NULL
+  
+  if (length(test_mr_compliance(orig_menu)) + length(test_pos_compliance(orig_menu)) == 0 &
+      test_calories(orig_menu) == "Calorie compliant") {
+    combined_compliance <- "Compliant"
+    uncompliant_message <- NULL
+  } else if (length(test_mr_compliance(orig_menu)) + length(test_pos_compliance(orig_menu)) > 0 |
+       test_calories(orig_menu) == "Calories too low") {
+    combined_compliance <- "Not Compliant"
+  # } 
+    # if (length(test_mr_compliance(orig_menu)) > 0) {
+      # combined_compliance <- "Not Compliant on a must_restrict"
+      uncompliant_message <- c(uncompliant_message, test_mr_compliance(orig_menu))
+    # } else if (length(test_pos_compliance(orig_menu)) > 0) {
+      # combined_compliance <- "Not Compliant on a positive"
+      uncompliant_message <- c(uncompliant_message, test_pos_compliance(orig_menu))
+    # } else if(test_calories(orig_menu) == "Calories too low") {
+      # combined_compliance <- "Not Compliant on calories"
+      uncompliant_message <- c(uncompliant_message, test_mr_compliance(orig_menu))
+      # }
+      
+    #   + length(test_pos_compliance(orig_menu)) > 0 |
+    #   test_calories(orig_menu) == "Calories too low") {
+    # combined_compliance <- "Not Compliant"
+    
+  # } else if (length(test_mr_compliance(orig_menu)) + length(test_pos_compliance(orig_menu)) == 0 &
+  #            test_calories(orig_menu) == "Calorie compliant") {
+  #   combined_compliance <- "Compliant"
+    
+  } else {
+    combined_compliance <- "Undetermined"
+  }
+  print(uncompliant_message)
+  combined_compliance
+}
+
+
+test_all_compliance_verbose(menu)
