@@ -120,6 +120,31 @@ test_all_compliance <- function(orig_menu) {
 }
 
 
+
+# Verbose omnibus test: 
+test_all_compliance_verbose <- function(orig_menu) {
+  combined_compliance <- "Undetermined"
+  uncompliant_message <- NULL
+  
+  if (length(test_mr_compliance(orig_menu)) + length(test_pos_compliance(orig_menu)) == 0 &
+      test_calories(orig_menu) == "Calorie compliant") {
+    combined_compliance <- "Compliant"
+    uncompliant_message <- NULL
+  } else if (length(test_mr_compliance(orig_menu)) + length(test_pos_compliance(orig_menu)) > 0 |
+             test_calories(orig_menu) == "Calories too low") {
+    combined_compliance <- "Not Compliant"
+    uncompliant_message <- c(uncompliant_message, 
+                             test_calories(orig_menu), 
+                             test_pos_compliance(orig_menu), 
+                             test_mr_compliance(orig_menu))
+  } else {
+    combined_compliance <- "Undetermined"
+  }
+  print(uncompliant_message)
+  combined_compliance
+}
+
+
 # --------- Test Initial Compliance ------
 
 # all

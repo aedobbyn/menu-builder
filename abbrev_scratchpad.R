@@ -1386,26 +1386,10 @@ test_all_compliance_verbose <- function(orig_menu) {
   } else if (length(test_mr_compliance(orig_menu)) + length(test_pos_compliance(orig_menu)) > 0 |
        test_calories(orig_menu) == "Calories too low") {
     combined_compliance <- "Not Compliant"
-  # } 
-    # if (length(test_mr_compliance(orig_menu)) > 0) {
-      # combined_compliance <- "Not Compliant on a must_restrict"
-      uncompliant_message <- c(uncompliant_message, test_mr_compliance(orig_menu))
-    # } else if (length(test_pos_compliance(orig_menu)) > 0) {
-      # combined_compliance <- "Not Compliant on a positive"
-      uncompliant_message <- c(uncompliant_message, test_pos_compliance(orig_menu))
-    # } else if(test_calories(orig_menu) == "Calories too low") {
-      # combined_compliance <- "Not Compliant on calories"
-      uncompliant_message <- c(uncompliant_message, test_mr_compliance(orig_menu))
-      # }
-      
-    #   + length(test_pos_compliance(orig_menu)) > 0 |
-    #   test_calories(orig_menu) == "Calories too low") {
-    # combined_compliance <- "Not Compliant"
-    
-  # } else if (length(test_mr_compliance(orig_menu)) + length(test_pos_compliance(orig_menu)) == 0 &
-  #            test_calories(orig_menu) == "Calorie compliant") {
-  #   combined_compliance <- "Compliant"
-    
+    uncompliant_message <- c(uncompliant_message, 
+                               test_calories(orig_menu), 
+                               test_pos_compliance(orig_menu), 
+                               test_mr_compliance(orig_menu))
   } else {
     combined_compliance <- "Undetermined"
   }
@@ -1413,5 +1397,7 @@ test_all_compliance_verbose <- function(orig_menu) {
   combined_compliance
 }
 
+test_all_compliance_verbose(smartly_swapped)
 
-test_all_compliance_verbose(menu)
+
+test_comp <- test_all_compliance_verbose(menu)
