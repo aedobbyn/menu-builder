@@ -9,26 +9,56 @@ shinyUI(fluidPage(
   
   theme = shinytheme("spacelab"),
   
+  titlePanel("Menu Autoworkbench Prototype"),
+  
+  fluidRow(
+    column(width = 12,
+  
+    br(),
+  
+    h3("Original Menu"),
+    
+    DT::dataTableOutput("menu"),
+    
+    actionButton("refresh_menu", "Refresh Menu")
+    
+    # DT::dataTableOutput("swapped")
+    
+    )
+  ),
+  
   br(),
   
-  p("Original Menu"),
+  fluidRow(
+    column(width = 12,
   
-  DT::dataTableOutput("menu"),
-  
-  actionButton("refresh_menu", "Refresh Menu"),
+    actionButton("adjust_portions", "Adjust Portion Sizes"),
+    
+    actionButton("swap_foods", "Swap Foods")
+    )
+  ),
   
   br(),
   
-  # actionButton("adjust_portions", "Adjust Portion Sizes"),
+  fluidRow(
+    column(width = 12,
   
+    textOutput("mr_compliance")
+    
+    # textOutput("pos_compliance")
+  
+    )
+  ),
+    
+  br(),
   br(),
   
-  textOutput("mr_compliance"),
+  fluidRow(
+    column(width = 12,
   
-  # textOutput("pos_compliance"),
-  
-  p("Compliant Menu"),
-  
-  DT::dataTableOutput("master_menu")
-  
+    h3("Compliant Menu"),
+    
+    DT::dataTableOutput("master_menu")
+    )
+  )
 ))

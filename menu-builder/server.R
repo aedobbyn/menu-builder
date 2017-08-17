@@ -30,9 +30,18 @@ shinyServer(function(input, output) {
   
   # -------------- Adjust portion sizes ---------
   
-  # observeEvent(input$adjust_portions, {
-  #   menu$data <- smart_swap(menu$data)
-  # })
+  
+  observeEvent(input$adjust_portions, {
+    swapped$data <- adjust_portion_sizes(menu$data)
+  })
+  
+  # -------------- Swap Foods ---------
+  
+  # swapped <- reactiveValues(data = NULL)
+  
+  observeEvent(input$swap_foods, {
+    menu$data <- smart_swap(menu$data)
+  })
   
   
   # ------------- Build master menu from original menu -----------
