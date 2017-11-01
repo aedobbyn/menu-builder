@@ -20,7 +20,7 @@ shinyUI(fluidPage(
     
     DT::dataTableOutput("menu"),
     
-    actionButton("refresh_menu", "Refresh Menu")
+    actionButton("build_menu", "Build Menu")
     
     # DT::dataTableOutput("swapped")
     
@@ -31,6 +31,8 @@ shinyUI(fluidPage(
   
   fluidRow(
     column(width = 12,
+    
+    actionButton("wizard_it", "Wizard It"),
   
     actionButton("adjust_portions", "Adjust Portion Sizes"),
     
@@ -45,8 +47,22 @@ shinyUI(fluidPage(
   
     textOutput("mr_compliance")
     
+    # br(),
+    # 
     # textOutput("pos_compliance")
   
+    )
+  ),
+  
+  fluidRow(
+    column(width = 12,
+           
+           # textOutput("pos_compliance")
+           
+           # br(),
+           # 
+           textOutput("pos_compliance")
+           
     )
   ),
     

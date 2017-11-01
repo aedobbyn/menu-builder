@@ -39,7 +39,7 @@ build_menu <- function(df) {
     
     i <- sample(nrow(df), 1)   # resample a new index
   }
-  menu    # return the full menu
+  menu
 }
 
 menu <- build_menu(abbrev)
