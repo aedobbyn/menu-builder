@@ -33,7 +33,7 @@ shinyServer(function(input, output) {
 
 
   observeEvent(input$adjust_portions, {
-    swapped$data <- adjust_portion_sizes(menu$data)
+    menu$data <- adjust_portion_sizes(menu$data)
   })
 
   # -------------- Swap Foods ---------
