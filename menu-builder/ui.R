@@ -22,7 +22,9 @@ shinyUI(fluidPage(
       
       actionButton("build_menu", "Build Menu"),
       
-      actionButton("adjust_portions", "Adjust Portion Sizes")
+      actionButton("adjust_portions", "Adjust Portion Sizes"),
+      
+      actionButton("swap_foods", "Swap Foods")
       
       )
   ),
@@ -56,18 +58,18 @@ shinyUI(fluidPage(
   br(),
   br(),
   
-  fluidRow(
-    column(width = 12,
-           
-       br(),
-       
-       h3("Swapped Menu"),
-       
-       actionButton("swap_foods", "Swap Foods"),
-
-      DT::dataTableOutput("swapped")
-    )
-  ),
+  # fluidRow(
+  #   column(width = 12,
+  #          
+  #      br(),
+  #      
+  #      h3("Swapped Menu"),
+  #      
+  #      actionButton("swap_foods", "Swap Foods"),
+  # 
+  #     DT::dataTableOutput("swapped")
+  #   )
+  # ),
   
   fluidRow(
     column(width = 12,
@@ -79,9 +81,6 @@ shinyUI(fluidPage(
   
   br(),
   
-    
-  br(),
-  br(),
   
   fluidRow(
     column(width = 12,
@@ -89,6 +88,20 @@ shinyUI(fluidPage(
     h3("Compliant Menu"),
     
     DT::dataTableOutput("master_menu")
+    )
+  ),
+  
+  br(), 
+  br(),
+  
+  fluidRow(
+    column(width = 12,
+           
+           actionButton("see_diffs", "See Differences"),
+           
+           h3("Differences"),
+           
+           DT::dataTableOutput("diffs")
     )
   )
 ))

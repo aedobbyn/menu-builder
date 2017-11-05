@@ -27,21 +27,26 @@ shinyServer(function(input, output) {
     menu$data <- adjust_portion_sizes(menu$data)
   })
 
-  # -------------- Swap Foods ---------
-
-  swapped <- reactiveValues(data = NULL)
-
+  # # -------------- Swap Foods -- separate menu ---------
+  # 
+  # swapped <- reactiveValues(data = NULL)
+  # 
+  # observeEvent(input$swap_foods, {
+  #   swapped$data <- smart_swap(menu$data)
+  # })
+  # 
+  # # Render data table
+  # output$swapped <- DT::renderDataTable({
+  #   swapped$data %>% 
+  #     select(GmWt_1, everything())
+  # })
+  
+# -------------- Swap Foods -- same menu ---------
+  
   observeEvent(input$swap_foods, {
-    swapped$data <- smart_swap(menu$data)
+    menu$data <- smart_swap(menu$data)
   })
   
-  # Render data table
-  output$swapped <- DT::renderDataTable({
-    swapped$data %>% 
-      select(GmWt_1, everything())
-  })
-
-
   # ------------- Build master menu from original menu -----------
 
   master_menu <- reactiveValues(data = NULL)
@@ -69,6 +74,20 @@ shinyServer(function(input, output) {
   # Positive compliance
   output$pos_compliance <- renderText({
     test_pos_compliance(menu$data)
+  })
+  
+  
+  # ------------- Diffs ---------------
+  
+  diffs <- reactiveValues(data = NULL)
+
+  observeEvent(input$see_diffs, {
+    diffs$data <- see_diffs(menu$data, master_menu$data)
+  })
+
+  # Render data table
+  output$diffs <- DT::renderDataTable({
+    diffs$data 
   })
   
   
