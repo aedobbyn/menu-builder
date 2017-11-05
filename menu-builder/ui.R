@@ -11,6 +11,7 @@ shinyUI(fluidPage(
   
   titlePanel("Menu Autoworkbench Prototype"),
   
+  
   fluidRow(
     column(width = 12,
   
@@ -81,11 +82,13 @@ shinyUI(fluidPage(
   
   br(),
   
+  conditionalPanel(
+    condition = "input$wizard_it != 0",
+    h3("Compliant Menu")),
   
   fluidRow(
     column(width = 12,
-  
-    h3("Compliant Menu"),
+     
     
     DT::dataTableOutput("master_menu")
     )
@@ -94,14 +97,21 @@ shinyUI(fluidPage(
   br(), 
   br(),
   
+  conditionalPanel(
+    condition_diffs = "input$see_diffs != 0",
+    h3("Differences")),
+  
   fluidRow(
     column(width = 12,
            
            actionButton("see_diffs", "See Differences"),
            
-           h3("Differences"),
            
            DT::dataTableOutput("diffs")
     )
-  )
+  ),
+  
+  br(),
+  br(),
+  br()
 ))
