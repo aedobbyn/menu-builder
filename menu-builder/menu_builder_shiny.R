@@ -280,7 +280,7 @@ adjust_portion_sizes <- function(orig_menu) {
       print(paste0("The best food in this respect is ", orig_menu[max_pos, ]$Shrt_Desc, ". It contributes ", max_pos_starting_cals, " calories."))
       
       # Augment max_pos's weight by 10%
-      new_gmwt <- (orig_menu[max_pos, ]$GmWt_1) * 1.1 # augment by 10%
+      new_gmwt <- ((orig_menu[max_pos, ]$GmWt_1) * 1.1) %>% round(digits = 2) # augment by 10%
       orig_menu[max_pos, ]$GmWt_1 <- new_gmwt   # replace the value with the augmented one
       
       # Find how much we increased max_pos's calorie count by

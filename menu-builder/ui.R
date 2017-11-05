@@ -7,50 +7,37 @@ library(shinythemes)
 # Define UI for application that draws a histogram
 shinyUI(fluidPage(
   
-  theme = shinytheme("spacelab"),
+  theme = shinytheme("yeti"),
   
   titlePanel("Menu Autoworkbench Prototype"),
   
   fluidRow(
     column(width = 12,
   
-    br(),
-  
-    h3("Original Menu"),
+      br(),
     
-    DT::dataTableOutput("menu"),
-    
-    actionButton("build_menu", "Build Menu")
-    
-    # DT::dataTableOutput("swapped")
-    
-    )
+      h3("Original Menu"),
+      
+      DT::dataTableOutput("menu"),
+      
+      actionButton("build_menu", "Build Menu"),
+      
+      actionButton("adjust_portions", "Adjust Portion Sizes")
+      
+      )
   ),
   
   br(),
   
   fluidRow(
     column(width = 12,
-    
-    actionButton("wizard_it", "Wizard It"),
-  
-    actionButton("adjust_portions", "Adjust Portion Sizes"),
-    
-    actionButton("swap_foods", "Swap Foods")
-    )
-  ),
-  
-  br(),
-  
-  fluidRow(
-    column(width = 12,
-  
-    textOutput("mr_compliance")
-    
-    # br(),
-    # 
-    # textOutput("pos_compliance")
-  
+           
+           textOutput("mr_compliance")
+           
+           # br(),
+           # 
+           # textOutput("pos_compliance")
+           
     )
   ),
   
@@ -65,6 +52,33 @@ shinyUI(fluidPage(
            
     )
   ),
+  
+  br(),
+  br(),
+  
+  fluidRow(
+    column(width = 12,
+           
+       br(),
+       
+       h3("Swapped Menu"),
+       
+       actionButton("swap_foods", "Swap Foods"),
+
+      DT::dataTableOutput("swapped")
+    )
+  ),
+  
+  fluidRow(
+    column(width = 12,
+    
+      actionButton("wizard_it", "Wizard It")
+  
+    )
+  ),
+  
+  br(),
+  
     
   br(),
   br(),

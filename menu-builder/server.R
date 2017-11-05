@@ -18,16 +18,7 @@ shinyServer(function(input, output) {
     menu$data %>% 
       select(GmWt_1, everything())
   })
-  
-  # Must restrict compliance
-  output$mr_compliance <- renderText({
-    test_mr_compliance(menu$data)
-  })
-  
-  # Positive compliance
-  output$pos_compliance <- renderText({
-    test_pos_compliance(menu$data)
-  })
+
 
   # -------------- Adjust portion sizes ---------
 
@@ -41,7 +32,13 @@ shinyServer(function(input, output) {
   swapped <- reactiveValues(data = NULL)
 
   observeEvent(input$swap_foods, {
-    menu$data <- smart_swap(menu$data)
+    swapped$data <- smart_swap(menu$data)
+  })
+  
+  # Render data table
+  output$swapped <- DT::renderDataTable({
+    swapped$data %>% 
+      select(GmWt_1, everything())
   })
 
 
@@ -57,13 +54,21 @@ shinyServer(function(input, output) {
     master_menu$data %>% 
       select(GmWt_1, everything())# return the full menu
   })
-
+  
+  
+  # ------------ Compliance -----------
+  
+  mr_compliance <- reactiveValues(data = NULL)
+  pos_compliance <- reactiveValues(data = NULL)
+  
+  # Must restrict compliance
   output$mr_compliance <- renderText({
-    test_mr_compliance(master_menu$data)
+    test_mr_compliance(menu$data)
   })
-
+  
+  # Positive compliance
   output$pos_compliance <- renderText({
-    test_pos_compliance(master_menu$data)
+    test_pos_compliance(menu$data)
   })
   
   
