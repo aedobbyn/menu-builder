@@ -105,23 +105,27 @@ shinyUI(fluidPage(
   br(),
   
   conditionalPanel(
-    
-    condition_diffs_button = "input.wizard_it != 0",
-    actionButton("see_diffs", "See Differences"),
-    
-    condition_diffs_header = "input.wizard_it != 0 & input.see_diffs != 0",
+
+    condition = "input.wizard_it != 0",
+    actionButton("see_diffs", "See Differences")),
+
+  conditionalPanel(
+    condition = "input.see_diffs != 0",
     h3("Differences")),
   
   
   fluidRow(
     column(width = 12,
            
-           # actionButton("see_diffs", "See Differences"),
+           actionButton("see_diffs", "See Differences"),
+           
            
            
            DT::dataTableOutput("diffs")
     )
   ),
+  
+  
   
   br(),
   br(),
