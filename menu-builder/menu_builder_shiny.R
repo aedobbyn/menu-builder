@@ -1,7 +1,9 @@
 
 # load in the abbreviated data from the USDA database
 # source("./abbrev_shiny.R")
+# source("./stats.R")   # for interactive, outside of shiny context
 source("./stats_shiny.R")
+library(dobtools)
 
 # ----------- Conditions to satisfy ---------
 # minimum daily calories: 2300 kcal
@@ -42,7 +44,7 @@ build_menu <- function(df) {
   menu
 }
 
-# menu <- build_menu(abbrev)
+menu <- build_menu(abbrev)
 
 
 # -------- Compliance Tests ---------
@@ -157,6 +159,9 @@ test_all_compliance_verbose <- function(orig_menu) {
 
 # # all
 # test_all_compliance(menu)
+# 
+# # all, verbose
+# test_all_compliance_verbose(menu)
 # 
 # # must_restricts
 # test_mr_compliance(menu)
@@ -274,30 +279,30 @@ smart_swap <- function(orig_menu) {
 
 adjust_portion_sizes <- function(orig_menu) {
   orig_menu <- orig_menu %>% drop_na_(all_nut_and_mr_df$nutrient) %>% filter(!(is.na(Energ_Kcal)) & !(is.na(GmWt_1)))
-  
+
   for (p in seq_along(pos_df$positive_nut)) {    # for each row in the df of positives
     nut_to_augment <- pos_df$positive_nut[p]    # grab the name of the nutrient we're examining
     print(paste0("------- The nutrient we're considering is ", nut_to_augment, ". It has to be above ", pos_df$value[p]))
-    
+
     val_nut_to_augment <- (sum(orig_menu[[nut_to_augment]] * orig_menu$GmWt_1))/100   # get the total amount of that nutrient in our original menu
     print(paste0("The original total value of that nutrient in our menu is ", val_nut_to_augment))
-    
+
     while (val_nut_to_augment < pos_df$value[p]) {     # if the amount of the must restrict in our current menu is below the min daily value it should be according to pos_df
-      
+
       # Find the max_pos and its starting calorie count
       max_pos <- which(orig_menu[[nut_to_augment]] == max(orig_menu[[nut_to_augment]]))   # get index of food that's the best in this respect
       max_pos_starting_cals <- (orig_menu[max_pos, ]$Energ_Kcal * orig_menu[max_pos, ]$GmWt_1)/100
       print(paste0("The best food in this respect is ", orig_menu[max_pos, ]$Shrt_Desc, ". It contributes ", max_pos_starting_cals, " calories."))
-      
+
       # Augment max_pos's weight by 10%
       new_gmwt <- ((orig_menu[max_pos, ]$GmWt_1) * 1.1) %>% round(digits = 2) # augment by 10%
       orig_menu[max_pos, ]$GmWt_1 <- new_gmwt   # replace the value with the augmented one
-      
+
       # Find how much we increased max_pos's calorie count by
       max_pos_new_cals <- (orig_menu[max_pos, ]$Energ_Kcal * new_gmwt)/100   # get the amount that we increased our menu's calories by in augmenting the max_pos
       print(paste0("After an increase of 10% weight the calories contributed by our max positive are ", max_pos_new_cals, " calories."))
       cal_diff <- max_pos_new_cals - max_pos_starting_cals
-      
+
       # Find the newly augmented nutrient value to see if we need to continue the loop
       val_nut_to_augment <- (sum(orig_menu[[nut_to_augment]] * orig_menu$GmWt_1))/100   # save the new value of the nutrient
       print(paste0("Our new value of this nutrient is ", val_nut_to_augment))

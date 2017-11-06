@@ -3,7 +3,7 @@ library(shiny)
 
 source("./menu_builder_shiny.R")
 
-set.seed(9)
+# set.seed(9)
 
 # Define server logic required to draw a histogram
 shinyServer(function(input, output) {
