@@ -44,7 +44,7 @@ build_menu <- function(df) {
   menu
 }
 
-menu <- build_menu(abbrev)
+# menu <- build_menu(abbrev)
 
 
 # -------- Compliance Tests ---------

@@ -18,6 +18,7 @@ shinyUI(fluidPage(
   #   condition_diffs = "input.see_diffs == 2",
   #   h3("Differences")),
   
+  # DT::dataTableOutput("all_nut_and_mr_df"),
   
   fluidRow(
     column(width = 12,

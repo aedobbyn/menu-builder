@@ -20,8 +20,10 @@ shinyServer(function(input, output) {
     if (input$build_menu == 0)
       return(all_nut_and_mr_df)
     
-    menu$data %>% 
-      select(GmWt_1, everything())
+    else {
+      menu$data %>% 
+        select(GmWt_1, everything())
+    }
   })
 
 
