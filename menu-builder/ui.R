@@ -42,23 +42,11 @@ shinyUI(fluidPage(
   fluidRow(
     column(width = 12,
            
-           textOutput("mr_compliance")
+           tableOutput("mr_compliance"),
            
-           # br(),
-           # 
-           # textOutput("pos_compliance")
-           
-    )
-  ),
-  
-  fluidRow(
-    column(width = 12,
-           
-           # textOutput("pos_compliance")
-           
-           # br(),
-           # 
-           textOutput("pos_compliance")
+           br(),
+
+           tableOutput("pos_compliance")
            
     )
   ),
@@ -111,7 +99,10 @@ shinyUI(fluidPage(
 
   conditionalPanel(
     condition = "input.see_diffs != 0",
-    h3("Differences")),
+    h3("Differences"),
+    helpText("Differences between the original menu and compliant menu.")),
+  
+  
   
   
   fluidRow(

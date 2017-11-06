@@ -3,6 +3,8 @@ library(shiny)
 
 source("./menu_builder_shiny.R")
 
+set.seed(9)
+
 # Define server logic required to draw a histogram
 shinyServer(function(input, output) {
    
@@ -91,14 +93,14 @@ shinyServer(function(input, output) {
   # })
   
   # Must restrict compliance
-  output$mr_compliance <- renderText({
+  output$mr_compliance <- DT::renderDataTable({
     if (input$build_menu == 0)
       return()
     test_mr_compliance(menu$data)
   })
   
   # Positive compliance
-  output$pos_compliance <- renderText({
+  output$pos_compliance <- DT::renderDataTable({
     if (input$build_menu == 0)
       return()
     test_pos_compliance(menu$data)

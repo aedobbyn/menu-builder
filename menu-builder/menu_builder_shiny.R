@@ -42,7 +42,7 @@ build_menu <- function(df) {
   menu
 }
 
-menu <- build_menu(abbrev)
+# menu <- build_menu(abbrev)
 
 
 # -------- Compliance Tests ---------
@@ -54,14 +54,16 @@ menu <- build_menu(abbrev)
 
 # Must restrict compliance
 test_mr_compliance <- function(orig_menu, capitalize_colname = TRUE) {
-  compliance_df <- list(must_restricts_uncompliant_on = vector()) %>% as_tibble()
+  compliance_df <- list(must_restricts_uncompliant_on = vector(), 
+                        `difference_(g)` = vector()) %>% as_tibble()
   
   for (m in seq_along(mr_df$must_restrict)) {    # for each row in the df of must_restricts
     nut_to_restrict <- mr_df$must_restrict[m]    # grab the name of the nutrient we're restricting
     to_restrict <- (sum(orig_menu[[nut_to_restrict]] * orig_menu$GmWt_1))/100   # get the amount of that must restrict nutrient in our original menu
     
     if (to_restrict > mr_df$value[m]) {
-      this_compliance <- list(must_restricts_uncompliant_on = nut_to_restrict) %>% as_tibble()
+      this_compliance <- list(must_restricts_uncompliant_on = nut_to_restrict,
+                              `difference_(g)` = (to_restrict - mr_df$value[m]) %>% round(digits = 2)) %>% as_tibble()
       compliance_df <- bind_rows(compliance_df, this_compliance)
     }
   }
@@ -75,14 +77,16 @@ test_mr_compliance <- function(orig_menu, capitalize_colname = TRUE) {
 # Positive nutrients compliance
 test_pos_compliance <- function(orig_menu, capitalize_colname = TRUE) {
   orig_menu <- orig_menu %>% drop_na_(all_nut_and_mr_df$nutrient) %>% filter(!(is.na(Energ_Kcal)) & !(is.na(GmWt_1)))
-  compliance_df <- list(nutrients_uncompliant_on = vector()) %>% as_tibble()
+  compliance_df <- list(nutrients_uncompliant_on = vector(),
+                        `difference_(g)` = vector()) %>% as_tibble()
   
   for (p in seq_along(pos_df$positive_nut)) {    # for each row in the df of positives
     nut_to_augment <- pos_df$positive_nut[p]    # grab the name of the nutrient we're examining
     val_nut_to_augment <- (sum(orig_menu[[nut_to_augment]] * orig_menu$GmWt_1))/100   # get the total amount of that nutrient in our original menu
     
     if (val_nut_to_augment < pos_df$value[p]) {
-      this_compliance <- list(nutrients_uncompliant_on = nut_to_augment) %>% as_tibble()
+      this_compliance <- list(nutrients_uncompliant_on = nut_to_augment,
+                              `difference_(g)` = (pos_df$value[p] - val_nut_to_augment) %>% round(digits = 2)) %>% as_tibble()
       compliance_df <- bind_rows(compliance_df, this_compliance)
     }
   }
@@ -139,8 +143,8 @@ test_all_compliance_verbose <- function(orig_menu) {
     combined_compliance <- "Not Compliant"
     uncompliant_message <- c(uncompliant_message, 
                              test_calories(orig_menu), 
-                             test_pos_compliance(orig_menu), 
-                             test_mr_compliance(orig_menu))
+                             test_pos_compliance(orig_menu)[, 1], 
+                             test_mr_compliance(orig_menu)[, 1])
   } else {
     combined_compliance <- "Undetermined"
   }
@@ -151,17 +155,17 @@ test_all_compliance_verbose <- function(orig_menu) {
 
 # --------- Test Initial Compliance ------
 
-# all
-test_all_compliance(menu)
-
-# must_restricts
-test_mr_compliance(menu)
-
-# positives
-test_pos_compliance(menu)
-
-# calories
-test_calories(menu)
+# # all
+# test_all_compliance(menu)
+# 
+# # must_restricts
+# test_mr_compliance(menu)
+# 
+# # positives
+# test_pos_compliance(menu)
+# 
+# # calories
+# test_calories(menu)
 
 # ---------------------------------------
 
@@ -220,7 +224,7 @@ replace_food_w_rand <- function(orig_menu, max_offender) {
 
 smart_swap <- function(orig_menu) {
   
-  while(length(test_mr_compliance(orig_menu)) > 0) {
+  while(nrow(test_mr_compliance(orig_menu)) > 0) {
     
     for (m in seq_along(mr_df$must_restrict)) {    # for each row in the df of must_restricts
       nut_to_restrict <- mr_df$must_restrict[m]    # grab the name of the nutrient we're restricting
@@ -251,7 +255,7 @@ smart_swap <- function(orig_menu) {
   orig_menu
 }
 
-smartly_swapped <- smart_swap(menu)
+# smartly_swapped <- smart_swap(menu)
 
 
 
@@ -302,7 +306,7 @@ adjust_portion_sizes <- function(orig_menu) {
   orig_menu
 }
 
-more_nutritious <- adjust_portion_sizes(menu)
+# more_nutritious <- adjust_portion_sizes(menu)
 
 
 # ---------------- Add Calories -------------
@@ -311,7 +315,7 @@ more_nutritious <- adjust_portion_sizes(menu)
 # menu's total calories are too low, increase them by adding one serving of a random food from our database to the menu
 
 add_calories <- function(orig_menu) {
-  orig_menu <- orig_menu %>% drop_na_(all_nut_and_mr_df$nutrient) %>%  filter(!(is.na(Energ_Kcal)) & !(is.na(GmWt_1))) 
+  our_menu <- orig_menu %>% drop_na_(all_nut_and_mr_df$nutrient) %>%  filter(!(is.na(Energ_Kcal)) & !(is.na(GmWt_1))) 
   df <- abbrev %>% drop_na_(all_nut_and_mr_df$nutrient) %>%  filter(!(is.na(Energ_Kcal)) & !(is.na(GmWt_1)))    # filter out rows that have NAs in columns that we need
   
   i <- sample(nrow(df), 1) # sample a random row from df and save its index in i  
@@ -322,11 +326,11 @@ add_calories <- function(orig_menu) {
     this_food_cal <- (df$Energ_Kcal[i] * df$GmWt_1[i])/100    # get the number of calories in 1 serving of this food (see N = (V*W)/100 formula)
     cals <- cals + this_food_cal    # add the calories in row of index i to the calorie sum variable
     
-    menu <- rbind(menu, df[i,])   # add that row to our menu
+    our_menu <- rbind(our_menu, df[i,])   # add that row to our menu
     
     i <- sample(nrow(df), 1)   # resample a new index
   }
-  menu    # return the full menu
+  our_menu    # return the full menu
 }
 
 # ----------------------------------------------------------------------------------------------------------------
@@ -347,10 +351,10 @@ master_builder <- function(our_menu) {
     if (total_cals < 2300) {
       our_menu <- add_calories(our_menu)
       
-    } else if (length(test_mr_compliance(our_menu))) {
+    } else if (nrow(test_mr_compliance(our_menu))) {
       our_menu <- smart_swap(our_menu)
       
-    } else if (length(test_pos_compliance(our_menu))) {
+    } else if (nrow(test_pos_compliance(our_menu))) {
       our_menu <- adjust_portion_sizes(our_menu)
       
     } else {
@@ -360,34 +364,34 @@ master_builder <- function(our_menu) {
   our_menu
 }
 
-master_menu <- master_builder(menu)
-master_menu
+# master_menu <- master_builder(menu)
+# master_menu
 
 
 
-
-# --------- Test Compliances ------
-# all
-test_all_compliance(menu)
-test_all_compliance(master_menu)
-
-# must_restricts
-test_mr_compliance(menu)
-test_mr_compliance(smartly_swapped)
-test_mr_compliance(more_nutritious)
-test_mr_compliance(master_menu)
-
-# positives
-test_pos_compliance(menu)
-test_pos_compliance(smartly_swapped)
-test_pos_compliance(more_nutritious)
-test_pos_compliance(master_menu)
-
-# calories
-test_calories(menu)
-test_calories(smartly_swapped)
-test_calories(more_nutritious)
-test_calories(master_menu)
+# 
+# # --------- Test Compliances ------
+# # all
+# test_all_compliance(menu)
+# test_all_compliance(master_menu)
+# 
+# # must_restricts
+# test_mr_compliance(menu)
+# test_mr_compliance(smartly_swapped)
+# test_mr_compliance(more_nutritious)
+# test_mr_compliance(master_menu)
+# 
+# # positives
+# test_pos_compliance(menu)
+# test_pos_compliance(smartly_swapped)
+# test_pos_compliance(more_nutritious)
+# test_pos_compliance(master_menu)
+# 
+# # calories
+# test_calories(menu)
+# test_calories(smartly_swapped)
+# test_calories(more_nutritious)
+# test_calories(master_menu)
 # ---------------------------------------
 
 
@@ -400,14 +404,14 @@ see_diffs <- function(menu_1, menu_2) {
     select(Shrt_Desc, GmWt_1)
   diff
 }
-see_diffs(menu, master_menu)
-
-# indices that differ on weight between the original and new menu
-which(!menu$GmWt_1 %in% master_menu$GmWt_1)
-
-# -----------------------------------------------------------------------------------
-
-
-# Main output we'd want to see
-test_all_compliance(master_menu)
-
+# see_diffs(menu, master_menu)
+# 
+# # indices that differ on weight between the original and new menu
+# which(!menu$GmWt_1 %in% master_menu$GmWt_1)
+# 
+# # -----------------------------------------------------------------------------------
+# 
+# 
+# # Main output we'd want to see
+# test_all_compliance(master_menu)
+# 
