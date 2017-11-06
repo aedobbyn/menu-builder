@@ -53,36 +53,36 @@ menu <- build_menu(abbrev)
 
 
 # Must restrict compliance
-test_mr_compliance <- function(orig_menu) {
-  compliance <- vector()
+test_mr_compliance <- function(orig_menu, capitalize_colname = TRUE) {
+  compliance_df <- list(must_restricts_uncompliant_on = vector()) %>% as_tibble()
   
   for (m in seq_along(mr_df$must_restrict)) {    # for each row in the df of must_restricts
     nut_to_restrict <- mr_df$must_restrict[m]    # grab the name of the nutrient we're restricting
     to_restrict <- (sum(orig_menu[[nut_to_restrict]] * orig_menu$GmWt_1))/100   # get the amount of that must restrict nutrient in our original menu
     
     if (to_restrict > mr_df$value[m]) {
-      this_compliance <- paste0("Not compliant on ", nut_to_restrict)
-      compliance <- c(this_compliance, compliance)
+      this_compliance <- list(must_restricts_uncompliant_on = nut_to_restrict) %>% as_tibble()
+      compliance_df <- bind_rows(compliance_df, this_compliance)
     }
   }
-  compliance
+  if (capitalize_colname == TRUE) {
+    compliance_df <- compliance_df %>% cap_df()
+  }
+  return(compliance_df)
 }
 
 
 # Positive nutrients compliance
 test_pos_compliance <- function(orig_menu, capitalize_colname = TRUE) {
   orig_menu <- orig_menu %>% drop_na_(all_nut_and_mr_df$nutrient) %>% filter(!(is.na(Energ_Kcal)) & !(is.na(GmWt_1)))
-  # compliance <- vector()
-  compliance_df <- list(uncompliant_on = vector()) %>% as_tibble()
+  compliance_df <- list(nutrients_uncompliant_on = vector()) %>% as_tibble()
   
   for (p in seq_along(pos_df$positive_nut)) {    # for each row in the df of positives
     nut_to_augment <- pos_df$positive_nut[p]    # grab the name of the nutrient we're examining
     val_nut_to_augment <- (sum(orig_menu[[nut_to_augment]] * orig_menu$GmWt_1))/100   # get the total amount of that nutrient in our original menu
     
     if (val_nut_to_augment < pos_df$value[p]) {
-      # this_compliance <- paste0("Not compliant on ", nut_to_augment)
-      # compliance <- c(this_compliance, compliance)
-      this_compliance <- list(uncompliant_on = nut_to_augment) %>% as_tibble()
+      this_compliance <- list(nutrients_uncompliant_on = nut_to_augment) %>% as_tibble()
       compliance_df <- bind_rows(compliance_df, this_compliance)
     }
   }
@@ -109,11 +109,11 @@ test_calories <- function(our_menu) {
 test_all_compliance <- function(orig_menu) {
   combined_compliance <- "Undetermined"
   
-  if (length(test_mr_compliance(orig_menu)) + length(test_pos_compliance(orig_menu)) > 0 |
+  if (nrow(test_mr_compliance(orig_menu)) + nrow(test_pos_compliance(orig_menu)) > 0 |
       test_calories(orig_menu) == "Calories too low") {
     combined_compliance <- "Not Compliant"
     
-  } else if (length(test_mr_compliance(orig_menu)) + length(test_pos_compliance(orig_menu)) == 0 &
+  } else if (nrow(test_mr_compliance(orig_menu)) + nrow(test_pos_compliance(orig_menu)) == 0 &
              test_calories(orig_menu) == "Calorie compliant") {
     combined_compliance <- "Compliant"
     
@@ -130,11 +130,11 @@ test_all_compliance_verbose <- function(orig_menu) {
   combined_compliance <- "Undetermined"
   uncompliant_message <- NULL
   
-  if (length(test_mr_compliance(orig_menu)) + length(test_pos_compliance(orig_menu)) == 0 &
+  if (nrow(test_mr_compliance(orig_menu)) + nrow(test_pos_compliance(orig_menu)) == 0 &
       test_calories(orig_menu) == "Calorie compliant") {
     combined_compliance <- "Compliant"
     uncompliant_message <- NULL
-  } else if (length(test_mr_compliance(orig_menu)) + length(test_pos_compliance(orig_menu)) > 0 |
+  } else if (nrow(test_mr_compliance(orig_menu)) + nrow(test_pos_compliance(orig_menu)) > 0 |
              test_calories(orig_menu) == "Calories too low") {
     combined_compliance <- "Not Compliant"
     uncompliant_message <- c(uncompliant_message, 
