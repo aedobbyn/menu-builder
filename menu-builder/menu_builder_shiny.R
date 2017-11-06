@@ -70,20 +70,26 @@ test_mr_compliance <- function(orig_menu) {
 
 
 # Positive nutrients compliance
-test_pos_compliance <- function(orig_menu) {
+test_pos_compliance <- function(orig_menu, capitalize_colname = TRUE) {
   orig_menu <- orig_menu %>% drop_na_(all_nut_and_mr_df$nutrient) %>% filter(!(is.na(Energ_Kcal)) & !(is.na(GmWt_1)))
-  compliance <- vector()
+  # compliance <- vector()
+  compliance_df <- list(uncompliant_on = vector()) %>% as_tibble()
   
   for (p in seq_along(pos_df$positive_nut)) {    # for each row in the df of positives
     nut_to_augment <- pos_df$positive_nut[p]    # grab the name of the nutrient we're examining
     val_nut_to_augment <- (sum(orig_menu[[nut_to_augment]] * orig_menu$GmWt_1))/100   # get the total amount of that nutrient in our original menu
     
     if (val_nut_to_augment < pos_df$value[p]) {
-      this_compliance <- paste0("Not compliant on ", nut_to_augment)
-      compliance <- c(this_compliance, compliance)
+      # this_compliance <- paste0("Not compliant on ", nut_to_augment)
+      # compliance <- c(this_compliance, compliance)
+      this_compliance <- list(uncompliant_on = nut_to_augment) %>% as_tibble()
+      compliance_df <- bind_rows(compliance_df, this_compliance)
     }
   }
-  compliance
+  if (capitalize_colname == TRUE) {
+    compliance_df <- compliance_df %>% cap_df()
+  }
+  return(compliance_df)
 }
 
 

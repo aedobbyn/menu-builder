@@ -117,9 +117,6 @@ shinyUI(fluidPage(
   fluidRow(
     column(width = 12,
            
-           actionButton("see_diffs", "See Differences"),
-           
-           
            
            DT::dataTableOutput("diffs")
     )
