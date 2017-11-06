@@ -39,60 +39,60 @@ shinyUI(fluidPage(
   ),
   
   br(),
-  
+
   fluidRow(
     column(width = 12,
-           
-           tableOutput("mr_compliance"),
-           
+
+           dataTableOutput("mr_compliance"),
+
            br(),
 
-           tableOutput("pos_compliance")
-           
+           dataTableOutput("pos_compliance")
+
     )
   ),
-  
+
   br(),
   br(),
-  
+
   # fluidRow(
   #   column(width = 12,
-  #          
+  #
   #      br(),
-  #      
+  #
   #      h3("Swapped Menu"),
-  #      
+  #
   #      actionButton("swap_foods", "Swap Foods"),
-  # 
+  #
   #     DT::dataTableOutput("swapped")
   #   )
   # ),
-  
+
   fluidRow(
     column(width = 12,
-    
+
       actionButton("wizard_it", "Wizard It")
-  
+
     )
   ),
-  
+
   br(),
-  
+
   conditionalPanel(
     condition = "input.wizard_it != 0",
     h3("Compliant Menu")),
-  
+
   fluidRow(
     column(width = 12,
-     
-    
+
+
     DT::dataTableOutput("master_menu")
     )
   ),
-  
-  br(), 
+
   br(),
-  
+  br(),
+
   conditionalPanel(
 
     condition = "input.wizard_it != 0",
@@ -102,19 +102,19 @@ shinyUI(fluidPage(
     condition = "input.see_diffs != 0",
     h3("Differences"),
     helpText("Differences between the original menu and compliant menu.")),
-  
-  
-  
-  
+
+
+
+
   fluidRow(
     column(width = 12,
-           
-           
+
+
            DT::dataTableOutput("diffs")
     )
   ),
-  
-  
+
+
   
   br(),
   br(),
