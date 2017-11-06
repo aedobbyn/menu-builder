@@ -42,7 +42,11 @@ shinyUI(fluidPage(
 
   fluidRow(
     column(width = 12,
-
+           
+           # conditionalPanel(
+           #   condition = "nrow(mr_compliance()) > 0",
+           #   dataTableOutput("mr_compliance")),
+           
            dataTableOutput("mr_compliance"),
 
            br(),

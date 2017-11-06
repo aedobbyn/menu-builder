@@ -98,14 +98,24 @@ shinyServer(function(input, output) {
   output$mr_compliance <- DT::renderDataTable({
     if (input$build_menu == 0)
       return()
+    
     test_mr_compliance(menu$data)
+    
+    # if (nrow(test_mr_compliance(menu$data) == 0)) {
+    #   return()
+    # }
   })
   
   # Positive compliance
   output$pos_compliance <- DT::renderDataTable({
     if (input$build_menu == 0)
       return()
+    
     test_pos_compliance(menu$data)
+    
+    # if (nrow(test_pos_compliance(menu$data) == 0)) {
+    #   return()
+    # }
   })
   
   output$diffs <- DT::renderDataTable({
