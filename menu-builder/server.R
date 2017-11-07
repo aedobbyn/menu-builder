@@ -66,13 +66,16 @@ shinyServer(function(input, output) {
 
   master_menu <- reactiveValues(data = NULL)
 
-  observeEvent(input$wizard_it, {
+  observeEvent(input$wizard_it_from_scratch, {
       master_menu$data <- master_builder()
-    
+  })
+  
+  observeEvent(input$wizard_it_from_seeded, {
+    master_menu$data <- master_builder(menu$data)
   })
 
   output$master_menu <- DT::renderDataTable({
-    if (input$wizard_it == 0)
+    if (input$wizard_it_from_scratch == 0 & input$wizard_it_from_seeded == 0)
       return()
     
     master_menu$data %>% 
@@ -85,25 +88,29 @@ shinyServer(function(input, output) {
   mr_compliance <- reactiveValues(data = NULL)
   pos_compliance <- reactiveValues(data = NULL)
   
-  # observeEvent(input$wizard_it, {
-  #   if (input$build_menu == 0)
-  #     return()
-  #   
-  #   mr_compliance <- test_mr_compliance(menu$data)
-  #   pos_compliance <- test_pos_compliance(menu$data)
-  #   
-  # })
+  # all_compliance <- reactiveValues({
+  #     if (input$build_menu == 0) {
+  #       data = NULL
+  #     } else {
+  #       data <- test_all_compliance(menu$data)
+  #     }
+  #   })
+  
   
   # Must restrict compliance
   output$mr_compliance <- DT::renderDataTable({
-    if (input$build_menu == 0)
-      return()
+    if (input$build_menu == 0) {
+      return() 
+    }
     
     test_mr_compliance(menu$data)
     
-    # if (nrow(test_mr_compliance(menu$data) == 0)) {
+    # if (input$build_menu > 0 & (nrow(test_mr_compliance(menu$data) == 0))) {
     #   return()
+    # } else {
+    #   return(test_mr_compliance(menu$data))
     # }
+    
   })
   
   # Positive compliance

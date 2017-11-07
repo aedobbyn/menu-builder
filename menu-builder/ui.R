@@ -62,7 +62,7 @@ shinyUI(fluidPage(
     column(width = 12,
            
            # conditionalPanel(
-           #   condition = "nrow(mr_compliance()) > 0",
+           #   condition = "nrow(mr_compliance > 0)",
            #   dataTableOutput("mr_compliance")),
            
            dataTableOutput("mr_compliance"),
@@ -81,7 +81,12 @@ shinyUI(fluidPage(
   fluidRow(
     column(width = 12,
 
-      actionButton("wizard_it", "Wizard It")
+      actionButton("wizard_it_from_scratch", "Wizard It from Scratch"),
+      
+      conditionalPanel(
+        condition = "input.build_menu != 0", 
+        actionButton("wizard_it_from_seeded", "Wizard It from Original"))
+      
 
     )
   ),
@@ -89,7 +94,7 @@ shinyUI(fluidPage(
   br(),
 
   conditionalPanel(
-    condition = "input.wizard_it != 0",
+    condition = "input.wizard_it_from_scratch != 0 | input.wizard_it_from_seeded != 0",
     h3("Compliant Menu")),
 
   fluidRow(
@@ -105,7 +110,8 @@ shinyUI(fluidPage(
 
   conditionalPanel(
 
-    condition = "input.build_menu != 0 & input.wizard_it != 0",
+    condition = "input.build_menu != 0 & 
+      (input.wizard_it_from_scratch != 0 | input.wizard_it_from_seeded != 0)",
     actionButton("see_diffs", "See Differences")),
 
   conditionalPanel(
