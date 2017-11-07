@@ -345,8 +345,13 @@ add_calories <- function(orig_menu) {
 # ---------------- Build Compliant Menu ---------------
 # Combine all of the above to build a menu that is compliant in all three respects
 
-master_builder <- function(our_menu) {
-  # our_menu <- build_menu(abbrev)   # seed with a random menu
+master_builder <- function(seed_menu = NULL) {
+  
+  if (is.null(seed_menu)) {
+    our_menu <- build_menu(abbrev)   # seed with a random menu
+  } else {
+    our_menu <- seed_menu
+  }
   
   # define conditions
   total_cals <- sum((our_menu$Energ_Kcal * our_menu$GmWt_1))/100 
@@ -369,8 +374,9 @@ master_builder <- function(our_menu) {
   our_menu
 }
 
-# master_menu <- master_builder(menu)
-# master_menu
+# master_menu <- master_builder()
+# master_menu_seeded <- master_builder(menu)
+
 
 
 

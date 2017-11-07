@@ -24,18 +24,36 @@ shinyUI(fluidPage(
     column(width = 12,
   
       br(),
-    
-      h3("Original Menu"),
       
+      conditionalPanel(
+        condition = "input.build_menu == 0",
+        h3("All Nutrients")),
+      
+      conditionalPanel(
+        condition = "input.build_menu != 0",
+        h3("Original Menu")),
+    
       DT::dataTableOutput("menu"),
       
-      actionButton("build_menu", "Build Menu"),
+      actionButton("build_menu", "Build Menu")
       
-      actionButton("adjust_portions", "Adjust Portion Sizes"),
-      
-      actionButton("swap_foods", "Swap Foods")
       
       )
+  ),
+  
+  br(),
+  
+  fluidRow(
+    column(width = 12,
+           
+           conditionalPanel(
+             condition = "input.build_menu != 0",
+             actionButton("adjust_portions", "Adjust Portion Sizes")),
+           
+           conditionalPanel(
+             condition = "input.build_menu != 0",
+             actionButton("swap_foods", "Swap Foods"))
+    )
   ),
   
   br(),
@@ -59,18 +77,6 @@ shinyUI(fluidPage(
   br(),
   br(),
 
-  # fluidRow(
-  #   column(width = 12,
-  #
-  #      br(),
-  #
-  #      h3("Swapped Menu"),
-  #
-  #      actionButton("swap_foods", "Swap Foods"),
-  #
-  #     DT::dataTableOutput("swapped")
-  #   )
-  # ),
 
   fluidRow(
     column(width = 12,
@@ -89,8 +95,8 @@ shinyUI(fluidPage(
   fluidRow(
     column(width = 12,
 
-
     DT::dataTableOutput("master_menu")
+    
     )
   ),
 
@@ -99,7 +105,7 @@ shinyUI(fluidPage(
 
   conditionalPanel(
 
-    condition = "input.wizard_it != 0",
+    condition = "input.build_menu != 0 & input.wizard_it != 0",
     actionButton("see_diffs", "See Differences")),
 
   conditionalPanel(
@@ -112,7 +118,6 @@ shinyUI(fluidPage(
 
   fluidRow(
     column(width = 12,
-
 
            DT::dataTableOutput("diffs")
     )

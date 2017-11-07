@@ -18,7 +18,7 @@ shinyServer(function(input, output) {
   # Render data table
   output$menu <- DT::renderDataTable({
     if (input$build_menu == 0)
-      return(all_nut_and_mr_df)
+      return(all_nut_and_mr_df %>% cap_df())
     
     else {
       menu$data %>% 
@@ -67,7 +67,7 @@ shinyServer(function(input, output) {
   master_menu <- reactiveValues(data = NULL)
 
   observeEvent(input$wizard_it, {
-      master_menu$data <- master_builder(menu$data)
+      master_menu$data <- master_builder()
     
   })
 
