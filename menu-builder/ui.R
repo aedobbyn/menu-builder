@@ -27,7 +27,7 @@ shinyUI(fluidPage(
       
       conditionalPanel(
         condition = "input.build_menu == 0",
-        h3("All Nutrients")),
+        h3("All Required Nutrient Values")),
       
       conditionalPanel(
         condition = "input.build_menu != 0",

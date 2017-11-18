@@ -50,6 +50,8 @@ abbrev_sans_na <- abbrev %>%
 scaled <- bind_cols(abbrev_sans_na[, 1:2], scaled, abbrev_sans_na[, 49:ncol(abbrev_sans_na)]) # cbind freaks out for some tibble reason so going with bind_cols
 
 
+# library(feather)
+# write_feather(scaled, "./scaled.feather")
 
 
 # three ways of finding foods containing high sodium 
