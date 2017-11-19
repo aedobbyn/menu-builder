@@ -88,7 +88,8 @@ orig_menu = menu_builder(abbrev)
     
 
 must_restricts = ['Lipid_Tot_g', 'Sodium_mg', 'Cholestrl_mg', 'FA_Sat_g']
-mr_df = all_nut_and_mr_df[all_nut_and_mr_df.nutrient.isin(mrs)]
+mr_df = all_nut_and_mr_df[all_nut_and_mr_df.nutrient.isin(must_restricts)]
+pos_df = all_nut_and_mr_df[~all_nut_and_mr_df.nutrient.isin(must_restricts)]
 
 
 def test_mr_compliance(orig_menu):
@@ -97,19 +98,45 @@ def test_mr_compliance(orig_menu):
     # pdb.set_trace()
 
     for m in range(len(mr_df.index)):
-        nut_to_restrict = mr_df.iloc[m, 0]
+        nut_to_restrict = mr_df.iloc[m, 0] # the name of the nutrient we're restricting
         orig_menu_no_na = orig_menu.dropna(subset=[nut_to_restrict, 'GmWt_1'])
-        to_restrict = sum(orig_menu_no_na[nut_to_restrict] * orig_menu_no_na['GmWt_1'])/100
+        val_nut_to_restrict = sum(orig_menu_no_na[nut_to_restrict] * orig_menu_no_na['GmWt_1'])/100 # the amount of that must restrict nutrient in our original menu
         
         if to_restrict > mr_df.iloc[m, 1]:
-            compliance_names.append(mr_df.iloc[m, 0])
-            compliance_diff = round(to_restrict - mr_df.iloc[m, 1], 2)
+            compliance_names.append(nut_to_restrict)
+            compliance_diff = round(val_nut_to_restrict - mr_df.iloc[m, 1], 2)
             compliance_vals.append(compliance_diff)
             
     compliance_dict = dict(zip(compliance_names, compliance_vals))
     return compliance_dict
 
-z = test_mr_compliance(my_full_menu)
+my_mr_compliance = test_mr_compliance(my_full_menu)
+
+
+
+
+def test_pos_compliance(orig_menu):
+    compliance_names = []
+    compliance_vals = []
+    # pdb.set_trace()
+
+    for m in range(len(pos_df.index)):
+        nut_to_augment = pos_df.iloc[m, 0]
+        orig_menu_no_na = orig_menu.dropna(subset=[nut_to_augment, 'GmWt_1'])
+        
+        val_nut_our_menu = sum(orig_menu_no_na[nut_to_augment] * orig_menu_no_na['GmWt_1'])/100
+        val_nut_should_be = pos_df.iloc[m, 1]
+        
+        if val_nut_our_menu > val_nut_should_be:
+            compliance_names.append(nut_to_augment)
+            compliance_diff = round(val_nut_should_be - val_nut_our_menu, 2)
+            compliance_vals.append(compliance_diff)
+            
+    compliance_dict = dict(zip(compliance_names, compliance_vals))
+    return compliance_dict
+
+y = test_pos_compliance(my_full_menu)
+
 
 
 
