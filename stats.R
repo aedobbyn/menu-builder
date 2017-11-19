@@ -52,6 +52,7 @@ scaled <- bind_cols(abbrev_sans_na[, 1:2], scaled, abbrev_sans_na[, 49:ncol(abbr
 
 # library(feather)
 # write_feather(scaled, "./scaled.feather")
+# write_csv(scaled, "./scaled.csv")
 
 
 # three ways of finding foods containing high sodium 

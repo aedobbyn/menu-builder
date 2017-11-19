@@ -21,8 +21,19 @@ mr_df = all_nut_and_mr_df[all_nut_and_mr_df.nutrient.isin(must_restricts)]
 pos_df = all_nut_and_mr_df[~all_nut_and_mr_df.nutrient.isin(must_restricts)]
 
 # import feather as f
-# scaled = pd.read_feather("./Desktop/Earlybird/food-progress/")
+# scaled = f.read_feather("./Desktop/Earlybird/food-progress/scaled.feather")
 
+# Read in scaled version of USDA data
+scaled = pd.read_csv("./Desktop/Earlybird/food-progress/scaled.csv")
+
+
+# Take out rows that don't have all the nutrients and must_restricts or are missing calories
+need = all_nut_and_mr_df.nutrient.values.tolist()
+need.append('Energ_Kcal'); need.append('GmWt_1')
+scaled = scaled.dropna(subset = need)
+abbrev = abbrev.dropna(subset = need)
+
+scaled.dropna(subset=need)
 
 # Getting acquainted
 def find_butter(df, colnum):
@@ -137,12 +148,10 @@ test_calories(my_full_menu)
 def test_all_compliance(orig_menu):
     combined_compliance = "Undetermined"
     
-    if (len(test_pos_compliance(orig_menu)) + len(test_mr_compliance(orig_menu))) == 0 and 
-            (test_calories(orig_menu) == "Calorie compliant.") :
+    if (len(test_pos_compliance(orig_menu)) + len(test_mr_compliance(orig_menu))) == 0 and (test_calories(orig_menu) == "Calorie compliant.") :
         combined_compliance = "Compliant"
             
-    elif (len(test_pos_compliance(orig_menu)) + len(test_mr_compliance(orig_menu))) > 0 or 
-            (test_calories(orig_menu) != "Calorie compliant."):
+    elif (len(test_pos_compliance(orig_menu)) + len(test_mr_compliance(orig_menu))) > 0 or (test_calories(orig_menu) != "Calorie compliant."):
         combined_compliance = "Uncompliant"
         
     return combined_compliance
@@ -151,9 +160,28 @@ test_all_compliance(my_full_menu)
 
 
 
+# Replace the worst offender on a given must restrict with a random food below the standard deviation cutoff on that must restrict
+def replace_food_w_better(orig_menu, max_offender, nutrient_to_restrict, cutoff):
+    # pdb.set_trace()
+    new_menu = orig_menu.copy()
+
+    to_keep = scaled[nutrient_to_restrict] < -1*cutoff
+    better_on_this_dimension = abbrev[to_keep.values]
+    
+    rand_better = better_on_this_dimension.sample(n = 1)
+    
+    print("replacing " + orig_menu[['Shrt_Desc']].iloc[max_offender, :].values + " with " + rand_better.Shrt_Desc.values)
+    # print(rand_better.Shrt_Desc)
+    
+    new_menu.iloc[max_offender, :] = rand_better.iloc[0]
+    
+    return new_menu
 
 
+replaced_menu = replace_food_w_better(my_full_menu, 2, 'Cholestrl_mg', 0.1)
 
+my_full_menu[['Shrt_Desc']].iloc[2, :]
+replaced_menu[['Shrt_Desc']].iloc[2, :]
 
 
 
