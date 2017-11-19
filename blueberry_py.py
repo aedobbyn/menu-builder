@@ -84,27 +84,32 @@ orig_menu = menu_builder(abbrev)
 # }
 
 
+# pdb.set_trace()
+    
+
 must_restricts = ['Lipid_Tot_g', 'Sodium_mg', 'Cholestrl_mg', 'FA_Sat_g']
 mr_df = all_nut_and_mr_df[all_nut_and_mr_df.nutrient.isin(mrs)]
 
 
 def test_mr_compliance(orig_menu):
-    compliance_dict = []
+    compliance_names = []
+    compliance_vals = []
     # pdb.set_trace()
-    
+
     for m in range(len(mr_df.index)):
         nut_to_restrict = mr_df.iloc[m, 0]
         orig_menu_no_na = orig_menu.dropna(subset=[nut_to_restrict, 'GmWt_1'])
         to_restrict = sum(orig_menu_no_na[nut_to_restrict] * orig_menu_no_na['GmWt_1'])/100
         
         if to_restrict > mr_df.iloc[m, 1]:
-            compliance_dict.append(mr_df.iloc[m, 0])
-
+            compliance_names.append(mr_df.iloc[m, 0])
+            compliance_diff = round(to_restrict - mr_df.iloc[m, 1], 2)
+            compliance_vals.append(compliance_diff)
+            
+    compliance_dict = dict(zip(compliance_names, compliance_vals))
     return compliance_dict
 
 z = test_mr_compliance(my_full_menu)
-
-
 
 
 
