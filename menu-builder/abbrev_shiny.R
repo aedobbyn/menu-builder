@@ -51,7 +51,7 @@ all_nut_and_mr_df <- rbind(mr_df %>% rename(nutrient = must_restrict),
 
 
 
-
+# write_csv(all_nut_and_mr_df, "./all_nut_and_mr_df.csv")
 
 
 
