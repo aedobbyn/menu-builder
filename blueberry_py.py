@@ -5,6 +5,7 @@ import pdb
 
 
 abbrev = pd.read_csv("./Desktop/Earlybird/food-progress/ABBREV.csv")
+abbrev.index = range(len(abbrev))   # but we do want to keep ndbno around
 
 # Bit of cleaning
 abbrev.rename(columns = {'\xef\xbb\xbfNDB_No':"NDB_No"}, inplace = True)
@@ -33,7 +34,6 @@ need.append('Energ_Kcal'); need.append('GmWt_1')
 scaled = scaled.dropna(subset = need)
 abbrev = abbrev.dropna(subset = need)
 
-scaled.dropna(subset=need)
 
 # Getting acquainted
 def find_butter(df, colnum):
@@ -56,7 +56,7 @@ all_butters = find_butter(ab, "Shrt_Desc")
 #         pass
 #     return butters
     
-# foo = ab.Shrt_Desc.apply(find_butter)
+# foo = ab.Shrt_Desc.map(find_butter).tolist()
 
 
 
@@ -76,15 +76,6 @@ def menu_builder(df):
 my_little_menu = menu_builder(ab)
 my_full_menu = menu_builder(abbrev)
 
-# test_calories <- function(our_menu) {
-#   total_cals <- sum((our_menu$Energ_Kcal * our_menu$GmWt_1))/100 
-#   if (total_cals < 2300) {
-#     cal_compliance <- "Calories too low"
-#   } else {
-#     cal_compliance <- "Calorie compliant"
-#   }
-#   cal_compliance
-# }
 
 # Test must restrict compliance
 def test_mr_compliance(orig_menu):
@@ -94,8 +85,8 @@ def test_mr_compliance(orig_menu):
 
     for m in range(len(mr_df.index)):
         nut_to_restrict = mr_df.iloc[m, 0] # the name of the nutrient we're restricting
-        orig_menu_no_na = orig_menu.dropna(subset=[nut_to_restrict, 'GmWt_1'])
-        val_nut_to_restrict = sum(orig_menu_no_na[nut_to_restrict] * orig_menu_no_na['GmWt_1'])/100 # the amount of that must restrict nutrient in our original menu
+        # orig_menu_no_na = orig_menu.dropna(subset=[nut_to_restrict, 'GmWt_1'])
+        val_nut_to_restrict = sum(orig_menu[nut_to_restrict] * orig_menu['GmWt_1'])/100 # the amount of that must restrict nutrient in our original menu
         
         if val_nut_to_restrict > mr_df.iloc[m, 1]:
             compliance_names.append(nut_to_restrict)
@@ -146,6 +137,7 @@ test_calories(my_full_menu)
 
 
 def test_all_compliance(orig_menu):
+    """ Test all compliances once and for all """
     combined_compliance = "Undetermined"
     
     if (len(test_pos_compliance(orig_menu)) + len(test_mr_compliance(orig_menu))) == 0 and (test_calories(orig_menu) == "Calorie compliant.") :
@@ -162,7 +154,6 @@ test_all_compliance(my_full_menu)
 
 # Replace the worst offender on a given must restrict with a random food below the standard deviation cutoff on that must restrict
 def replace_food_w_better(orig_menu, max_offender, nutrient_to_restrict, cutoff):
-    # pdb.set_trace()
     new_menu = orig_menu.copy()
 
     to_keep = scaled[nutrient_to_restrict] < -1*cutoff
@@ -170,18 +161,88 @@ def replace_food_w_better(orig_menu, max_offender, nutrient_to_restrict, cutoff)
     
     rand_better = better_on_this_dimension.sample(n = 1)
     
-    print("replacing " + orig_menu[['Shrt_Desc']].iloc[max_offender, :].values + " with " + rand_better.Shrt_Desc.values)
-    # print(rand_better.Shrt_Desc)
-    
+    print("Replacing " + orig_menu[['Shrt_Desc']].iloc[max_offender, :].values + " with " + rand_better.Shrt_Desc.values)
+
     new_menu.iloc[max_offender, :] = rand_better.iloc[0]
     
     return new_menu
 
-
 replaced_menu = replace_food_w_better(my_full_menu, 2, 'Cholestrl_mg', 0.1)
 
+# Check that replacement happened
 my_full_menu[['Shrt_Desc']].iloc[2, :]
 replaced_menu[['Shrt_Desc']].iloc[2, :]
+
+
+def smart_swap(orig_menu):
+    new_menu = orig_menu.copy(deep=True)
+    orig_menu.index = range(len(orig_menu))
+    pdb.set_trace()
+    
+    while len(test_mr_compliance(orig_menu)) > 0:
+        for m in range(len(mr_df.index)):
+            nut_to_restrict = nut_to_restrict = mr_df.iloc[m, 0]
+            print("------- The nutrient we're restricting is " + nut_to_restrict + ". It has to be below " + str(mr_df[['value']].iloc[m, 0]))
+            val_nut_to_restrict = sum(orig_menu[nut_to_restrict] * orig_menu['GmWt_1'])/100 # the amount of that must restrict nutrient in our original menu
+            print("The original total value of that nutrient in our menu is " + str(round(val_nut_to_restrict, 2)))
+            
+            while val_nut_to_restrict > mr_df.iloc[m, 1]:
+                max_offender = max(orig_menu[[nut_to_restrict]].index)
+                print("The worst offender in this respect is " + orig_menu[['Shrt_Desc']].iloc[max_offender, 0])
+                
+                # replacement_food = replace_food_w_better(orig_menu, max_offender, nut_to_restrict, 0.2)
+                # new_menu.iloc[max_offender, :]  = replacement_food
+                # print("Replacing the max offender with a better food: " + replacement_food[['Shrt_Desc']])
+                new_menu = replace_food_w_better(orig_menu, max_offender, nut_to_restrict, 0.2)
+                
+            val_nut_to_restrict = sum(new_menu[nut_to_restrict] * new_menu['GmWt_1'])/100
+            print("Our new value of this must restrict is " + val_nut_to_restrict)
+    
+    return new_menu
+
+smartly_swapped = smart_swap(my_full_menu)
+
+
+
+# smart_swap <- function(orig_menu) {
+  
+#   while(nrow(test_mr_compliance(orig_menu)) > 0) {
+    
+#     for (m in seq_along(mr_df$must_restrict)) {    # for each row in the df of must_restricts
+#       nut_to_restrict <- mr_df$must_restrict[m]    # grab the name of the nutrient we're restricting
+#       print(paste0("------- The nutrient we're restricting is ", nut_to_restrict, ". It has to be below ", mr_df$value[m]))
+#       to_restrict <- (sum(orig_menu[[nut_to_restrict]] * orig_menu$GmWt_1))/100   # get the amount of that must restrict nutrient in our original menu
+#       print(paste0("The original total value of that nutrient in our menu is ", to_restrict))
+      
+#       while (to_restrict > mr_df$value[m]) {     # if the amount of the must restrict in our current menu is above the max value it should be according to mr_df
+#         max_offender <- which(orig_menu[[nut_to_restrict]] == max(orig_menu[[nut_to_restrict]]))   # get index of food that's the worst offender in this respect
+        
+#         print(paste0("The worst offender in this respect is ", orig_menu[max_offender, ]$Shrt_Desc))
+        
+#         # ------- smart swap or randomly swap in a food here --------
+        
+#         orig_menu[max_offender, ] <- if (inherits(try(replace_food_w_better(orig_menu, max_offender, nut_to_restrict), silent = FALSE), "try-error")) {
+#           print(paste0("Replacing the max offender with a random food: ", replace_food_w_rand(orig_menu, max_offender)[["Shrt_Desc"]]))
+#           replace_food_w_rand(orig_menu, max_offender) 
+#         } else {
+#           print(paste0("Replacing the max offender with a better food: ", replace_food_w_better(orig_menu, max_offender, nut_to_restrict)[["Shrt_Desc"]]))
+#           orig_menu[max_offender, ] <- replace_food_w_better(orig_menu, max_offender, nut_to_restrict)
+#         }
+        
+#         to_restrict <- (sum(orig_menu[[nut_to_restrict]] * orig_menu$GmWt_1))/100   # recalculate the must restrict nutrient content
+#         print(paste0("Our new value of this must restrict is ", to_restrict))
+#       }
+#     }
+#   }
+#   orig_menu
+# }
+
+# # smartly_swapped <- smart_swap(menu)
+
+
+
+
+
 
 
 
