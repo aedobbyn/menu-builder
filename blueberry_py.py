@@ -152,19 +152,29 @@ test_all_compliance(my_full_menu)
 
 
 
+# Replace the worst offender on a given must restrict with a random food 
+def replace_w_rand(orig_menu, max_offender):
+    new_menu = orig_menu.copy()
+    rand_food = abbrev.sample(n = 1)
+    new_menu.iloc[max_offender, :] = rand_food.iloc[0]
+    
+    print("Replacing " + orig_menu[['Shrt_Desc']].iloc[max_offender, :].values + " with " + rand_food.Shrt_Desc.values)
+    return new_menu
+
+randomly_replaced = replace_w_rand(my_full_menu, 3)
+
+
 # Replace the worst offender on a given must restrict with a random food below the standard deviation cutoff on that must restrict
 def replace_food_w_better(orig_menu, max_offender, nutrient_to_restrict, cutoff):
     new_menu = orig_menu.copy()
 
     to_keep = scaled[nutrient_to_restrict] < -1*cutoff
     better_on_this_dimension = abbrev[to_keep.values]
-    
     rand_better = better_on_this_dimension.sample(n = 1)
     
-    print("Replacing " + orig_menu[['Shrt_Desc']].iloc[max_offender, :].values + " with " + rand_better.Shrt_Desc.values)
-
     new_menu.iloc[max_offender, :] = rand_better.iloc[0]
     
+    print("Replacing " + orig_menu[['Shrt_Desc']].iloc[max_offender, :].values + " with " + rand_better.Shrt_Desc.values)
     return new_menu
 
 replaced_menu = replace_food_w_better(my_full_menu, 2, 'Cholestrl_mg', 0.1)
@@ -177,7 +187,7 @@ replaced_menu[['Shrt_Desc']].iloc[2, :]
 def smart_swap(orig_menu):
     new_menu = orig_menu.copy(deep=True)
     orig_menu.index = range(len(orig_menu))
-    pdb.set_trace()
+    # pdb.set_trace()
     
     while len(test_mr_compliance(orig_menu)) > 0:
         for m in range(len(mr_df.index)):
