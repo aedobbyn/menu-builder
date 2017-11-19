@@ -1,6 +1,7 @@
 
 import numpy as np
 import pandas as pd
+import pdb
 
 
 abbrev = pd.read_csv("./Desktop/Earlybird/food-progress/ABBREV.csv")
@@ -89,22 +90,20 @@ mr_df = all_nut_and_mr_df[all_nut_and_mr_df.nutrient.isin(mrs)]
 
 def test_mr_compliance(orig_menu):
     compliance_dict = []
+    # pdb.set_trace()
     
-    for m in mr_df.iterrows():
-        nut_to_restrict = mr_df.iloc[m, :].values[0]
-        to_restrict = sum(orig_menu[ntr][~np.isnan(orig_menu[ntr])] * orig_menu['GmWt_1'][~np.isnan(orig_menu['GmWt_1'])])/100
+    for m in range(len(mr_df.index)):
+        nut_to_restrict = mr_df.iloc[m, 0]
+        orig_menu_no_na = orig_menu.dropna(subset=[nut_to_restrict, 'GmWt_1'])
+        to_restrict = sum(orig_menu_no_na[nut_to_restrict] * orig_menu_no_na['GmWt_1'])/100
         
-        if to_restrict > mr_df.value[m]:
-            compliance_dict = compliance_dict.append(mr_df.nutrient[m])
-    
+        if to_restrict > mr_df.iloc[m, 1]:
+            compliance_dict.append(mr_df.iloc[m, 0])
+
     return compliance_dict
 
-test_mr_compliance(my_full_menu)
+z = test_mr_compliance(my_full_menu)
 
-
-
-for m in mr_df:
-    print(m)
 
 
 
