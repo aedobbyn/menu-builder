@@ -80,6 +80,7 @@ my_full_menu = menu_builder(abbrev)
 
 # Test must restrict compliance
 def test_mr_compliance(orig_menu):
+    """ Return how far we are above the daily max on each must_restrict """
     compliance_names = []
     compliance_vals = []
     
@@ -100,6 +101,7 @@ test_mr_compliance(my_full_menu)
 
 # Test positive compliance
 def test_pos_compliance(orig_menu):
+    """ Return how far we are below the daily minumum on each positive nutrient """
     compliance_dict = {}
 
     for m in range(len(pos_df.index)):
@@ -120,6 +122,7 @@ test_pos_compliance(my_full_menu)
 
 # Test that we've got at least 2300 calories
 def test_calories(orig_menu):
+    """ Tell whether we've got at least 2300 calories """
     sum_cals = sum(orig_menu['Energ_Kcal'])
     if sum_cals < 2300:
         compliance = "Calories too low."
@@ -177,9 +180,8 @@ def replace_food_w_better(orig_menu, max_offender, nutrient_to_restrict, cutoff)
     below_cutoff = scaled[nutrient_to_restrict] < -1*cutoff
     if sum(below_cutoff) == 0:    # if we don't have any foods below the cutoff, pick a random food
         better_on_this_dimension = abbrev
-    else:
-        to_keep = below_cutoff
-        better_on_this_dimension = abbrev[to_keep.values]
+    else:                         # otherwise, pick one of the foods that's below the cutoff
+        better_on_this_dimension = abbrev[below_cutoff.values]
             
     rand_better = better_on_this_dimension.sample(n = 1)
 
@@ -220,7 +222,7 @@ def smart_swap(orig_menu, cutoff):
             val_nut_to_restrict = sum(new_menu[nut_to_restrict] * new_menu['GmWt_1'])/100
             print("Our new value of this must restrict is " + val_nut_to_restrict)
     
-    return orig_menu
+    return new_menu
 
 smartly_swapped = smart_swap(my_full_menu, 0.1)
 
