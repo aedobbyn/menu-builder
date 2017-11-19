@@ -169,22 +169,25 @@ def replace_food_w_better(orig_menu, max_offender, nutrient_to_restrict, cutoff)
     new_menu = orig_menu.copy()
 
     to_keep = scaled[nutrient_to_restrict] < -1*cutoff
+        if len(to_keep) == 0:
+            to_keep = scaled[nutrient_to_restrict]
+            
     better_on_this_dimension = abbrev[to_keep.values]
     rand_better = better_on_this_dimension.sample(n = 1)
     
-    new_menu.iloc[max_offender, :] = rand_better.iloc[0]
+    # new_menu.iloc[max_offender, :] = rand_better.iloc[0]
     
     print("Replacing " + orig_menu[['Shrt_Desc']].iloc[max_offender, :].values + " with " + rand_better.Shrt_Desc.values)
-    return new_menu
+    return rand_better
 
-replaced_menu = replace_food_w_better(my_full_menu, 2, 'Cholestrl_mg', 0.1)
+replacement_food = replace_food_w_better(my_full_menu, 2, 'Cholestrl_mg', 3)
 
 # Check that replacement happened
 my_full_menu[['Shrt_Desc']].iloc[2, :]
-replaced_menu[['Shrt_Desc']].iloc[2, :]
+replacement_food[['Shrt_Desc']].iloc[0, :]
 
 
-def smart_swap(orig_menu):
+def smart_swap(orig_menu, cutoff):
     new_menu = orig_menu.copy(deep=True)
     orig_menu.index = range(len(orig_menu))
     # pdb.set_trace()
@@ -203,14 +206,14 @@ def smart_swap(orig_menu):
                 # replacement_food = replace_food_w_better(orig_menu, max_offender, nut_to_restrict, 0.2)
                 # new_menu.iloc[max_offender, :]  = replacement_food
                 # print("Replacing the max offender with a better food: " + replacement_food[['Shrt_Desc']])
-                new_menu = replace_food_w_better(orig_menu, max_offender, nut_to_restrict, 0.2)
+                new_menu = replace_food_w_better(orig_menu, max_offender, nut_to_restrict, cutoff)
                 
             val_nut_to_restrict = sum(new_menu[nut_to_restrict] * new_menu['GmWt_1'])/100
             print("Our new value of this must restrict is " + val_nut_to_restrict)
     
     return new_menu
 
-smartly_swapped = smart_swap(my_full_menu)
+smartly_swapped = smart_swap(my_full_menu, 0.1)
 
 
 
