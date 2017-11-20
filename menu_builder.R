@@ -195,13 +195,17 @@ test_calories(menu)
   # reduce our full corpus of foods, abbrev, to foods that are below some threshold on that must_restrict, as per the scaled dataframe
   # then pick a random food from that reduced dataframe and replace the max offender with it
 
-replace_food_w_better <- function(orig_menu, max_offender, nutrient_to_restrict) {
+replace_food_w_better <- function(orig_menu, max_offender, nutrient_to_restrict, cutoff = 0.5) {
   scaled <- scaled %>% 
     drop_na_(all_nut_and_mr_df$nutrient) %>% filter(!(is.na(Energ_Kcal)) & !(is.na(GmWt_1)))
 
   better_on_this_dimension <- abbrev %>% 
     drop_na_(all_nut_and_mr_df$nutrient) %>% filter(!(is.na(Energ_Kcal)) & !(is.na(GmWt_1))) %>% 
-    filter(NDB_No %in% scaled[scaled[[nutrient_to_restrict]] < -.5, ][["NDB_No"]])
+    filter(NDB_No %in% scaled[scaled[[nutrient_to_restrict]] < (-1 * cutoff), ][["NDB_No"]])
+  
+  if(nrow(better_on_this_dimension) == 0) {    # Rather than subbing in replace_food_w_rand() for replace_food_w_better() if we get an exception, just build it in
+    better_on_this_dimension <- abbrev
+  }
   
   rand_better <- better_on_this_dimension[sample(nrow(better_on_this_dimension), 1), ]  # grab a random row from our df of foods better on this dimension
   
@@ -224,7 +228,7 @@ replace_food_w_rand <- function(orig_menu, max_offender) {
   # if we do get an error in trycatch, then replace the max offender with a random food
     # otherwise, go ahead with replacing it with a better one
 
-smart_swap <- function(orig_menu) {
+smart_swap <- function(orig_menu, cutoff = 0.5) {
   
   while(nrow(test_mr_compliance(orig_menu)) > 0) {
     
@@ -241,13 +245,14 @@ smart_swap <- function(orig_menu) {
         
         # ------- smart swap or randomly swap in a food here --------
           
-        orig_menu[max_offender, ] <- if (inherits(try(replace_food_w_better(orig_menu, max_offender, nut_to_restrict), silent = FALSE), "try-error")) {
-          print(paste0("Replacing the max offender with a random food: ", replace_food_w_rand(orig_menu, max_offender)[["Shrt_Desc"]]))
-          replace_food_w_rand(orig_menu, max_offender) 
-          } else {
-            print(paste0("Replacing the max offender with a better food: ", replace_food_w_better(orig_menu, max_offender, nut_to_restrict)[["Shrt_Desc"]]))
-            orig_menu[max_offender, ] <- replace_food_w_better(orig_menu, max_offender, nut_to_restrict)
-          }
+        # orig_menu[max_offender, ] <- if (inherits(try(replace_food_w_better(orig_menu, max_offender, nut_to_restrict), silent = FALSE), "try-error")) {
+        #   print(paste0("Replacing the max offender with a random food: ", replace_food_w_rand(orig_menu, max_offender)[["Shrt_Desc"]]))
+        #   replace_food_w_rand(orig_menu, max_offender) 
+        #   } else {
+        #     print(paste0("Replacing the max offender with a better food: ", replace_food_w_better(orig_menu, max_offender, nut_to_restrict)[["Shrt_Desc"]]))
+        #     orig_menu[max_offender, ] <- replace_food_w_better(orig_menu, max_offender, nut_to_restrict)
+        #   }
+        orig_menu[max_offender, ] <- replace_food_w_better(orig_menu, max_offender, nut_to_restrict, cutoff = cutoff)
         
         to_restrict <- (sum(orig_menu[[nut_to_restrict]] * orig_menu$GmWt_1))/100   # recalculate the must restrict nutrient content
         print(paste0("Our new value of this must restrict is ", to_restrict))
@@ -258,6 +263,7 @@ smart_swap <- function(orig_menu) {
 }
 
 smartly_swapped <- smart_swap(menu)
+smartly_swapped_2 <- smart_swap(menu, cutoff = 3)
 
 
 
