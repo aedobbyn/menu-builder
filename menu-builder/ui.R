@@ -10,6 +10,7 @@ shinyUI(fluidPage(
   theme = shinytheme("yeti"),
   
   titlePanel("Menu Autoworkbench Prototype"),
+  h4("Amanda Dobbyn"),
   
   # conditionalPanel(
   #   condition = "input.wizard_it == 2",
