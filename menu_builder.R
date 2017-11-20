@@ -2,6 +2,7 @@
 # load in the abbreviated data from the USDA database
 source("./abbrev.R")
 source("./stats.R")
+library(dobtools)
 
 # ----------- Conditions to satisfy ---------
 # minimum daily calories: 2300 kcal
@@ -61,7 +62,7 @@ test_mr_compliance <- function(orig_menu, capitalize_colname = TRUE) {
   
   for (m in seq_along(mr_df$must_restrict)) {    # for each row in the df of must_restricts
     nut_to_restrict <- mr_df$must_restrict[m]    # grab the name of the nutrient we're restricting
-    to_restrict <- (sum(orig_menu[[nut_to_restrict]] * orig_menu$GmWt_1))/100   # get the amount of that must restrict nutrient in our original menu
+    to_restrict <- (sum(orig_menu[[nut_to_restrict]] * orig_menu$GmWt_1, na.rm = TRUE))/100   # get the amount of that must restrict nutrient in our original menu
     
     if (to_restrict > mr_df$value[m]) {
       this_compliance <- list(must_restricts_uncompliant_on = nut_to_restrict,
@@ -84,7 +85,7 @@ test_pos_compliance <- function(orig_menu, capitalize_colname = TRUE) {
   
   for (p in seq_along(pos_df$positive_nut)) {    # for each row in the df of positives
     nut_to_augment <- pos_df$positive_nut[p]    # grab the name of the nutrient we're examining
-    val_nut_to_augment <- (sum(orig_menu[[nut_to_augment]] * orig_menu$GmWt_1))/100   # get the total amount of that nutrient in our original menu
+    val_nut_to_augment <- (sum(orig_menu[[nut_to_augment]] * orig_menu$GmWt_1, na.rm = TRUE))/100   # get the total amount of that nutrient in our original menu
     
     if (val_nut_to_augment < pos_df$value[p]) {
       this_compliance <- list(nutrients_uncompliant_on = nut_to_augment,
@@ -101,7 +102,7 @@ test_pos_compliance <- function(orig_menu, capitalize_colname = TRUE) {
 
 # Calories
 test_calories <- function(our_menu) {
-  total_cals <- sum((our_menu$Energ_Kcal * our_menu$GmWt_1))/100 
+  total_cals <- sum((our_menu$Energ_Kcal * our_menu$GmWt_1), na.rm = TRUE)/100 
   if (total_cals < 2300) {
     cal_compliance <- "Calories too low"
   } else {
@@ -238,7 +239,7 @@ smart_swap <- function(orig_menu, cutoff = 0.5) {
     for (m in seq_along(mr_df$must_restrict)) {    # for each row in the df of must_restricts
       nut_to_restrict <- mr_df$must_restrict[m]    # grab the name of the nutrient we're restricting
       print(paste0("------- The nutrient we're restricting is ", nut_to_restrict, ". It has to be below ", mr_df$value[m]))
-      to_restrict <- (sum(orig_menu[[nut_to_restrict]] * orig_menu$GmWt_1))/100   # get the amount of that must restrict nutrient in our original menu
+      to_restrict <- (sum(orig_menu[[nut_to_restrict]] * orig_menu$GmWt_1, na.rm = TRUE))/100   # get the amount of that must restrict nutrient in our original menu
       print(paste0("The original total value of that nutrient in our menu is ", to_restrict))
       
       while (to_restrict > mr_df$value[m]) {     # if the amount of the must restrict in our current menu is above the max value it should be according to mr_df
@@ -257,7 +258,7 @@ smart_swap <- function(orig_menu, cutoff = 0.5) {
         #   }
         orig_menu[max_offender, ] <- replace_food_w_better(orig_menu, max_offender, nut_to_restrict, cutoff = cutoff)
         
-        to_restrict <- (sum(orig_menu[[nut_to_restrict]] * orig_menu$GmWt_1))/100   # recalculate the must restrict nutrient content
+        to_restrict <- (sum(orig_menu[[nut_to_restrict]] * orig_menu$GmWt_1, na.rm = TRUE))/100   # recalculate the must restrict nutrient content
         print(paste0("Our new value of this must restrict is ", to_restrict))
       }
     }
@@ -290,7 +291,7 @@ adjust_portion_sizes <- function(orig_menu) {
     nut_to_augment <- pos_df$positive_nut[p]    # grab the name of the nutrient we're examining
     print(paste0("------- The nutrient we're considering is ", nut_to_augment, ". It has to be above ", pos_df$value[p]))
     
-    val_nut_to_augment <- (sum(orig_menu[[nut_to_augment]] * orig_menu$GmWt_1))/100   # get the total amount of that nutrient in our original menu
+    val_nut_to_augment <- (sum(orig_menu[[nut_to_augment]] * orig_menu$GmWt_1, na.rm = TRUE))/100   # get the total amount of that nutrient in our original menu
     print(paste0("The original total value of that nutrient in our menu is ", val_nut_to_augment))
     
     while (val_nut_to_augment < pos_df$value[p]) {     # if the amount of the must restrict in our current menu is below the min daily value it should be according to pos_df
@@ -310,7 +311,7 @@ adjust_portion_sizes <- function(orig_menu) {
       cal_diff <- max_pos_new_cals - max_pos_starting_cals
       
       # Find the newly augmented nutrient value to see if we need to continue the loop
-      val_nut_to_augment <- (sum(orig_menu[[nut_to_augment]] * orig_menu$GmWt_1))/100   # save the new value of the nutrient
+      val_nut_to_augment <- (sum(orig_menu[[nut_to_augment]] * orig_menu$GmWt_1, na.rm = TRUE))/100   # save the new value of the nutrient
       print(paste0("Our new value of this nutrient is ", val_nut_to_augment))
     }
   }
@@ -331,7 +332,7 @@ add_calories <- function(orig_menu) {
   
   i <- sample(nrow(df), 1) # sample a random row from df and save its index in i  
   
-  cals <- sum((orig_menu$Energ_Kcal * orig_menu$GmWt_1))/100   # set calories to our current number of calories
+  cals <- sum((orig_menu$Energ_Kcal * orig_menu$GmWt_1), na.rm = TRUE)/100   # set calories to our current number of calories
   
   while (cals < 2300) {
     this_food_cal <- (df$Energ_Kcal[i] * df$GmWt_1[i])/100    # get the number of calories in 1 serving of this food (see N = (V*W)/100 formula)
@@ -355,7 +356,7 @@ master_builder <- function(our_menu) {
   # our_menu <- build_menu(abbrev)   # seed with a random menu
   
   # define conditions
-  total_cals <- sum((our_menu$Energ_Kcal * our_menu$GmWt_1))/100 
+  total_cals <- sum((our_menu$Energ_Kcal * our_menu$GmWt_1), na.rm = TRUE)/100 
   
   while (test_all_compliance(our_menu) == "Not Compliant") {
     

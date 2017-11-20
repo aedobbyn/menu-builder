@@ -9,7 +9,7 @@ shinyUI(fluidPage(
   theme = shinytheme("yeti"),
   
   titlePanel("Menu Autoworkbench Prototype"),
-  h4("Amanda Dobbyn"),
+  h5("Amanda Dobbyn"),
   
   # conditionalPanel(
   #   condition="!($('html').hasClass('shiny-busy'))",
@@ -29,7 +29,7 @@ shinyUI(fluidPage(
         condition = "input.build_menu != 0",
         h3("Original Menu")),
     
-      DT::dataTableOutput("menu"),
+      withSpinner(DT::dataTableOutput("menu")),
       
       actionButton("build_menu", "Build Menu")
       

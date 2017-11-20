@@ -39,19 +39,10 @@ def find_butter(df, colnum):
             butters.append(e)
         else:
             pass
-    return(butters)
+    return butters
 
 all_butters = find_butter(ab, "Shrt_Desc")
-
-# def find_butter(e):
-#     butters = []
-#     if "BUTTER" in e:
-#         butters.append(e)
-#     else:
-#         pass
-#     return butters
-    
-# foo = ab.Shrt_Desc.map(find_butter).tolist()
+# should find out how to vectorize this (with apply or map instead of for loop)
 
 
 # --------------------------------------------------------------------------------------------------------
@@ -180,6 +171,7 @@ def replace_food_w_better(orig_menu, max_offender, nutrient_to_restrict, cutoff)
     below_cutoff = scaled[nutrient_to_restrict] < -1*cutoff
     if sum(below_cutoff) == 0:    # if we don't have any foods below the cutoff, pick a random food
         better_on_this_dimension = abbrev
+        print("No better foods at this cutoff; choosing a food randomly.")
     else:                         # otherwise, pick one of the foods that's below the cutoff
         better_on_this_dimension = abbrev[below_cutoff.values]
             
