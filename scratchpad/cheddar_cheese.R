@@ -3,7 +3,7 @@
 # value: 100 g equivalent value of the nutrient
 # evalue: gram equivalent value of the measure
 
-source("./connect.R")
+source("./api/connect.R")
 
 # all nutrients for cheddar cheese
 cheese <- fromJSON(paste0("https://api.nal.usda.gov/ndb/reports/?ndbno=01009&type=b&format=json&api_key=", 

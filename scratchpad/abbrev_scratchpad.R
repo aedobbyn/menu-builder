@@ -1,7 +1,7 @@
 # abbrev scratchpad
 
 
-source("./abbrev.R")
+source("./scripts/abbrev.R")
 
 
 length(must_restrict) # 8

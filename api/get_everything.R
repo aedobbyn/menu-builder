@@ -11,7 +11,7 @@
 # then join nutrient name to nutrient id
 
 
-source("./nutrient_list.R")
+source("./other/nutrient_list.R")
 
 # ------- to change once get working ------
 # change max to 1500 in url

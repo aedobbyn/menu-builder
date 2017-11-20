@@ -1,7 +1,7 @@
 
 # load in the abbreviated data from the USDA database
-source("./abbrev.R")
-source("./stats.R")
+source("./scripts/abbrev.R")
+source("./scripts/stats.R")
 library(dobtools)
 
 # ----------- Conditions to satisfy ---------

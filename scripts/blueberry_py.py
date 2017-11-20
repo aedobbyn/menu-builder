@@ -7,7 +7,7 @@ import os
 os.chdir("/Desktop/Earlybird/food-progress/scripts")
 
 # Read in the USDA data
-# abbrev = pd.read_csv("./Desktop/Earlybird/food-progress/scripts/ABBREV.csv")  # for outside RProj
+# abbrev = pd.read_csv("./Desktop/Earlybird/food-progress/ABBREV.csv")  # for outside RProj
 abbrev = pd.read_csv("../data/ABBREV.csv")  # for inside RProj
 abbrev.index = range(len(abbrev))   # but we do want to keep ndbno around
 
