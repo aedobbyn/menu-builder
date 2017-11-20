@@ -28,8 +28,6 @@ shinyServer(function(input, output) {
 
 
   # -------------- Adjust portion sizes ---------
-
-
   observeEvent(input$adjust_portions, {
     if (input$adjust_portions == 0)
       return()
@@ -37,24 +35,8 @@ shinyServer(function(input, output) {
     menu$data <- adjust_portion_sizes(menu$data)
   })
 
-  # # -------------- Swap Foods -- separate menu ---------
-  # 
-  # swapped <- reactiveValues(data = NULL)
-  # 
-  # observeEvent(input$swap_foods, {
-  #   swapped$data <- smart_swap(menu$data)
-  # })
-  # 
-  # # Render data table
-  # output$swapped <- DT::renderDataTable({
-  #   swapped$data %>% 
-  #     select(GmWt_1, everything())
-  # })
   
 # -------------- Swap Foods -- same menu ---------
-  
-  # makeReactiveBinding('x')
-  
   observeEvent(input$swap_foods, {
     if (input$swap_foods == 0)
       return()
@@ -67,7 +49,7 @@ shinyServer(function(input, output) {
   master_menu <- reactiveValues(data = NULL)
 
   observeEvent(input$wizard_it_from_scratch, {
-      master_menu$data <- master_builder()
+    withProgress(message = 'Making Menu', value = 0, { master_menu$data <- master_builder() })
   })
   
   observeEvent(input$wizard_it_from_seeded, {
@@ -87,16 +69,7 @@ shinyServer(function(input, output) {
   
   mr_compliance <- reactiveValues(data = NULL)
   pos_compliance <- reactiveValues(data = NULL)
-  
-  # all_compliance <- reactiveValues({
-  #     if (input$build_menu == 0) {
-  #       data = NULL
-  #     } else {
-  #       data <- test_all_compliance(menu$data)
-  #     }
-  #   })
-  
-  
+
   # Must restrict compliance
   output$mr_compliance <- DT::renderDataTable({
     if (input$build_menu == 0) {
@@ -110,7 +83,6 @@ shinyServer(function(input, output) {
     # } else {
     #   return(test_mr_compliance(menu$data))
     # }
-    
   })
   
   # Positive compliance

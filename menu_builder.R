@@ -199,17 +199,20 @@ replace_food_w_better <- function(orig_menu, max_offender, nutrient_to_restrict,
   scaled <- scaled %>% 
     drop_na_(all_nut_and_mr_df$nutrient) %>% filter(!(is.na(Energ_Kcal)) & !(is.na(GmWt_1)))
 
-  better_on_this_dimension <- abbrev %>% 
+  replacment_food_pool <- abbrev %>% 
     drop_na_(all_nut_and_mr_df$nutrient) %>% filter(!(is.na(Energ_Kcal)) & !(is.na(GmWt_1))) %>% 
     filter(NDB_No %in% scaled[scaled[[nutrient_to_restrict]] < (-1 * cutoff), ][["NDB_No"]])
   
-  if(nrow(better_on_this_dimension) == 0) {    # Rather than subbing in replace_food_w_rand() for replace_food_w_better() if we get an exception, just build it in
-    better_on_this_dimension <- abbrev
+  if(nrow(replacment_food_pool) == 0) {    # Rather than subbing in replace_food_w_rand() for replace_food_w_better() if we get an exception, just build it in
+    replacment_food_pool <- abbrev
+    print("No better foods at this cutoff; choosing a food randomly.")
   }
   
-  rand_better <- better_on_this_dimension[sample(nrow(better_on_this_dimension), 1), ]  # grab a random row from our df of foods better on this dimension
+  replacement_food <- replacment_food_pool[sample(nrow(replacment_food_pool), 1), ]  # grab a random row from our df of foods better on this dimension
   
-  orig_menu[max_offender, ] <- rand_better
+  print(paste0("Replacing the max offender with: ", replacement_food$Shrt_Desc))
+
+  return(replacement_food)
 }
 
 replace_food_w_rand <- function(orig_menu, max_offender) {

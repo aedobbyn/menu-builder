@@ -1,8 +1,7 @@
-
-
 library(shiny)
 library(DT)
 library(shinythemes)
+library(shinycssloaders)
 
 # Define UI for application that draws a histogram
 shinyUI(fluidPage(
@@ -13,13 +12,9 @@ shinyUI(fluidPage(
   h4("Amanda Dobbyn"),
   
   # conditionalPanel(
-  #   condition = "input.wizard_it == 2",
-  #   h3("Compliant Menu"),
-  # 
-  #   condition_diffs = "input.see_diffs == 2",
-  #   h3("Differences")),
-  
-  # DT::dataTableOutput("all_nut_and_mr_df"),
+  #   condition="!($('html').hasClass('shiny-busy'))",
+  #   img(src="./onward.gif")
+  # ),
   
   fluidRow(
     column(width = 12,
@@ -78,7 +73,6 @@ shinyUI(fluidPage(
   br(),
   br(),
 
-
   fluidRow(
     column(width = 12,
 
@@ -87,8 +81,6 @@ shinyUI(fluidPage(
       conditionalPanel(
         condition = "input.build_menu != 0", 
         actionButton("wizard_it_from_seeded", "Wizard It from Original"))
-      
-
     )
   ),
 
@@ -101,7 +93,7 @@ shinyUI(fluidPage(
   fluidRow(
     column(width = 12,
 
-    DT::dataTableOutput("master_menu")
+    withSpinner(DT::dataTableOutput("master_menu"))
     
     )
   ),
@@ -121,16 +113,12 @@ shinyUI(fluidPage(
     helpText("Differences between the original menu and compliant menu.")),
 
 
-
-
   fluidRow(
     column(width = 12,
 
            DT::dataTableOutput("diffs")
     )
   ),
-
-
   
   br(),
   br(),
