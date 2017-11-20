@@ -4,7 +4,7 @@ import pandas as pd
 import pdb    # pdb.set_trace()     <- for setting breakpoints
 import os
 
-os.chdir("/Desktop/Earlybird/food-progress/scripts")
+os.chdir("Desktop/Earlybird/food-progress/scripts")
 
 # Read in the USDA data
 # abbrev = pd.read_csv("./Desktop/Earlybird/food-progress/ABBREV.csv")  # for outside RProj
@@ -22,7 +22,7 @@ abbrev.columns = abbrev.columns.str.replace("[() ]", "")
 ab = abbrev[["NDB_No", "Shrt_Desc", "Energ_Kcal", "Protein_g", "Sugar_Tot_g", "GmWt_1"]]
 
 # Read in nutrients and must restricts
-all_nut_and_mr_df = pd.read_csv("./all_nut_and_mr_df.csv")
+all_nut_and_mr_df = pd.read_csv("../data/all_nut_and_mr_df.csv")
 must_restricts = ['Lipid_Tot_g', 'Sodium_mg', 'Cholestrl_mg', 'FA_Sat_g']
 mr_df = all_nut_and_mr_df[all_nut_and_mr_df.nutrient.isin(must_restricts)]
 pos_df = all_nut_and_mr_df[~all_nut_and_mr_df.nutrient.isin(must_restricts)]
