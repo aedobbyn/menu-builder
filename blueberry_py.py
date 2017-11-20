@@ -3,12 +3,15 @@ import numpy as np
 import pandas as pd
 import pdb    # pdb.set_trace()     <- for setting breakpoints
 
+os.chdir("./Desktop/Earlybird/food-progress")
+
 # Read in the USDA data
-abbrev = pd.read_csv("./Desktop/Earlybird/food-progress/ABBREV.csv")
+# abbrev = pd.read_csv("./Desktop/Earlybird/food-progress/ABBREV.csv")  # for outside RProj
+abbrev = pd.read_csv("./ABBREV.csv")  # for inside RProj
 abbrev.index = range(len(abbrev))   # but we do want to keep ndbno around
 
 # Read in scaled version of USDA data
-scaled = pd.read_csv("./Desktop/Earlybird/food-progress/scaled.csv")
+scaled = pd.read_csv("./scaled.csv")
 
 # Bit of cleaning
 abbrev.rename(columns = {'\xef\xbb\xbfNDB_No':"NDB_No"}, inplace = True)
@@ -18,7 +21,7 @@ abbrev.columns = abbrev.columns.str.replace("[() ]", "")
 ab = abbrev[["NDB_No", "Shrt_Desc", "Energ_Kcal", "Protein_g", "Sugar_Tot_g", "GmWt_1"]]
 
 # Read in nutrients and must restricts
-all_nut_and_mr_df = pd.read_csv("./Desktop/Earlybird/food-progress/all_nut_and_mr_df.csv")
+all_nut_and_mr_df = pd.read_csv("./all_nut_and_mr_df.csv")
 must_restricts = ['Lipid_Tot_g', 'Sodium_mg', 'Cholestrl_mg', 'FA_Sat_g']
 mr_df = all_nut_and_mr_df[all_nut_and_mr_df.nutrient.isin(must_restricts)]
 pos_df = all_nut_and_mr_df[~all_nut_and_mr_df.nutrient.isin(must_restricts)]
@@ -94,18 +97,18 @@ test_mr_compliance(my_full_menu)
 def test_pos_compliance(orig_menu):
     """ Return how far we are below the daily minumum on each positive nutrient """
     compliance_dict = {}
-
+    
     for m in range(len(pos_df.index)):
         nut_to_augment = pos_df.iloc[m, 0]
         orig_menu_no_na = orig_menu.dropna(subset=[nut_to_augment, 'GmWt_1'])
-        
+
         val_nut_our_menu = sum(orig_menu_no_na[nut_to_augment] * orig_menu_no_na['GmWt_1'])/100
         val_nut_should_be = pos_df.iloc[m, 1]
-        
+
         if val_nut_our_menu > val_nut_should_be:
             compliance_diff = round(val_nut_should_be - val_nut_our_menu, 2)
             compliance_dict[nut_to_augment] = compliance_diff
-            
+
     return compliance_dict
 
 test_pos_compliance(my_full_menu)
