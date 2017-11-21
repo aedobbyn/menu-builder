@@ -7,3 +7,4 @@
 .Rproj.user
 accessdb.sql
 *rsconnect
+*./idea*
