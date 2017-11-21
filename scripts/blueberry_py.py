@@ -202,23 +202,25 @@ def smart_swap(orig_menu, cutoff):
     while len(test_mr_compliance(new_menu)) > 0:
         for m in range(len(mr_df.index)):
             nut_to_restrict = nut_to_restrict = mr_df.iloc[m, 0]
-            print("------- The nutrient we're restricting is " + nut_to_restrict + ". It has to be below " + str(mr_df[['value']].iloc[m, 0]))
-            val_nut_to_restrict = sum(new_menu[nut_to_restrict] * new_menu['GmWt_1'])/100 # the amount of that must restrict nutrient in our original menu
-            print("The original total value of that nutrient in our menu is " + str(round(val_nut_to_restrict, 2)))
-            
-            while val_nut_to_restrict > mr_df.iloc[m, 1]:
-                max_offender = max(new_menu[[nut_to_restrict]].index)
-                print("The worst offender in this respect is " + new_menu[['Shrt_Desc']].iloc[max_offender, 0])
-                
-                replacement_food = replace_food_w_better(new_menu, max_offender, nut_to_restrict, cutoff)
-                new_menu.iloc[max_offender, :]  = replacement_food.iloc[0]
+print("------- The nutrient we're restricting is " + nut_to_restrict + ". It has to be below " + str(
+    mr_df[['value']].iloc[m, 0]))
+val_nut_to_restrict = sum(new_menu[nut_to_restrict] * new_menu[
+    'GmWt_1']) / 100  # the amount of that must restrict nutrient in our original menu
+print("The original total value of that nutrient in our menu is " + str(round(val_nut_to_restrict, 2)))
 
-                print("Replacing the max offender with a better food: " + replacement_food[['Shrt_Desc']])
+while val_nut_to_restrict > mr_df.iloc[m, 1]:
+    max_offender = max(new_menu[[nut_to_restrict]].index)
+    print("The worst offender in this respect is " + new_menu[['Shrt_Desc']].iloc[max_offender, 0])
 
-            val_nut_to_restrict = sum(new_menu[nut_to_restrict] * new_menu['GmWt_1'])/100
-            print("Our new value of this must restrict is " + val_nut_to_restrict)
-    
-    return new_menu
+    replacement_food = replace_food_w_better(new_menu, max_offender, nut_to_restrict, cutoff)
+    new_menu.iloc[max_offender, :] = replacement_food.iloc[0]
+
+    print("Replacing the max offender with a better food: " + replacement_food[['Shrt_Desc']])
+
+val_nut_to_restrict = sum(new_menu[nut_to_restrict] * new_menu['GmWt_1']) / 100
+print("Our new value of this must restrict is " + val_nut_to_restrict)
+
+return new_menu
 
 smartly_swapped = smart_swap(my_full_menu, 0.1)
 
