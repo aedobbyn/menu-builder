@@ -35,9 +35,9 @@ abbrev = abbrev.dropna(subset = need)
 
 
 # Getting acquainted
-def find_butter(df, colnum):
+def find_butter(df, col):
     butters = []
-    for e in df[colnum]:
+    for e in df[col]:
         if "BUTTER" in e:
             print(e)
             butters.append(e)
@@ -47,6 +47,19 @@ def find_butter(df, colnum):
 
 all_butters = find_butter(ab, "Shrt_Desc")
 # should find out how to vectorize this (with apply or map instead of for loop)
+
+def find_butter_vec(e):
+    butters = []
+    # for e in df[col]:
+    if "BUTTER" in e:
+        print(e)
+        butters.append(e)
+    else:
+        print(e)
+        pass
+    return butters
+
+ab[["Shrt_Desc"]].apply(find_butter_vec)
 
 
 # --------------------------------------------------------------------------------------------------------
