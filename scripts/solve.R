@@ -106,15 +106,31 @@ obj_fn <- c(2.29, 2.62, 3.88)
                   # Calcium,  Iron,   Magnesium
 menu_mat <-   matrix(c(11,    1253,   307,            # CHERRIES
                        0.36,  0.87,   11.30,          # CHEESE
-                       9,     51,     84,             # CEREALS
-                       46,    415,    379),           # calories
-                     nrow = 4)  
-dir <- c(">", ">", ">", ">")
-rhs <- c(1000, 18, 400, 300)    # CA, FE, MG, calories
+                       9,     51,     84),             # CEREALS
+                       # 46,    415,    379),           # calories
+                     nrow = 3)  
+dir <- c(">", ">", ">")
+rhs <- c(1000, 18, 400)    # CA, FE, MG, calories
 Rglpk_solve_LP(obj_fn, mat, dir, rhs, max = FALSE)
 
 
 
+# Programmatically
 
+construct_matrix <- function(df) {
+  mat_base <- NULL
+  n_foods <<- nrow(df)
+  for (i in 1:n_foods) {
+    mat_base <- c(mat_base, df[i, pos_df_small$positive_nut])
+    mat <- matrix(mat_base, nrow = n_foods)
+  }
+  return(mat)
+}
+
+mat <- construct_matrix(menu_small)
+
+dir <- rep(">", n_foods)
+
+rhs <- pos_df_small$value
 
 
