@@ -75,6 +75,12 @@ nut_df_small_solved <- nut_df_small %>% bind_cols(solved_nutrient_vals)
 max_solution_amount <- solution$solution[which(solution$solution == max(solution$solution))]
 
 
+
+
+
+
+
+
 # --- Programmatically ---
 solve_it <- function(df, nutrient_df, maximize = FALSE) {
   n_foods <- nrow(df)
@@ -101,11 +107,13 @@ solve_it <- function(df, nutrient_df, maximize = FALSE) {
   
   out <- Rglpk_solve_LP(obj_fn, mat, dir, rhs, max = maximize)
   out <- append(list(original_menu = df), out)
+  out <- append(out, list(necessary_nutrients = nutrient_df))
   # out <- unlist(out, recursive = FALSE)
   message(paste0("Cost is ", round(out$optimum, digits = 2))) 
   
   return(out)
 }
+# Return a solution that contains the original menu as the first item in the list 
 solve_it(menu_small, nut_df_small)
 
 solution_out_list <- solve_it(menu_small, nut_df_small)
@@ -120,34 +128,48 @@ solution_out <- solve_it(menu_small, nut_df_small)
 
 # Take a menu and a solution and cbind them 
 solve_menu <- function(sol) {
-  solved_col <- list(solution_nutrient_vals = sol[[2]]$auxiliary$primal) %>% as_tibble()
+  
+  solved_col <-  list(solution_amounts = sol$solution) %>% as_tibble()
   
   df_solved <- sol$original_menu %>% bind_cols(solved_col) %>% 
     select(shorter_desc, solution_amounts, everything())
   
-  max_food <- df_solved %>% filter(solution_amounts == max(solution_amounts))   # modify for if we've got mult maxes
+  max_food <- df_solved %>% filter(solution_amounts == max(df_solved$solution_amounts))   # modify for if we've got mult maxes
   
   message(paste0("We've got a lot of ", max_food$shorter_desc %>% as_vector()), ". ", 
-          solution_amounts, " of it.")
+          max_food$solution_amounts %>% round(digits = 2), " grams of it.")
   
   return(df_solved)
 }
 
 solve_menu(solution_out_list)
 
-
 menu_small %>% solve_it(nut_df_small) %>% solve_menu()
 
 
 # Take a menu and a solution and get the nutrient vals
-solve_nutrients <- function(df, sol) {
+solve_nutrients <- function(sol) {
+  # browser()
   
   solved_nutrient_vals <- list(solution_nutrient_vals = sol$auxiliary$primal) %>% as_tibble()
   
-  nut_df_small_solved <- nut_df_small %>% bind_cols(solved_nutrient_vals) 
+  nut_df_small_solved <- sol$necessary_nutrients %>% bind_cols(solved_nutrient_vals) 
+  
+  ratios <- nut_df_small_solved %>% 
+    mutate(
+      ratio = solution_nutrient_vals/value
+    )
+  
+  max_pos_overshot <- ratios %>% 
+    filter(is_mr == FALSE) %>% 
+    filter(ratio == max(.$ratio))
+  
+  message(paste0("We've overshot on ", max_pos_overshot$nutrient %>% as_vector()), 
+          ". The ratio of what we have to what we need is ", 
+          max_pos_overshot$solution_nutrient_vals %>% round(digits = 2), ".")
 
-  return(df_solved)
+  return(nut_df_small_solved)
 }
 
-menu_small %>% solve_it(solution_out) %>% solve_nutrients()
+menu_small %>% solve_it(nut_df_small) %>% solve_nutrients()
 
