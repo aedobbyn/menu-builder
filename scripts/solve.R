@@ -82,6 +82,9 @@ max_solution_amount <- solution$solution[which(solution$solution == max(solution
 
 
 # --- Programmatically ---
+# Return a solution that contains the original menu and the needed nutrient df along with the rest
+# of the solution in a list
+
 solve_it <- function(df, nutrient_df, maximize = FALSE) {
   n_foods <- nrow(df)
 
@@ -95,7 +98,7 @@ solve_it <- function(df, nutrient_df, maximize = FALSE) {
   }
   
   mat <- construct_matrix(df, nutrient_df)
-  message("Matrix below:")
+  message("Constraint matrix below:")
   print(mat)
   
   dir_pos <- rep(">", nutrient_df %>% filter(is_mr == FALSE) %>% ungroup() %>% count() %>% as_vector())
@@ -106,19 +109,17 @@ solve_it <- function(df, nutrient_df, maximize = FALSE) {
   obj_fn <- df[["cost"]]
   
   out <- Rglpk_solve_LP(obj_fn, mat, dir, rhs, max = maximize)
-  out <- append(list(original_menu = df), out)
-  out <- append(out, list(necessary_nutrients = nutrient_df))
-  # out <- unlist(out, recursive = FALSE)
-  message(paste0("Cost is ", round(out$optimum, digits = 2))) 
-  
+  out <- append(append(
+    out, list(necessary_nutrients = nutrient_df)), 
+    list(original_menu = df))
+
   return(out)
+  
+  message(paste0("Cost is $", out$optimum %>% round(digits = 2), ".")) 
 }
-# Return a solution that contains the original menu as the first item in the list 
 solve_it(menu_small, nut_df_small)
 
 solution_out_list <- solve_it(menu_small, nut_df_small)
-
-solution_out <- solve_it(menu_small, nut_df_small)
 
 
 # # Test
@@ -126,7 +127,8 @@ solution_out <- solve_it(menu_small, nut_df_small)
 
 
 
-# Take a menu and a solution and cbind them 
+# Take an original menu and a solution and return a menu with the cbound solution
+# and a helpful message
 solve_menu <- function(sol) {
   
   solved_col <-  list(solution_amounts = sol$solution) %>% as_tibble()
@@ -134,17 +136,19 @@ solve_menu <- function(sol) {
   df_solved <- sol$original_menu %>% bind_cols(solved_col) %>% 
     select(shorter_desc, solution_amounts, everything())
   
-  max_food <- df_solved %>% filter(solution_amounts == max(df_solved$solution_amounts))   # modify for if we've got mult maxes
-  
-  message(paste0("We've got a lot of ", max_food$shorter_desc %>% as_vector()), ". ", 
-          max_food$solution_amounts %>% round(digits = 2), " grams of it.")
-  
+  max_food <- df_solved %>% filter(solution_amounts == max(df_solved$solution_amounts)) %>% 
+    slice(1:1) # If we've got mult maxes, take only the first
+
+  message(paste0("We've got a lot of ", max_food$shorter_desc %>% as_vector()), ". ",
+          max_food$solution_amounts %>% round(digits = 2), " grams of ",
+          max_food$shorter_desc %>% as_vector() %>% is_plural(return_bool = FALSE), ".")
+
   return(df_solved)
 }
 
 solve_menu(solution_out_list)
 
-menu_small %>% solve_it(nut_df_small) %>% solve_menu()
+solved_menu <- menu_small %>% solve_it(nut_df_small) %>% solve_menu()
 
 
 # Take a menu and a solution and get the nutrient vals
@@ -165,8 +169,8 @@ solve_nutrients <- function(sol) {
     filter(ratio == max(.$ratio))
   
   message(paste0("We've overshot on ", max_pos_overshot$nutrient %>% as_vector()), 
-          ". The ratio of what we have to what we need is ", 
-          max_pos_overshot$solution_nutrient_vals %>% round(digits = 2), ".")
+          ". It's ", 
+          max_pos_overshot$ratio %>% round(digits = 2), "times what is needed.")
 
   return(nut_df_small_solved)
 }
