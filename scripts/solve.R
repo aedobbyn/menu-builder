@@ -34,8 +34,8 @@ nutrient_df <- all_nut_and_mr_df %>%
 # Transpose our menu such that it looks like the matrix of constraints we're about to create
 # with foods as the columns and nutrients as the rows
 
-transposed_menu_unsolved <- menu_unsolved[, c(c("cost", nutrient_df$nutrient))] %>% 
-  # select(cost, !!quo_nutrient_names) %>%    # <- no idea why this method left us with 19 columns
+transposed_menu_unsolved <- menu_unsolved %>% 
+  select(cost, !!quo_nutrient_names) %>%   
   t() %>% as_data_frame() 
 
 names(transposed_menu_unsolved) <- menu_unsolved$shorter_desc
@@ -141,17 +141,7 @@ solve_it <- function(df, nutrient_df, maximize = FALSE) {
 }
 
 solve_it(menu_unsolved, nutrient_df)
-solution_out <- solve_it(menu_small, nut_df_small)
-
-# 
-# construct_matrix <- function(df, nutrient_df) {       # Set up matrix constraints
-#   mat_base <- df[, which(names(df) %in% nutrient_df$nutrient)] %>% as_vector()  # Get a vector of all our nutrients
-#   browser()
-#   mat <- matrix(mat_base, nrow = nrow(nutrient_df), byrow = TRUE)       # One row per constraint, one column per food (variable)
-#   return(mat)
-# }
-# 
-# bar <- construct_matrix(menu_unsolved, nutrient_df)
+full_solution <- solve_it(menu_unsolved, nutrient_df)
 
 
 
@@ -175,8 +165,8 @@ solve_menu <- function(sol) {
   return(df_solved)
 }
 
-solve_menu(solution_out)
-solved_menu <- menu_small %>% solve_it(nut_df_small) %>% solve_menu()
+solve_menu(full_solution)
+solved_menu <- menu_unsolved %>% solve_it(nutrient_df) %>% solve_menu()
 
 
 # Take solution (a list resulting from solve_it()) and get the values of each of the nutrients in the
@@ -205,11 +195,8 @@ solve_nutrients <- function(sol) {
   return(nut_df_small_solved)
 }
 
-solve_nutrients(solution_out)
-solved_nutrients <- menu_small %>% solve_it(nut_df_small) %>% solve_nutrients()
+solve_nutrients(full_solution)
+solved_nutrients <- menu_unsolved %>% solve_it(nutrient_df) %>% solve_nutrients()
 
 
-
-# # Test that the manual and programmatic solution are the same
-assertthat::are_equal(solution$optimum, solution_out$optimum)
 
