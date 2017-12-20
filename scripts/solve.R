@@ -86,11 +86,11 @@ max_solution_amount <- solution$solution[which(solution$solution == max(solution
 # of the solution in a list
 
 solve_it <- function(df, nutrient_df, maximize = FALSE) {
-  n_foods <- nrow(df)
-
-  construct_matrix <- function(df, nutrient_df) {
+  # n_foods <- nrow(df)
+  
+  construct_matrix <- function(df, nutrient_df) {  # Set up matrix constraints
     mat_base <- NULL
-    for (i in 1:n_foods) {
+    for (i in 1:nrow(nutrient_df)) {
       mat_base <- c(mat_base, df[i, ][nutrient_df[["nutrient"]]] %>% as_vector())
     }
     mat <- matrix(mat_base, nrow = nrow(nutrient_df), byrow = TRUE)
