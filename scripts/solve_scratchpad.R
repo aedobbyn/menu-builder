@@ -75,3 +75,18 @@ dir_ex <- c("<=", "<=", "<=")
 rhs_ex <- c(60, 40, 80)
 max_ex <- TRUE
 Rglpk_solve_LP(obj_ex, mat_ex, dir_ex, rhs_ex, max = max_ex)
+
+
+
+
+# same as their example
+
+obj <- c(2, 4, 3)
+mat <- matrix(c(3, 2, 1, 
+                4, 1, 3, 
+                2, 2, 2), nrow = 3)
+dir <- c("<=", "<=", "<=")
+rhs <- c(60, 40, 80)
+max <- TRUE
+Rglpk_solve_LP(obj, mat, dir, rhs, max = max)
+
