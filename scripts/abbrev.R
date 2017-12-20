@@ -16,7 +16,7 @@ names(abbrev)
 # get vector of must restricts
 must_restrict <- c("Lipid_Tot_g", "Carbohydrt_g", "Sugar_Tot_g", 
                    "FA_Sat_g", "FA_Mono_g", "FA_Poly_g", "Cholestrl_mg",
-                   "Sodium_(mg)")
+                   "Sodium_mg")
 
 # these fields are neither must_restricts nor positives
 not_nuts <- c("NDB_No", "Shrt_Desc", "Water_g", "Energ_Kcal", 
@@ -24,7 +24,6 @@ not_nuts <- c("NDB_No", "Shrt_Desc", "Water_g", "Energ_Kcal",
 
 # everything that's not a must_restrict or a not_nut must be a positive
 positives <- names(abbrev)[c((!names(abbrev) %in% must_restrict) & (!names(abbrev) %in% not_nuts))]
-positives
 
 
 # Based on Rick's guidelines, set per the sheet PantryFoods, 100g Nutrient Data

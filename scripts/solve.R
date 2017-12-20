@@ -11,96 +11,86 @@ library(feather)
 library(Rglpk)
 
 
+# Get names in correct order
+quo_nutrient_names <- quo(all_nut_and_mr_df$nutrient)
+
 # Simplify our menu space
-cols_to_keep <- c(all_nut_and_mr_df, "Shrt_Desc", "Energ_Kcal", "GmWt_1", "NDB_No")
+cols_to_keep <- c(all_nut_and_mr_df$nutrient, "Shrt_Desc", "Energ_Kcal", "GmWt_1", "NDB_No")
 menu_unsolved <- menu[, which(names(menu) %in% cols_to_keep)] %>% 
   mutate(
     shorter_desc = map_chr(Shrt_Desc, grab_first_word, splitter = ","), # Take only the fist word
     cost = runif(nrow(.), min = 1, max = 10) %>% round(digits = 2) # Add a cost column
-  ) %>% 
-  select(shorter_desc, GmWt_1, cost, everything(), -Shrt_Desc)
+  ) %>%
+  select(shorter_desc, cost, !!quo_nutrient_names, GmWt_1, Energ_Kcal, Shrt_Desc, NDB_No)
 
 
+# Give nutrients a flag for whether they're a must-restrict or not
+nutrient_df <- all_nut_and_mr_df %>% 
+  mutate(
+    is_mr = ifelse(nutrient %in% mr_df$must_restrict, TRUE, FALSE)
+  )
 
-# Pick a few nutrients to start with and give them a flag for whether they're a must-restrict or not
-pos_df_small <- pos_df[1:3, ] %>% rename(nutrient = positive_nut) %>% 
-  mutate(is_mr = FALSE)
-mr_df_small <- mr_df[1:3, ] %>% rename(nutrient = must_restrict) %>% 
-  mutate(is_mr = TRUE)
-nut_df_small <- bind_rows(mr_df_small, pos_df_small)
-
-
-# Get names in correct order
-quo_names <- quo(c(mr_df_small$nutrient, pos_df_small$nutrient))
-
-menu_small <- menu_small %>% 
-  select(shorter_desc, GmWt_1, cost, Energ_Kcal, !!quo_names)
-
-
-# ---- Small example ----
-# -- minimize: 
-# cherries::cost*cherries::GmWt_1 + cheese::cost*cheese::GmWt_1 + cereals::cost*cereals::GmWt_1
-# -- subject to: 
-# cherries::GmWt_1*Calcium_Mg + cheese::GmWt_1*Iron_mg + cereals::GmWt_1*Magnesium_mg > 1000, etc.
 
 # Transpose our menu such that it looks like the matrix of constraints we're about to create
 # with foods as the columns and nutrients as the rows
-transposed_menu <- menu_small %>% select(-shorter_desc) %>% 
-  t() %>% as_data_frame() %>% 
-  rename(
-    CHERRIES = V1,
-    CHEESE = V2,
-    CEREALS = V3
-  ) %>% mutate(
-    col = names(menu_small)[2:length(names(menu_small))]
-  ) %>% 
-  select(col, everything())
 
+transposed_menu_unsolved <- menu_unsolved[, c(c("cost", nutrient_df$nutrient))] %>% 
+  # select(cost, !!quo_nutrient_names) %>%    # <- no idea why this method left us with 19 columns
+  t() %>% as_data_frame() 
 
-# # # # # # # # # # # # # # # # # # Manual solution creation # # # # # # # # # # # # # # #
-obj_fn <- c(2.29, 2.62, 3.88)
+names(transposed_menu_unsolved) <- menu_unsolved$shorter_desc
 
-# Ca,     Fe,    Mg,   
-menu_mat <-   matrix(c(
-  # CHERRIES  CHEESE CEREALS 
-  0.130,   27.34,   6.370,   # Lipid
-  1.000, 1696.00, 499.000,   # Na
-  0.000,   72.00,   0.000,   # Chol
-  11.000, 1253.00, 307.000,  # Ca,   
-  0.360,    0.87,  11.300,   # Fe
-  9.000,   51.00,  84.000),  # Mg
-  nrow = 6, byrow = TRUE)  
-
-dir <- c("<", "<", "<", ">", ">", ">")
-rhs <- c(65, 2400, 300, 1000, 18, 400)    # Ca, Fe, Mg, Lipid, Na, Chol
-solution <- Rglpk_solve_LP(obj_fn, menu_mat, dir, rhs, max = FALSE)
-
-constraint_mat <- menu_mat %>% as_data_frame() 
-names(constraint_mat) <- menu_small$shorter_desc
-constraint_mat %>% 
+transposed_menu_unsolved <- transposed_menu_unsolved %>%
   mutate(
-    dir = dir,
-    rhs = rhs
-  )
+    constraint = c("cost", nutrient_df$nutrient)
+  ) %>% 
+  select(constraint, everything())
 
-# Cost is solution$optimum
-
-# cbind the solved amounts to the original menu
-solved_col <- list(solution_amounts = solution$solution) %>% as_tibble()
-
-menu_small_solved <- menu_small %>% bind_cols(solved_col) %>% 
-  select(shorter_desc, solution_amounts, everything())
-
-solved_nutrient_vals <- list(solution_nutrient_vals = solution$auxiliary$primal) %>% as_tibble()
-
-nut_df_small_solved <- nut_df_small %>% bind_cols(solved_nutrient_vals) 
-
-# What's the max solution amount? If too high, may need to adjust down 
-max_solution_amount <- solution$solution[which(solution$solution == max(solution$solution))]
-
-
-# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
-
+# 
+# # # # # # # # # # # # # # # # # # # Manual solution creation # # # # # # # # # # # # # # #
+# obj_fn <- c(2.29, 2.62, 3.88)
+# 
+# # Ca,     Fe,    Mg,   
+# menu_mat <-   matrix(c(
+#   # CHERRIES  CHEESE CEREALS 
+#   0.130,   27.34,   6.370,   # Lipid
+#   1.000, 1696.00, 499.000,   # Na
+#   0.000,   72.00,   0.000,   # Chol
+#   11.000, 1253.00, 307.000,  # Ca,   
+#   0.360,    0.87,  11.300,   # Fe
+#   9.000,   51.00,  84.000),  # Mg
+#   nrow = 6, byrow = TRUE)  
+# 
+# dir <- c("<", "<", "<", ">", ">", ">")
+# rhs <- c(65, 2400, 300, 1000, 18, 400)    # Ca, Fe, Mg, Lipid, Na, Chol
+# solution <- Rglpk_solve_LP(obj_fn, menu_mat, dir, rhs, max = FALSE)
+# 
+# constraint_mat <- menu_mat %>% as_data_frame() 
+# names(constraint_mat) <- menu_small$shorter_desc
+# constraint_mat %>% 
+#   mutate(
+#     dir = dir,
+#     rhs = rhs
+#   )
+# 
+# # Cost is solution$optimum
+# 
+# # cbind the solved amounts to the original menu
+# solved_col <- list(solution_amounts = solution$solution) %>% as_tibble()
+# 
+# menu_small_solved <- menu_small %>% bind_cols(solved_col) %>% 
+#   select(shorter_desc, solution_amounts, everything())
+# 
+# solved_nutrient_vals <- list(solution_nutrient_vals = solution$auxiliary$primal) %>% as_tibble()
+# 
+# nut_df_small_solved <- nut_df_small %>% bind_cols(solved_nutrient_vals) 
+# 
+# # What's the max solution amount? If too high, may need to adjust down 
+# max_solution_amount <- solution$solution[which(solution$solution == max(solution$solution))]
+# 
+# 
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
+# 
 
 
 
@@ -111,8 +101,6 @@ max_solution_amount <- solution$solution[which(solution$solution == max(solution
 # of the solution in a list
 
 solve_it <- function(df, nutrient_df, maximize = FALSE) {
-  
-  # browser()
   
   dir_mr <- rep("<", nutrient_df %>% filter(is_mr == TRUE) %>% ungroup() %>% count() %>% as_vector())       # And less than on all the must_restricts
   dir_pos <- rep(">", nutrient_df %>% filter(is_mr == FALSE) %>% ungroup() %>% count() %>% as_vector())     # Final menu must be greater than on all the positives
@@ -129,7 +117,7 @@ solve_it <- function(df, nutrient_df, maximize = FALSE) {
   
   mat <- construct_matrix(df, nutrient_df)
   constraint_matrix <- mat %>% as_data_frame() 
-  names(constraint_matrix) <- menu_small$shorter_desc
+  names(constraint_matrix) <- df$shorter_desc
   constraint_matrix <- constraint_matrix %>% 
     mutate(
       dir = dir,
@@ -152,8 +140,18 @@ solve_it <- function(df, nutrient_df, maximize = FALSE) {
   message(paste0("Cost is $", out$optimum %>% round(digits = 2), ".")) 
 }
 
-solve_it(menu_small, nut_df_small)
+solve_it(menu_unsolved, nutrient_df)
 solution_out <- solve_it(menu_small, nut_df_small)
+
+# 
+# construct_matrix <- function(df, nutrient_df) {       # Set up matrix constraints
+#   mat_base <- df[, which(names(df) %in% nutrient_df$nutrient)] %>% as_vector()  # Get a vector of all our nutrients
+#   browser()
+#   mat <- matrix(mat_base, nrow = nrow(nutrient_df), byrow = TRUE)       # One row per constraint, one column per food (variable)
+#   return(mat)
+# }
+# 
+# bar <- construct_matrix(menu_unsolved, nutrient_df)
 
 
 

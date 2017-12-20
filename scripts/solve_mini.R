@@ -117,8 +117,6 @@ max_solution_amount <- solution$solution[which(solution$solution == max(solution
 
 solve_it <- function(df, nutrient_df, maximize = FALSE) {
   
-  # browser()
-  
   dir_mr <- rep("<", nutrient_df %>% filter(is_mr == TRUE) %>% ungroup() %>% count() %>% as_vector())       # And less than on all the must_restricts
   dir_pos <- rep(">", nutrient_df %>% filter(is_mr == FALSE) %>% ungroup() %>% count() %>% as_vector())     # Final menu must be greater than on all the positives
   
@@ -134,7 +132,7 @@ solve_it <- function(df, nutrient_df, maximize = FALSE) {
   
   mat <- construct_matrix(df, nutrient_df)
   constraint_matrix <- mat %>% as_data_frame() 
-  names(constraint_matrix) <- menu_small$shorter_desc
+  names(constraint_matrix) <- df$shorter_desc
   constraint_matrix <- constraint_matrix %>% 
     mutate(
       dir = dir,
