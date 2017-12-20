@@ -100,11 +100,15 @@ solve_it <- function(df, nutrient_df, maximize = FALSE) {
   obj_fn <- df[["cost"]]
   
   out <- Rglpk_solve_LP(obj_fn, mat, dir, rhs, max = maximize)
-  out <- list(original_menu = df, out)
-  message(paste0("Cost is ", out$optimum )) %>% round(digits = 2)
+  out <- append(list(original_menu = df), out)
+  # out <- unlist(out, recursive = FALSE)
+  message(paste0("Cost is ", round(out$optimum, digits = 2))) 
   
   return(out)
 }
+solve_it(menu_small, nut_df_small)
+
+solution_out_list <- solve_it(menu_small, nut_df_small)
 
 solution_out <- solve_it(menu_small, nut_df_small)
 
@@ -115,18 +119,22 @@ solution_out <- solve_it(menu_small, nut_df_small)
 
 
 # Take a menu and a solution and cbind them 
-solve_menu <- function(df, sol) {
+solve_menu <- function(sol) {
+  solved_col <- list(solution_nutrient_vals = sol[[2]]$auxiliary$primal) %>% as_tibble()
   
-  df_solved <- df %>% bind_cols(solved_col) %>% 
+  df_solved <- sol$original_menu %>% bind_cols(solved_col) %>% 
     select(shorter_desc, solution_amounts, everything())
   
   max_food <- df_solved %>% filter(solution_amounts == max(solution_amounts))   # modify for if we've got mult maxes
   
-  message(paste0("We've got a lot of ", max_food$shorter_desc), ". ", 
+  message(paste0("We've got a lot of ", max_food$shorter_desc %>% as_vector()), ". ", 
           solution_amounts, " of it.")
   
   return(df_solved)
 }
+
+solve_menu(solution_out_list)
+
 
 menu_small %>% solve_it(nut_df_small) %>% solve_menu()
 
