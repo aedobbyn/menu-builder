@@ -8,17 +8,22 @@
 source("./scripts/menu_builder.R")
 
 library(feather)
+library(lpSolveAPI)
 library(Rglpk)
 
 
 # Simplify our menu space
-cols_to_keep <- c(all_nut_and_mr_df, "Shrt_Desc", "Energ_Kcal", "GmWt_1", "NDB_No")
-menu_unsolved <- menu[, which(names(menu) %in% cols_to_keep)] %>% 
+cols_to_keep <- c(pos_df_small$positive_nut, mr_df$must_restrict, "Shrt_Desc", "Energ_Kcal", "GmWt_1")
+menu_small <- menu[, which(names(menu) %in% cols_to_keep)] %>% 
+  slice(1:3) %>% 
   mutate(
     shorter_desc = map_chr(Shrt_Desc, grab_first_word, splitter = ","), # Take only the fist word
     cost = runif(nrow(.), min = 1, max = 10) %>% round(digits = 2) # Add a cost column
   ) %>% 
   select(shorter_desc, GmWt_1, cost, everything(), -Shrt_Desc)
+
+# OR, read in
+menu_small <- read_feather(menu_small, "./data/menu_small.feather")
 
 
 
@@ -214,4 +219,5 @@ solved_nutrients <- menu_small %>% solve_it(nut_df_small) %>% solve_nutrients()
 
 # # Test that the manual and programmatic solution are the same
 assertthat::are_equal(solution$optimum, solution_out$optimum)
+
 
