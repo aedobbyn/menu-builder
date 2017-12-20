@@ -45,11 +45,16 @@ nut_df_small <- bind_rows(pos_df_small, mr_df_small)
 
 obj_fn <- c(2.29, 2.62, 3.88)
 
-                     # Ca,     Fe,    Mg,   Lipid,   Na,   Chol
-menu_mat <-   matrix(c(11,    0.36,   9,     0.13,    1,    0,             # CHERRIES
-                       1253,  0.87,   51,    27.34,   1696, 72,            # CHEESE
-                       307,   11.30,  84,     6.37,   499,  0 ),           # CEREALS
-                     nrow = 6, byrow = TRUE)  
+                     # Ca,     Fe,    Mg,   
+menu_mat <-   matrix(c(11,    0.36,   9,        # > 1000      # CHERRIES      
+                       1253,  0.87,   51,       # > 18        # CHEESE
+                       307,   11.30,  84,       # > 65        # CEREALS
+                     # Lipid,   Na,   Chol
+                       0.13,    1,    0,        # < 65        # CHERRIES
+                       27.34,   1696, 72,       # < 2400      # CHEESE
+                       6.37,    499,  0),       # < 300       # CEREALS
+                  nrow = 6, byrow = TRUE)  
+
 dir <- c(">", ">", ">", "<", "<", "<")
 rhs <- c(1000, 18, 400, 65, 2400, 300)    # Ca, Fe, Mg, Lipid, Na, Chol
 solution <- Rglpk_solve_LP(obj_fn, menu_mat, dir, rhs, max = FALSE)
@@ -58,8 +63,13 @@ solution <- Rglpk_solve_LP(obj_fn, menu_mat, dir, rhs, max = FALSE)
 
 # cbind the solved amounts to the original menu
 solved_col <- list(solution_amounts = solution$solution) %>% as_tibble()
+
 menu_small_solved <- menu_small %>% bind_cols(solved_col) %>% 
-  select(shorter_desc, solution_amounts, everything())
+  select(shorter_desc, solution_amounts, solution_nutrient_vals, everything())
+
+solved_nutrient_vals <- list(solution_nutrient_vals = solution$auxiliary$primal) %>% as_tibble()
+
+nut_df_small_solved <- nut_df_small %>% bind_cols(solved_nutrient_vals) 
 
 # What's the max solution amount? If too high, may need to adjust down 
 max_solution_amount <- solution$solution[which(solution$solution == max(solution$solution))]
@@ -90,12 +100,13 @@ solve_it <- function(df, nutrient_df, maximize = FALSE) {
   obj_fn <- df[["cost"]]
   
   out <- Rglpk_solve_LP(obj_fn, mat, dir, rhs, max = maximize)
-  message(paste0("Cost is ", out$optimum))
+  out <- list(original_menu = df, out)
+  message(paste0("Cost is ", out$optimum )) %>% round(digits = 2)
   
   return(out)
 }
 
-solution_out <- solve_it(menu_small, pos_df_small)
+solution_out <- solve_it(menu_small, nut_df_small)
 
 
 # # Test
@@ -103,9 +114,8 @@ solution_out <- solve_it(menu_small, pos_df_small)
 
 
 
-# Take a menu and return a solved menu
-solve_menu <- function(df, nutrient_df) {
-  sol <- df %>% solve_it(nutrient_df)
+# Take a menu and a solution and cbind them 
+solve_menu <- function(df, sol) {
   
   df_solved <- df %>% bind_cols(solved_col) %>% 
     select(shorter_desc, solution_amounts, everything())
@@ -117,4 +127,19 @@ solve_menu <- function(df, nutrient_df) {
   
   return(df_solved)
 }
+
+menu_small %>% solve_it(nut_df_small) %>% solve_menu()
+
+
+# Take a menu and a solution and get the nutrient vals
+solve_nutrients <- function(df, sol) {
+  
+  solved_nutrient_vals <- list(solution_nutrient_vals = sol$auxiliary$primal) %>% as_tibble()
+  
+  nut_df_small_solved <- nut_df_small %>% bind_cols(solved_nutrient_vals) 
+
+  return(df_solved)
+}
+
+menu_small %>% solve_it(solution_out) %>% solve_nutrients()
 
