@@ -120,7 +120,8 @@ max_solution_amount <- solution$solution[which(solution$solution == max(solution
 # Return a solution that contains the original menu and the needed nutrient df along with the rest
 # of the solution in a list
 
-solve_it <- function(df, nutrient_df, min_food_amount = 1, max_food_amount = 100, maximize = FALSE) {
+solve_it <- function(df, nutrient_df, only_full_servings = FALSE,
+                     min_food_amount = 1, max_food_amount = 100, maximize = FALSE) {
   
   n_foods <- length(df$shorter_desc)
   
@@ -155,7 +156,14 @@ solve_it <- function(df, nutrient_df, min_food_amount = 1, max_food_amount = 100
   message("Constraint matrix below:")
   print(constraint_matrix)
   
-  out <- Rglpk_solve_LP(obj_fn, mat, dir, rhs, bounds, max = maximize)           # Do the solving; we get a list back
+  if(only_full_servings == TRUE) {
+    types <- rep("I", n_foods)
+  } else {
+    types <- rep("C", n_foods)
+  }
+  
+  out <- Rglpk_solve_LP(obj_fn, mat, dir, rhs,                    # Do the solving; we get a list back
+                        bounds, types = types, max = maximize)           
   
   out <- append(append(append(                                           # Append the dataframe of all min/max nutrient values
     out, list(necessary_nutrients = nutrient_df)),
@@ -167,7 +175,7 @@ solve_it <- function(df, nutrient_df, min_food_amount = 1, max_food_amount = 100
   message(paste0("Cost is $", out$optimum %>% round(digits = 2), ".")) 
 }
 
-solve_it(menu_small, nut_df_small)
+solve_it(menu_small, nut_df_small, only_full_servings = TRUE)
 solution_out <- solve_it(menu_small, nut_df_small)
 
 

@@ -46,14 +46,15 @@ transposed_menu_unsolved <- transposed_menu_unsolved %>%
 
 # Return a solution that contains the original menu and the needed nutrient df along with the rest
 # of the solution in a list
-solve_it <- function(df, nutrient_df, min_cals, min_food_amount = 1, max_food_amount = 100, maximize = FALSE) {
+solve_it <- function(df, nutrient_df, only_full_servings = FALSE,
+                     min_food_amount = 1, max_food_amount = 100, maximize = FALSE) {
   
   n_foods <- length(df$shorter_desc)
   
   dir_mr <- rep("<", nutrient_df %>% filter(is_must_restrict == TRUE) %>% ungroup() %>% count() %>% as_vector())       # And less than on all the must_restricts
   dir_pos <- rep(">", nutrient_df %>% filter(is_must_restrict == FALSE) %>% ungroup() %>% count() %>% as_vector())     # Final menu must be greater than on all the positives
   
-  dir <- c(dir_mr, dir_pos)          
+  dir <- c(dir_mr, dir_pos)
   rhs <- nutrient_df[["value"]]      # The right-hand side of the equation is all of the min or max nutrient values
   obj_fn <- df[["cost"]]             # Objective function will be to minimize total cost
   
@@ -68,10 +69,9 @@ solve_it <- function(df, nutrient_df, min_cals, min_food_amount = 1, max_food_am
     return(mat)
   }
   
-  mat <- construct_matrix(df, nutrient_df)                # Make the constraintmatrix we'll use in Rglpk_solve_LP()
-  
-  constraint_matrix <- mat %>% as_data_frame()            # Take that matrix, give it names, join it on the directionality 
-  names(constraint_matrix) <- df$shorter_desc             # of the constraint and the max (rhs) so we can read it 
+  mat <- construct_matrix(df, nutrient_df)
+  constraint_matrix <- mat %>% as_data_frame() 
+  names(constraint_matrix) <- df$shorter_desc
   constraint_matrix <- constraint_matrix %>% 
     mutate(
       dir = dir,
@@ -82,10 +82,17 @@ solve_it <- function(df, nutrient_df, min_cals, min_food_amount = 1, max_food_am
   message("Constraint matrix below:")
   print(constraint_matrix)
   
-  out <- Rglpk_solve_LP(obj_fn, mat, dir, rhs, bounds, max = maximize)           # Do the solving; we get a list back
+  if(only_full_servings == TRUE) {
+    types <- rep("I", n_foods)
+  } else {
+    types <- rep("C", n_foods)
+  }
   
-  out <- append(append(append(                                           
-    out, list(necessary_nutrients = nutrient_df)),                       # Append the dataframe of all min/max nutrient values
+  out <- Rglpk_solve_LP(obj_fn, mat, dir, rhs,                    # Do the solving; we get a list back
+                        bounds, types = types, max = maximize)           
+  
+  out <- append(append(append(                                           # Append the dataframe of all min/max nutrient values
+    out, list(necessary_nutrients = nutrient_df)),
     list(constraint_matrix = constraint_matrix)),                        # our constraint matrix
     list(original_menu = df))                                            # and our original menu
   
