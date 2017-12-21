@@ -8,6 +8,7 @@ library(dobtools)
 library(feather)
 library(Rglpk)
 
+# --------------------------------------------------------------------------------------------------
 # Now in dobtools
 grab_first_word <- function(e, splitter = " ") {
   stopifnot(is.character(e))
@@ -33,6 +34,7 @@ is_plural <- function(word, return_bool = FALSE) {
   }
   
 }
+# --------------------------------------------------------------------------------------------------
 
 
 # Quosure the nutrient and must restrict names
@@ -77,9 +79,8 @@ transposed_menu_unsolved <- transposed_menu_unsolved %>%
 # of the solution in a list
 solve_it <- function(df, nutrient_df, only_full_servings = FALSE, 
                      min_food_amount = 1, max_food_amount = 100, 
-                     verbose = FALSE, maximize = FALSE) {
+                     verbose = TRUE, v_v_verbose = FALSE, maximize = FALSE) {
   
-  # browser()
   n_foods <- length(df$shorter_desc)
   nut_quo <- quo(nutrient_df$nutrient)
   
@@ -94,10 +95,8 @@ solve_it <- function(df, nutrient_df, only_full_servings = FALSE,
                               val = rep(min_food_amount, n_foods)),
                  upper = list(ind = seq(n_foods), 
                               val = rep(max_food_amount, n_foods)))
-  # browser()
   construct_matrix <- function(df, nutrient_df) {       # Set up matrix constraints
     mat_base <- df %>% select(!!nut_quo) %>% as_vector()    # Get a vector of all our nutrients
-    # mat_base <- df[, which(names(df) %in% nutrient_df$nutrient)] %>% as_vector()  
     mat <- matrix(mat_base, nrow = nrow(nutrient_df), byrow = TRUE)       # One row per constraint, one column per food (variable)
     return(mat)
   }
@@ -112,8 +111,6 @@ solve_it <- function(df, nutrient_df, only_full_servings = FALSE,
     ) %>% left_join(nutrient_df, by = c("rhs" = "value")) %>% 
     select(nutrient, everything())
   
-  message("Constraint matrix below:")
-  print(constraint_matrix)
   
   if(only_full_servings == TRUE) {
     types <- rep("I", n_foods)
@@ -121,33 +118,41 @@ solve_it <- function(df, nutrient_df, only_full_servings = FALSE,
     types <- rep("C", n_foods)
   }
   
+  if(v_v_verbose == TRUE) {
+    v_v_verbose <- TRUE
+    message("Constraint matrix below:")
+    print(constraint_matrix)
+  } else {
+    v_v_verbose <- FALSE
+  }
+  
   out <- Rglpk_solve_LP(obj_fn, mat, dir, rhs,                    # Do the solving; we get a list back
                         bounds = bounds, types = types, 
-                        max = maximize, verbose = verbose)   
-  
-  if (out$status == 0) {
-    message("Optimal solution found :)")
-  } else {
-    message("No optimal solution found :'(")
-  }
+                        max = maximize, verbose = v_v_verbose)   
   
   out <- append(append(append(                                           # Append the dataframe of all min/max nutrient values
     out, list(necessary_nutrients = nutrient_df)),
     list(constraint_matrix = constraint_matrix)),                        # our constraint matrix
     list(original_menu = df))                                            # and our original menu
   
-  return(out)
+  if (verbose == TRUE) {
+    message(paste0("Cost is $", out$optimum %>% round(digits = 2), ".")) 
+    if (out$status == 0) {
+      message("Optimal solution found :)")
+    } else {
+      message("No optimal solution found :'(")
+    }
+  }
   
-  message(paste0("Cost is $", out$optimum %>% round(digits = 2), ".")) 
+  return(out)
 }
 
-# solve_it(menu_unsolved, nutrient_df, only_full_servings = TRUE, min_food_amount = 3,
-#          verbose = FALSE)$solution
+# solve_it(menu_unsolved, nutrient_df, only_full_servings = TRUE, v_v_verbose = TRUE, min_food_amount = 3)$solution
 # solve_it(menu_unsolved, nutrient_df, only_full_servings = TRUE, min_food_amount = -3)$solution
 # solve_it(menu_unsolved, nutrient_df, only_full_servings = FALSE, min_food_amount = 0.5)$solution
 # solve_it(menu_unsolved, nutrient_df)
 
-full_solution <- solve_it(menu_unsolved, nutrient_df)
+full_solution <- solve_it(menu_unsolved, nutrient_df, min_food_amount = -3)
 
 
 
@@ -187,7 +192,8 @@ solve_nutrients <- function(sol) {
     bind_cols(solved_nutrient_value)  %>% 
     rename(
       required_value = value
-    )
+    ) %>% 
+    select(nutrient, is_must_restrict, required_value, solution_nutrient_value)
   
   ratios <- nut_df_small_solved %>%                # Find the solution:required ratios for each nutrient
     mutate(

@@ -16,6 +16,7 @@ mr_df_small <- mr_df[1:3, ] %>% rename(nutrient = must_restrict) %>%
   mutate(is_must_restrict = TRUE)
 nut_df_small <- bind_rows(mr_df_small, pos_df_small)
 
+# Get our test menu
 get_menu_small <- function(from_file = TRUE) {
   
   if (from_file == TRUE) {
@@ -117,7 +118,7 @@ solution_out <- solve_it(menu_small, nut_df_small)
 
 
 # solve_menu(solution_out)
-solved_menu <- menu_small %>% solve_it(nut_df_small) %>% solve_menu()
+solved_menu_small <- menu_small %>% solve_it(nut_df_small) %>% solve_menu()
 
 
 # solve_nutrients(solution_out)
@@ -131,133 +132,3 @@ assertthat::are_equal(solution$optimum, solution_out$optimum)
 
 
 
-
-
-# 
-# # # # # # # # # # # # # Programmatic solution creation # # # # # # # # # # # # # # # # # # # # # # # #
-# 
-# # Return a solution that contains the original menu and the needed nutrient df along with the rest
-# # of the solution in a list
-# 
-# solve_it <- function(df, nutrient_df, only_full_servings = FALSE,
-#                      min_food_amount = 1, max_food_amount = 100, maximize = FALSE) {
-#   
-#   n_foods <- length(df$shorter_desc)
-#   
-#   dir_mr <- rep("<", nutrient_df %>% filter(is_must_restrict == TRUE) %>% ungroup() %>% count() %>% as_vector())       # And less than on all the must_restricts
-#   dir_pos <- rep(">", nutrient_df %>% filter(is_must_restrict == FALSE) %>% ungroup() %>% count() %>% as_vector())     # Final menu must be greater than on all the positives
-#   
-#   dir <- c(dir_mr, dir_pos)
-#   rhs <- nutrient_df[["value"]]      # The right-hand side of the equation is all of the min or max nutrient values
-#   obj_fn <- df[["cost"]]             # Objective function will be to minimize total cost
-#   
-#   bounds <- list(lower = list(ind = seq(n_foods), 
-#                               val = rep(min_food_amount, n_foods)),
-#                  upper = list(ind = seq(n_foods), 
-#                               val = rep(max_food_amount, n_foods)))
-#   
-#   construct_matrix <- function(df, nutrient_df) {       # Set up matrix constraints
-#     mat_base <- df[, which(names(df) %in% nutrient_df$nutrient)] %>% as_vector()  # Get a vector of all our nutrients
-#     mat <- matrix(mat_base, nrow = nrow(nutrient_df), byrow = TRUE)       # One row per constraint, one column per food (variable)
-#     return(mat)
-#   }
-#   
-#   mat <- construct_matrix(df, nutrient_df)
-#   constraint_matrix <- mat %>% as_data_frame() 
-#   names(constraint_matrix) <- df$shorter_desc
-#   constraint_matrix <- constraint_matrix %>% 
-#     mutate(
-#       dir = dir,
-#       rhs = rhs
-#     ) %>% left_join(nutrient_df, by = c("rhs" = "value")) %>% 
-#     select(nutrient, everything())
-#   
-#   message("Constraint matrix below:")
-#   print(constraint_matrix)
-#   
-#   if(only_full_servings == TRUE) {
-#     types <- rep("I", n_foods)
-#   } else {
-#     types <- rep("C", n_foods)
-#   }
-#   
-#   out <- Rglpk_solve_LP(obj_fn, mat, dir, rhs,                    # Do the solving; we get a list back
-#                         bounds, types = types, max = maximize)           
-#   
-#   out <- append(append(append(                                           # Append the dataframe of all min/max nutrient values
-#     out, list(necessary_nutrients = nutrient_df)),
-#     list(constraint_matrix = constraint_matrix)),                        # our constraint matrix
-#     list(original_menu = df))                                            # and our original menu
-#   
-#   return(out)
-#   
-#   message(paste0("Cost is $", out$optimum %>% round(digits = 2), ".")) 
-# }
-# 
-# solve_it(menu_small, nut_df_small, only_full_servings = TRUE)
-# solution_out <- solve_it(menu_small, nut_df_small)
-# 
-# 
-# 
-# # Take a solution (a list resulting from solve_it()) and 
-# # return a menu with the solution column cbound as well as a helpful message
-# solve_menu <- function(sol) {
-#   
-#   solved_col <-  list(solution_amounts = sol$solution) %>% as_tibble()    # Grab the vector of solution amounts
-#   
-#   df_solved <- sol$original_menu %>% bind_cols(solved_col) %>%            # cbind that to the original menu
-#     select(shorter_desc, solution_amounts, everything())
-#   
-#   max_food <- df_solved %>%                                   # Find what the most of any one food we've got is
-#     filter(solution_amounts == max(df_solved$solution_amounts)) %>% 
-#     slice(1:1)                                           # If we've got multiple maxes, take only the first
-#   
-#   message(paste0("We've got a lot of ", max_food$shorter_desc %>% as_vector()), ". ",
-#           max_food$solution_amounts %>% round(digits = 2), " grams of ",
-#           max_food$shorter_desc %>% as_vector() %>% is_plural(return_bool = FALSE), ".")
-#   
-#   return(df_solved)
-# }
-# 
-# solve_menu(solution_out)
-# solved_menu <- menu_small %>% solve_it(nut_df_small) %>% solve_menu()
-# 
-# 
-# # Take solution (a list resulting from solve_it()) and get the values of each of the nutrients in the
-# # solved menu
-# solve_nutrients <- function(sol) {
-#   
-#   solved_nutrient_value <- list(solution_nutrient_value =         # Grab the vector of nutrient values in the solution
-#                                  sol$auxiliary$primal) %>% as_tibble()
-#   
-#   nut_df_small_solved <- sol$necessary_nutrients %>%       # cbind it to the nutrient requirements
-#     bind_cols(solved_nutrient_value)  %>% 
-#     rename(
-#       required_value = value
-#     )
-#   
-#   ratios <- nut_df_small_solved %>%                # Find the solution:required ratios for each nutrient
-#     mutate(
-#       ratio = solution_nutrient_value/required_value
-#     )
-#   
-#   max_pos_overshot <- ratios %>%             # Find where we've overshot our positives the most
-#     filter(is_must_restrict == FALSE) %>% 
-#     filter(ratio == max(.$ratio))
-#   
-#   message(paste0("We've overshot the most on ", max_pos_overshot$nutrient %>% as_vector()), 
-#           ". It's ", 
-#           max_pos_overshot$ratio %>% round(digits = 2), " times what is needed.")
-#   
-#   return(nut_df_small_solved)
-# }
-# 
-# solve_nutrients(solution_out)
-# solved_nutrients <- menu_small %>% solve_it(nut_df_small) %>% solve_nutrients()
-# 
-# 
-# 
-# # # Test that the manual and programmatic solution are the same
-# assertthat::are_equal(solution$optimum, solution_out$optimum)
-# 
-# 
