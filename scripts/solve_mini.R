@@ -78,8 +78,10 @@ menu_mat <-   matrix(c(
 
 dir <- c("<", "<", "<", ">", ">", ">")
 rhs <- c(65, 2400, 300, 1000, 18, 400)    # Ca, Fe, Mg, Lipid, Na, Chol
-bounds <- bounds <- list(lower = list(ind = c(1L, 2L, 3L), val = c(2, 3, 4)),
-                         upper = list(ind = c(1L, 2L, 3L), val = c(100, 100, 100)))
+bounds <- bounds <- list(lower = list(ind = c(1L, 2L, 3L), 
+                                      val = c(1, 1, 1)),
+                         upper = list(ind = c(1L, 2L, 3L),
+                                      val = c(100, 100, 100)))
 solution <- Rglpk_solve_LP(obj_fn, menu_mat, dir, rhs, bounds, max = FALSE)
 
 constraint_mat <- menu_mat %>% as_data_frame() 
@@ -119,7 +121,7 @@ max_solution_amount <- solution$solution[which(solution$solution == max(solution
 
 solve_it <- function(df, nutrient_df, min_food_amount = 1, max_food_amount = 100, maximize = FALSE) {
   
-  n_foods <- length(menu_unsolved$shorter_desc)
+  n_foods <- length(df$shorter_desc)
   
   dir_mr <- rep("<", nutrient_df %>% filter(is_mr == TRUE) %>% ungroup() %>% count() %>% as_vector())       # And less than on all the must_restricts
   dir_pos <- rep(">", nutrient_df %>% filter(is_mr == FALSE) %>% ungroup() %>% count() %>% as_vector())     # Final menu must be greater than on all the positives
@@ -152,7 +154,7 @@ solve_it <- function(df, nutrient_df, min_food_amount = 1, max_food_amount = 100
   message("Constraint matrix below:")
   print(constraint_matrix)
   
-  out <- Rglpk_solve_LP(obj_fn, mat, dir, rhs, max = maximize)           # Do the solving; we get a list back
+  out <- Rglpk_solve_LP(obj_fn, mat, dir, rhs, bounds, max = maximize)           # Do the solving; we get a list back
   
   out <- append(append(append(                                           # Append the dataframe of all min/max nutrient values
     out, list(necessary_nutrients = nutrient_df)),
