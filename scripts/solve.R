@@ -7,7 +7,7 @@ library(feather)
 library(Rglpk)
 
 # Quosure the nutrient and must restrict names
-quo_nutrient_names <- quo(all_nut_and_mr_df$nutrient)
+quo_nutrient_names <- quo(c(all_nut_and_mr_df$nutrient, "Energ_Kcal"))
 
 # Simplify our menu space
 cols_to_keep <- c(all_nut_and_mr_df$nutrient, "Shrt_Desc", "Energ_Kcal", "GmWt_1", "NDB_No")
@@ -16,12 +16,14 @@ menu_unsolved <- menu[, which(names(menu) %in% cols_to_keep)] %>%
     shorter_desc = map_chr(Shrt_Desc, grab_first_word, splitter = ","), # Take only the fist word
     cost = runif(nrow(.), min = 1, max = 10) %>% round(digits = 2) # Add a cost column
   ) %>%
-  select(shorter_desc, cost, !!quo_nutrient_names, GmWt_1, Energ_Kcal, Shrt_Desc, NDB_No)
+  select(shorter_desc, cost, !!quo_nutrient_names, GmWt_1, Shrt_Desc, NDB_No)
 
 # Give nutrients a flag for whether they're a must-restrict or not
 nutrient_df <- all_nut_and_mr_df %>% 
+  bind_rows(list(nutrient = "Energ_Kcal", 
+                 value = 2300) %>% as_tibble()) %>%
   mutate(
-    is_mr = ifelse(nutrient %in% mr_df$must_restrict, TRUE, FALSE)
+    is_must_restrict = ifelse(nutrient %in% mr_df$must_restrict, TRUE, FALSE)
   )
 
 # Transpose our menu such that it looks like the matrix of constraints we're about to create
@@ -44,12 +46,12 @@ transposed_menu_unsolved <- transposed_menu_unsolved %>%
 
 # Return a solution that contains the original menu and the needed nutrient df along with the rest
 # of the solution in a list
-solve_it <- function(df, nutrient_df, min_food_amount = 1, max_food_amount = 100, maximize = FALSE) {
+solve_it <- function(df, nutrient_df, min_cals, min_food_amount = 1, max_food_amount = 100, maximize = FALSE) {
   
   n_foods <- length(df$shorter_desc)
   
-  dir_mr <- rep("<", nutrient_df %>% filter(is_mr == TRUE) %>% ungroup() %>% count() %>% as_vector())       # And less than on all the must_restricts
-  dir_pos <- rep(">", nutrient_df %>% filter(is_mr == FALSE) %>% ungroup() %>% count() %>% as_vector())     # Final menu must be greater than on all the positives
+  dir_mr <- rep("<", nutrient_df %>% filter(is_must_restrict == TRUE) %>% ungroup() %>% count() %>% as_vector())       # And less than on all the must_restricts
+  dir_pos <- rep(">", nutrient_df %>% filter(is_must_restrict == FALSE) %>% ungroup() %>% count() %>% as_vector())     # Final menu must be greater than on all the positives
   
   dir <- c(dir_mr, dir_pos)          
   rhs <- nutrient_df[["value"]]      # The right-hand side of the equation is all of the min or max nutrient values
@@ -126,19 +128,22 @@ solved_menu <- menu_unsolved %>% solve_it(nutrient_df) %>% solve_menu()
 # solved menu
 solve_nutrients <- function(sol) {
   
-  solved_nutrient_vals <- list(solution_nutrient_vals =         # Grab the vector of nutrient values in the solution
-                                 sol$auxiliary$primal) %>% as_tibble()
+  solved_nutrient_value <- list(solution_nutrient_value =         # Grab the vector of nutrient values in the solution
+                                  sol$auxiliary$primal) %>% as_tibble()
   
   nut_df_small_solved <- sol$necessary_nutrients %>%       # cbind it to the nutrient requirements
-    bind_cols(solved_nutrient_vals)                    
+    bind_cols(solved_nutrient_value)  %>% 
+    rename(
+      required_value = value
+    )
   
   ratios <- nut_df_small_solved %>%                # Find the solution:required ratios for each nutrient
     mutate(
-      ratio = solution_nutrient_vals/value
+      ratio = solution_nutrient_value/required_value
     )
   
   max_pos_overshot <- ratios %>%             # Find where we've overshot our positives the most
-    filter(is_mr == FALSE) %>% 
+    filter(is_must_restrict == FALSE) %>% 
     filter(ratio == max(.$ratio))
   
   message(paste0("We've overshot the most on ", max_pos_overshot$nutrient %>% as_vector()), 
@@ -147,6 +152,7 @@ solve_nutrients <- function(sol) {
   
   return(nut_df_small_solved)
 }
+
 
 solve_nutrients(full_solution)
 solved_nutrients <- menu_unsolved %>% solve_it(nutrient_df) %>% solve_nutrients()
