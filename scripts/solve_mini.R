@@ -78,7 +78,9 @@ menu_mat <-   matrix(c(
 
 dir <- c("<", "<", "<", ">", ">", ">")
 rhs <- c(65, 2400, 300, 1000, 18, 400)    # Ca, Fe, Mg, Lipid, Na, Chol
-solution <- Rglpk_solve_LP(obj_fn, menu_mat, dir, rhs, max = FALSE)
+bounds <- bounds <- list(lower = list(ind = c(1L, 2L, 3L), val = c(2, 3, 4)),
+                         upper = list(ind = c(1L, 2L, 3L), val = c(100, 100, 100)))
+solution <- Rglpk_solve_LP(obj_fn, menu_mat, dir, rhs, bounds, max = FALSE)
 
 constraint_mat <- menu_mat %>% as_data_frame() 
 names(constraint_mat) <- menu_small$shorter_desc
@@ -115,7 +117,9 @@ max_solution_amount <- solution$solution[which(solution$solution == max(solution
 # Return a solution that contains the original menu and the needed nutrient df along with the rest
 # of the solution in a list
 
-solve_it <- function(df, nutrient_df, maximize = FALSE) {
+solve_it <- function(df, nutrient_df, min_food_amount = 1, max_food_amount = 100, maximize = FALSE) {
+  
+  n_foods <- length(menu_unsolved$shorter_desc)
   
   dir_mr <- rep("<", nutrient_df %>% filter(is_mr == TRUE) %>% ungroup() %>% count() %>% as_vector())       # And less than on all the must_restricts
   dir_pos <- rep(">", nutrient_df %>% filter(is_mr == FALSE) %>% ungroup() %>% count() %>% as_vector())     # Final menu must be greater than on all the positives
@@ -123,6 +127,11 @@ solve_it <- function(df, nutrient_df, maximize = FALSE) {
   dir <- c(dir_mr, dir_pos)
   rhs <- nutrient_df[["value"]]      # The right-hand side of the equation is all of the min or max nutrient values
   obj_fn <- df[["cost"]]             # Objective function will be to minimize total cost
+  
+  bounds <- list(lower = list(ind = seq(n_foods), 
+                              val = rep(min_food_amount, n_foods)),
+                 upper = list(ind = seq(n_foods), 
+                              val = rep(max_food_amount, n_foods)))
   
   construct_matrix <- function(df, nutrient_df) {       # Set up matrix constraints
     mat_base <- df[, which(names(df) %in% nutrient_df$nutrient)] %>% as_vector()  # Get a vector of all our nutrients

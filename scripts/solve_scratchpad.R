@@ -77,6 +77,14 @@ max_ex <- TRUE
 Rglpk_solve_LP(obj_ex, mat_ex, dir_ex, rhs_ex, max = max_ex)
 
 
+## Same as before but with bounds replaced by
+## -Inf <  x_1 <= 4
+##    0 <= x_2 <= 100
+##    2 <= x_3 <  Inf
+
+bounds <- list(lower = list(ind = c(1L, 3L), val = c(-Inf, 2)),
+               upper = list(ind = c(1L, 2L), val = c(4, 100)))
+Rglpk_solve_LP(obj, mat, dir, rhs, bounds, types, max)
 
 
 # same as their example

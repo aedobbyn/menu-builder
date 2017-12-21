@@ -6,6 +6,9 @@ source("./scripts/menu_builder.R")
 library(feather)
 library(Rglpk)
 
+# Quosure the nutrient and must restrict names
+quo_nutrient_names <- quo(all_nut_and_mr_df$nutrient)
+
 # Simplify our menu space
 cols_to_keep <- c(all_nut_and_mr_df$nutrient, "Shrt_Desc", "Energ_Kcal", "GmWt_1", "NDB_No")
 menu_unsolved <- menu[, which(names(menu) %in% cols_to_keep)] %>% 
@@ -20,9 +23,6 @@ nutrient_df <- all_nut_and_mr_df %>%
   mutate(
     is_mr = ifelse(nutrient %in% mr_df$must_restrict, TRUE, FALSE)
   )
-
-# Get names in correct order
-quo_nutrient_names <- quo(nutrient_df$nutrient)
 
 # Transpose our menu such that it looks like the matrix of constraints we're about to create
 # with foods as the columns and nutrients as the rows
