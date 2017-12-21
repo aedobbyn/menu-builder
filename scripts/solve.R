@@ -1,16 +1,45 @@
 # GNU solver
 # https://cran.r-project.org/web/packages/Rglpk/Rglpk.pdf
 
-source("./scripts/menu_builder.R")
-
+source("./scripts/menu_builder_silent.R")   # Load all original menu building and tweaking functions but 
+                                            # only create the original menu
+# devtools::install_github("aedobbyn/dobtools", force = TRUE)
+library(dobtools)
 library(feather)
 library(Rglpk)
+
+# Now in dobtools
+grab_first_word <- function(e, splitter = " ") {
+  stopifnot(is.character(e))
+  
+  e <- e %>% stringr::str_split(pattern = splitter, simplify = TRUE) %>% first()
+  return(e)
+}
+
+is_plural <- function(word, return_bool = FALSE) {
+  
+  if(substr(word, nchar(word), nchar(word)) %>% tolower() == "s") {
+    is_plural_bool <- TRUE
+    word_to_say <- "them"
+  } else {
+    is_plural_bool <- FALSE
+    word_to_say <- "it"
+  }
+  
+  if(return_bool == TRUE) {
+    return(is_plural_bool)
+  } else {
+    return(word_to_say)
+  }
+  
+}
+
 
 # Quosure the nutrient and must restrict names
 quo_nutrient_names <- quo(c(all_nut_and_mr_df$nutrient, "Energ_Kcal"))
 
 # Simplify our menu space
-cols_to_keep <- c(all_nut_and_mr_df$nutrient, "Shrt_Desc", "Energ_Kcal", "GmWt_1", "NDB_No")
+cols_to_keep <- c(all_nut_and_mr_df$nutrient, "Shrt_Desc", "GmWt_1", "Energ_Kcal", "NDB_No")
 menu_unsolved <- menu[, which(names(menu) %in% cols_to_keep)] %>% 
   mutate(
     shorter_desc = map_chr(Shrt_Desc, grab_first_word, splitter = ","), # Take only the fist word
@@ -46,10 +75,13 @@ transposed_menu_unsolved <- transposed_menu_unsolved %>%
 
 # Return a solution that contains the original menu and the needed nutrient df along with the rest
 # of the solution in a list
-solve_it <- function(df, nutrient_df, only_full_servings = FALSE,
-                     min_food_amount = 1, max_food_amount = 100, maximize = FALSE) {
+solve_it <- function(df, nutrient_df, only_full_servings = FALSE, 
+                     min_food_amount = 1, max_food_amount = 100, 
+                     verbose = FALSE, maximize = FALSE) {
   
+  # browser()
   n_foods <- length(df$shorter_desc)
+  nut_quo <- quo(nutrient_df$nutrient)
   
   dir_mr <- rep("<", nutrient_df %>% filter(is_must_restrict == TRUE) %>% ungroup() %>% count() %>% as_vector())       # And less than on all the must_restricts
   dir_pos <- rep(">", nutrient_df %>% filter(is_must_restrict == FALSE) %>% ungroup() %>% count() %>% as_vector())     # Final menu must be greater than on all the positives
@@ -62,9 +94,10 @@ solve_it <- function(df, nutrient_df, only_full_servings = FALSE,
                               val = rep(min_food_amount, n_foods)),
                  upper = list(ind = seq(n_foods), 
                               val = rep(max_food_amount, n_foods)))
-  
+  # browser()
   construct_matrix <- function(df, nutrient_df) {       # Set up matrix constraints
-    mat_base <- df[, which(names(df) %in% nutrient_df$nutrient)] %>% as_vector()  # Get a vector of all our nutrients
+    mat_base <- df %>% select(!!nut_quo) %>% as_vector()    # Get a vector of all our nutrients
+    # mat_base <- df[, which(names(df) %in% nutrient_df$nutrient)] %>% as_vector()  
     mat <- matrix(mat_base, nrow = nrow(nutrient_df), byrow = TRUE)       # One row per constraint, one column per food (variable)
     return(mat)
   }
@@ -89,7 +122,14 @@ solve_it <- function(df, nutrient_df, only_full_servings = FALSE,
   }
   
   out <- Rglpk_solve_LP(obj_fn, mat, dir, rhs,                    # Do the solving; we get a list back
-                        bounds, types = types, max = maximize)           
+                        bounds = bounds, types = types, 
+                        max = maximize, verbose = verbose)   
+  
+  if (out$status == 0) {
+    message("Optimal solution found :)")
+  } else {
+    message("No optimal solution found :'(")
+  }
   
   out <- append(append(append(                                           # Append the dataframe of all min/max nutrient values
     out, list(necessary_nutrients = nutrient_df)),
@@ -101,7 +141,12 @@ solve_it <- function(df, nutrient_df, only_full_servings = FALSE,
   message(paste0("Cost is $", out$optimum %>% round(digits = 2), ".")) 
 }
 
-solve_it(menu_unsolved, nutrient_df)
+# solve_it(menu_unsolved, nutrient_df, only_full_servings = TRUE, min_food_amount = 3,
+#          verbose = FALSE)$solution
+# solve_it(menu_unsolved, nutrient_df, only_full_servings = TRUE, min_food_amount = -3)$solution
+# solve_it(menu_unsolved, nutrient_df, only_full_servings = FALSE, min_food_amount = 0.5)$solution
+# solve_it(menu_unsolved, nutrient_df)
+
 full_solution <- solve_it(menu_unsolved, nutrient_df)
 
 
@@ -126,7 +171,7 @@ solve_menu <- function(sol) {
   return(df_solved)
 }
 
-solve_menu(full_solution)
+# solve_menu(full_solution)
 solved_menu <- menu_unsolved %>% solve_it(nutrient_df) %>% solve_menu()
 
 
@@ -161,6 +206,6 @@ solve_nutrients <- function(sol) {
 }
 
 
-solve_nutrients(full_solution)
+# solve_nutrients(full_solution)
 solved_nutrients <- menu_unsolved %>% solve_it(nutrient_df) %>% solve_nutrients()
 

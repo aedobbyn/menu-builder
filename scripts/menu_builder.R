@@ -267,7 +267,7 @@ smart_swap <- function(orig_menu, cutoff = 0.5) {
 }
 
 smartly_swapped <- smart_swap(menu)
-smartly_swapped_2 <- smart_swap(menu, cutoff = 3)
+smartly_swapped_cutoff <- smart_swap(menu, cutoff = 3)
 
 
 
