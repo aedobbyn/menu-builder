@@ -66,45 +66,35 @@ nutrient_df <- all_nut_and_mr_df %>%
   # GmWt_1 represents how many grams are in 1 serving of that food
   # To get the raw g of that nutrient, we have to multiply the nutrient per 100g value by GmWt_1 and divide by 100
 
-needs_transforming <- function(col) {
-  if (col %in% nutrient_names) {
-    needs_transforming <- TRUE
-  } else {
-    needs_transforming <- FALSE
-  }
-  return(needs_transforming)
-}
+# needs_transforming <- function(col) {
+#   if (col %in% nutrient_names) {
+#     needs_transforming <- TRUE
+#   } else {
+#     needs_transforming <- FALSE
+#   }
+#   return(needs_transforming)
+# }
+# 
+# get_val_per_gram <- function(col) {
+#   col = col * GmWt_1
+#   return(col)
+# }
+# 
+# menu_unsolved <- menu_unsolved_raw %>% 
+#   transmute_if(needs_transforming, get_val_per_gram)
 
-get_val_per_gram <- function(col) {
-  col = col * GmWt_1
-  return(col)
-}
 
-menu_unsolved <- menu_unsolved_raw %>% 
-  transmute_if(needs_transforming, get_val_per_gram)
+at_cols <- which(names(menu_unsolved_raw) %in% nutrient_names)
 
+per_g_vals <- menu_unsolved_raw %>% 
+  select(GmWt_1, !!quo_nutrient_names) %>%
+  map_dfr(function(x) (x * .$GmWt_1)/100) %>%         # .at = at_cols
+  select(-GmWt_1)
 
+non_nut_cols <- menu_unsolved_raw[, setdiff(seq(1:ncol(menu_unsolved_raw)), at_cols)]
 
-foo <- seq(1:ncol(menu_unsolved_raw))
-bar <- function(x) {
-  out <- vector()
-  for (x in seq_along(at_cols)) {
-    if(x %in% at_cols) {
-      out <- c(out, TRUE)
-    } else {
-      out <- c(out, FALSE)
-    }
-  }
-  out
-}
-baz <- bar(foo)
-
-at_cols <- which(names(menu) %in% nutrient_names)
-
-menu_unsolved <- menu_unsolved_raw %>% 
-  # select(GmWt_1, !!quo_nutrient_names) %>%            
-  map_dfr(function(x) (x * .$GmWt_1)/100)        # .at = at_cols
-
+menu_unsolved <- per_g_vals %>% bind_cols(non_nut_cols) %>% 
+  select(shorter_desc, cost, !!quo_nutrient_names, GmWt_1, Shrt_Desc, NDB_No)
 
 
 # Transpose our menu such that it looks like the matrix of constraints we're about to create
@@ -230,7 +220,7 @@ solve_menu <- function(sol, v_v_verbose = TRUE) {
 
 # solve_menu(full_solution)
 solved_menu <- menu_unsolved %>% solve_it(nutrient_df) %>% solve_menu()
-compliant_solved <- solve_it(menu_unsolved, nutrient_df, only_full_servings = TRUE, min_food_amount = -3) %>% solve_menu()
+compliant_solved <- solve_it(menu_unsolved, nutrient_df, only_full_servings = TRUE, min_food_amount = -10) %>% solve_menu()
 
 
 
