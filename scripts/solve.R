@@ -84,11 +84,26 @@ menu_unsolved <- menu_unsolved_raw %>%
   transmute_if(needs_transforming, get_val_per_gram)
 
 
-gmwt_vec <- menu_unsolved_raw$GmWt_1
 
-menu_unsolved_raw %>% 
-  select(GmWt_1, !!quo_nutrient_names) %>% 
-  map_dfr(function(x) x * gmwt_vec)
+foo <- seq(1:ncol(menu_unsolved_raw))
+bar <- function(x) {
+  out <- vector()
+  for (x in seq_along(at_cols)) {
+    if(x %in% at_cols) {
+      out <- c(out, TRUE)
+    } else {
+      out <- c(out, FALSE)
+    }
+  }
+  out
+}
+baz <- bar(foo)
+
+at_cols <- which(names(menu) %in% nutrient_names)
+
+menu_unsolved <- menu_unsolved_raw %>% 
+  # select(GmWt_1, !!quo_nutrient_names) %>%            
+  map_dfr(function(x) (x * .$GmWt_1)/100)        # .at = at_cols
 
 
 
