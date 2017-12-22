@@ -11,11 +11,14 @@ library(dobtools)
 # -------------------------------------------
 
 # ----------- Nutrient calculations ---------
-# according to USDA documentation, to get nutrients in 1 serving of food: 
+# according to USDA documentation (p. 37), to get nutrients in 1 serving of food: 
 # N = (V*W)/100
 # where:
   # N = nutrient value per household measure,
-  # V = nutrient value per 100 g and W = g weight of portion (Gm_Wgt in the Weight file).
+  # V = nutrient value per 100 g and 
+  # W = g weight of portion (Gm_Wgt in the Weight file).
+
+# Documentation: https://www.ars.usda.gov/ARSUserFiles/80400525/Data/SR/sr28/sr28_doc.pdf
 # --------------------------------------------
 
 
