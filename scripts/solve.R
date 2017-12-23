@@ -151,7 +151,6 @@ solve_it <- function(df, nutrient_df, only_full_servings = FALSE,
     ) %>% left_join(nutrient_df, by = c("rhs" = "value")) %>% 
     select(nutrient, everything())
   
-  
   if(only_full_servings == TRUE) {
     types <- rep("I", n_foods)
   } else {
@@ -170,13 +169,14 @@ solve_it <- function(df, nutrient_df, only_full_servings = FALSE,
                         bounds = bounds, types = types, 
                         max = maximize, verbose = v_v_verbose)   
   
-  out <- append(append(append(                                           # Append the dataframe of all min/max nutrient values
-    out, list(necessary_nutrients = nutrient_df)),
-    list(constraint_matrix = constraint_matrix)),                        # our constraint matrix
-    list(original_menu = df))                                            # and our original menu
+  
+  out <- Reduce(append,  out,                      # same as append(append(append(       
+                list(list(necessary_nutrients = nutrient_df),       # Append the dataframe of all min/max nutrient values
+                list(constraint_matrix = constraint_matrix),        # our constraint matrix
+                list(original_menu = df)))                          # and our original menu
   
   if (verbose == TRUE) {
-    message(paste0("Cost is $", out$optimum %>% round(digits = 2), ".")) 
+    message(paste0("Cost is $", round(out$optimum, digits = 2), ".")) 
     if (out$status == 0) {
       message("Optimal solution found :)")
     } else {
@@ -221,6 +221,11 @@ solve_menu <- function(sol, v_v_verbose = TRUE) {
 # solve_menu(full_solution)
 solved_menu <- menu_unsolved %>% solve_it(nutrient_df) %>% solve_menu()
 compliant_solved <- solve_it(menu_unsolved, nutrient_df, only_full_servings = TRUE, min_food_amount = -10) %>% solve_menu()
+
+
+
+# 
+
 
 
 
