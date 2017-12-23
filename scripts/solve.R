@@ -169,12 +169,10 @@ solve_it <- function(df, nutrient_df, only_full_servings = FALSE,
                         bounds = bounds, types = types, 
                         max = maximize, verbose = v_v_verbose)   
   
-  
-  out <- append(append(append(out,                      # same as append(append(append(       
-                list(list(necessary_nutrients = nutrient_df)),       # Append the dataframe of all min/max nutrient values
-                list(constraint_matrix = constraint_matrix)),        # our constraint matrix
-                list(original_menu = df)))                          # and our original menu
-  
+  out <- append(append(append(                                           # Append the dataframe of all min/max nutrient values
+    out, list(necessary_nutrients = nutrient_df)),
+    list(constraint_matrix = constraint_matrix)),                        # our constraint matrix
+    list(original_menu = df))                                            # and our original menu
   
   if (verbose == TRUE) {
     message(paste0("Cost is $", round(out$optimum, digits = 2), ".")) 
@@ -231,7 +229,19 @@ compliant_solved <- solve_it(menu_unsolved, nutrient_df, only_full_servings = TR
 
 
 
-# 
+# Backtransform
+# --- Needs reworking --- 
+
+backtransform_menu <- function(menu) {
+  raw_vals <- menu %>% 
+    select(serving_gmwt, new_gmwt, !!quo_nutrient_names) %>%
+    map_dfr(function(x) (x / .$serving_gmwt)*100) 
+
+  non_nut_cols <- menu[, setdiff(seq(1:ncol(menu)), at_cols)]
+  
+  menu_backtransformed <- raw_vals %>% bind_cols(non_nut_cols) %>% 
+    select(shorter_desc, cost, !!quo_nutrient_names, serving_gmwt, new_gmwt, GmWt_1, Shrt_Desc, NDB_No)
+}
 
 
 
