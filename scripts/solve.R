@@ -170,10 +170,11 @@ solve_it <- function(df, nutrient_df, only_full_servings = FALSE,
                         max = maximize, verbose = v_v_verbose)   
   
   
-  out <- Reduce(append,  out,                      # same as append(append(append(       
-                list(list(necessary_nutrients = nutrient_df),       # Append the dataframe of all min/max nutrient values
-                list(constraint_matrix = constraint_matrix),        # our constraint matrix
+  out <- append(append(append(out,                      # same as append(append(append(       
+                list(list(necessary_nutrients = nutrient_df)),       # Append the dataframe of all min/max nutrient values
+                list(constraint_matrix = constraint_matrix)),        # our constraint matrix
                 list(original_menu = df)))                          # and our original menu
+  
   
   if (verbose == TRUE) {
     message(paste0("Cost is $", round(out$optimum, digits = 2), ".")) 
@@ -203,7 +204,13 @@ solve_menu <- function(sol, v_v_verbose = TRUE) {
   solved_col <-  list(solution_amounts = sol$solution) %>% as_tibble()    # Grab the vector of solution amounts
   
   df_solved <- sol$original_menu %>% bind_cols(solved_col) %>%            # cbind that to the original menu
-    select(shorter_desc, solution_amounts, everything())
+    select(shorter_desc, solution_amounts, everything()) %>% 
+    rename(
+      serving_gmwt = GmWt_1
+    ) %>% 
+    mutate(
+      new_gmwt = serving_gmwt * solution_amounts
+    )
   
   max_food <- df_solved %>%                                   # Find what the most of any one food we've got is
     filter(solution_amounts == max(df_solved$solution_amounts)) %>% 
