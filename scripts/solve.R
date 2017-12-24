@@ -137,11 +137,17 @@ menu_unsolved_per_g %>% get_raw_vals() %>% transpose_menu()
 
 # Return a solution that contains the original menu and the needed nutrient df along with the rest
 # of the solution in a list
-solve_it <- function(df_per_g, nutrient_df, only_full_servings = FALSE, 
+solve_it <- function(df, nutrient_df, df_is_per_100g = TRUE, only_full_servings = FALSE, 
                      min_food_amount = 1, max_food_amount = 100, 
                      verbose = TRUE, v_v_verbose = FALSE, maximize = FALSE) {
   
-  df <- get_raw_vals(df_per_g)
+  # If our nutrient values are per 100g (i.e., straight from menu_builder)
+  if (df_is_per_100g == TRUE) {
+    df_per_100g <- df        # Save our original df in df_per_100g
+    df <- get_raw_vals(df)   # Get the raw values
+  } else {
+    df_per_100g <- "No per 100g menu supplied"
+  }
   
   n_foods <- length(df$shorter_desc)
   nut_quo <- quo(nutrient_df$nutrient)
@@ -197,8 +203,8 @@ solve_it <- function(df_per_g, nutrient_df, only_full_servings = FALSE,
     list(constraint_matrix = constraint_matrix)),                        # our constraint matrix
     list(original_menu_raw = df))                                            # and our original menu
   
-  if (!is.null(df_per_g)) {
-    out <- append(out, list(original_menu_per_g = df_per_g))
+  if (!is.null(df_per_100g)) {
+    out <- append(out, list(original_menu_per_g = df_per_100g))
   }
   
   if (verbose == TRUE) {
@@ -212,14 +218,13 @@ solve_it <- function(df_per_g, nutrient_df, only_full_servings = FALSE,
   
   return(out)
 }
+solve_it(menu_unsolved_per_g, nutrient_df, only_full_servings = TRUE, v_v_verbose = TRUE, min_food_amount = 0.5)$solution
+solve_it(menu_unsolved_per_g, nutrient_df, only_full_servings = FALSE, min_food_amount = -0.5)$solution
 
-# solve_it(menu_unsolved, nutrient_df, only_full_servings = TRUE, v_v_verbose = TRUE, min_food_amount = 3)$solution
-# solve_it(menu_unsolved, nutrient_df, only_full_servings = TRUE, min_food_amount = -3)$solution
-# solve_it(menu_unsolved, nutrient_df, only_full_servings = FALSE, min_food_amount = 0.5)$solution
-# solve_it(menu_unsolved, nutrient_df)
-solve_it(menu_unsolved_per_g, nutrient_df)
+solve_it(menu_unsolved_raw, nutrient_df, df_is_per_100g = FALSE)
+solve_it(menu_unsolved_per_g, nutrient_df, min_food_amount = -3)
 
-full_solution <- solve_it(menu_unsolved_per_g, nutrient_df, min_food_amount = -3)
+full_solution <- solve_it(menu_unsolved_per_g, nutrient_df, min_food_amount = -1)
 
 
 
@@ -252,8 +257,12 @@ solve_menu <- function(sol, v_v_verbose = TRUE) {
 solve_menu(full_solution)
 solved_menu <- menu_unsolved_per_g %>% solve_it(nutrient_df) %>% solve_menu()
 
-compliant_solved <- solve_it(menu_unsolved, nutrient_df, only_full_servings = TRUE, min_food_amount = -10) %>% solve_menu()
+compliant_solved <- solve_it(menu_unsolved_per_g, nutrient_df, 
+                             only_full_servings = TRUE, min_food_amount = -2) %>% solve_menu()
 
+
+# Test compliance
+compliant_solved %>% test_all_compliance_verbose()
 
 
 # Backtransform
@@ -273,12 +282,12 @@ compliant_solved <- solve_it(menu_unsolved, nutrient_df, only_full_servings = TR
 
 
 
-# Take solution (a list resulting from solve_it()) and get the values of each of the nutrients in the
+# Take solution (a list resulting from solve_it()) and get the raw values of each of the nutrients in the
 # solved menu
 solve_nutrients <- function(sol) {
   
   solved_nutrient_value <- list(solution_nutrient_value =         # Grab the vector of nutrient values in the solution
-                                  sol$auxiliary$primal) %>% as_tibble()
+                              sol$auxiliary$primal) %>% as_tibble()
   
   nut_df_small_solved <- sol$necessary_nutrients %>%       # cbind it to the nutrient requirements
     bind_cols(solved_nutrient_value)  %>% 
@@ -305,5 +314,16 @@ solve_nutrients <- function(sol) {
 
 
 # solve_nutrients(full_solution)
+menu_unsolved_per_g %>% 
+  solve_it(nutrient_df, only_full_servings = TRUE, min_food_amount = -3) %>% 
+  solve_nutrients()
+
+menu_unsolved_raw %>% 
+  solve_it(nutrient_df, df_is_per_100g = FALSE) %>% 
+  solve_nutrients()
+
 solved_nutrients <- menu_unsolved_per_g %>% solve_it(nutrient_df) %>% solve_nutrients()
-solve_it(menu_unsolved, nutrient_df, only_full_servings = TRUE, min_food_amount = -3) %>% solve_nutrients()
+
+
+
+
