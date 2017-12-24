@@ -43,7 +43,7 @@ quo_nutrient_names <- quo(nutrient_names)
 
 # Simplify our menu space
 cols_to_keep <- c(all_nut_and_mr_df$nutrient, "Shrt_Desc", "GmWt_1", "Energ_Kcal", "NDB_No")
-menu_unsolved_raw <- menu[, which(names(menu) %in% cols_to_keep)] %>% 
+menu_unsolved_per_g <- menu[, which(names(menu) %in% cols_to_keep)] %>% 
   mutate(
     shorter_desc = map_chr(Shrt_Desc, grab_first_word, splitter = ","), # Take only the fist word
     cost = runif(nrow(.), min = 1, max = 10) %>% round(digits = 2) # Add a cost column
@@ -84,26 +84,44 @@ nutrient_df <- all_nut_and_mr_df %>%
 #   transmute_if(needs_transforming, get_val_per_gram)
 
 
-at_cols <- which(names(menu_unsolved_raw) %in% nutrient_names)
+# at_cols <- which(names(menu_unsolved_raw) %in% nutrient_names)
+# 
+# per_g_vals <- menu_unsolved_raw %>% 
+#   select(GmWt_1, !!quo_nutrient_names) %>%
+#   map_dfr(function(x) (x * .$GmWt_1)/100) %>%         # .at = at_cols
+#   select(-GmWt_1)
+# 
+# non_nut_cols <- menu_unsolved_raw[, setdiff(seq(1:ncol(menu_unsolved_raw)), at_cols)]
+# 
+# menu_unsolved <- per_g_vals %>% bind_cols(non_nut_cols) %>% 
+#   select(shorter_desc, cost, !!quo_nutrient_names, Shrt_Desc, NDB_No)
 
-per_g_vals <- menu_unsolved_raw %>% 
-  select(GmWt_1, !!quo_nutrient_names) %>%
-  map_dfr(function(x) (x * .$GmWt_1)/100) %>%         # .at = at_cols
-  select(-GmWt_1)
 
-non_nut_cols <- menu_unsolved_raw[, setdiff(seq(1:ncol(menu_unsolved_raw)), at_cols)]
-
-menu_unsolved <- per_g_vals %>% bind_cols(non_nut_cols) %>% 
-  select(shorter_desc, cost, !!quo_nutrient_names, GmWt_1, Shrt_Desc, NDB_No)
+# Get raw nutrient values per food by multiplying the per 100g amounts by GmWt_1 and dividing by 100
+get_raw_vals <- function(df){
+  at_cols <- which(names(df) %in% nutrient_names)
+  non_nut_cols <- df[, setdiff(seq(1:ncol(df)), at_cols)]
+  
+  raw_vals <- df %>% 
+    select(GmWt_1, !!quo_nutrient_names) %>%
+    map_dfr(function(x) (x * .$GmWt_1)/100) %>%         # .at = at_cols
+    select(-GmWt_1)
+  
+  out <- raw_vals %>% bind_cols(non_nut_cols) %>% 
+    select(shorter_desc, cost, !!quo_nutrient_names, Shrt_Desc, NDB_No)
+  
+  return(out)
+}
+menu_unsolved_raw <- get_raw_vals(menu_unsolved_per_g)
 
 
 # Transpose our menu such that it looks like the matrix of constraints we're about to create
 # with foods as the columns and nutrients as the rows
-transposed_menu_unsolved <- menu_unsolved %>% 
+transposed_menu_unsolved <- menu_unsolved_raw %>% 
   select(cost, !!quo_nutrient_names) %>%   
   t() %>% as_data_frame() 
 
-names(transposed_menu_unsolved) <- menu_unsolved$shorter_desc
+names(transposed_menu_unsolved) <- menu_unsolved_raw$shorter_desc
 
 transposed_menu_unsolved <- transposed_menu_unsolved %>%
   mutate(
@@ -117,7 +135,7 @@ transposed_menu_unsolved <- transposed_menu_unsolved %>%
 
 # Return a solution that contains the original menu and the needed nutrient df along with the rest
 # of the solution in a list
-solve_it <- function(df, nutrient_df, only_full_servings = FALSE, 
+solve_it <- function(df, df_per_g = NULL, nutrient_df, only_full_servings = FALSE, 
                      min_food_amount = 1, max_food_amount = 100, 
                      verbose = TRUE, v_v_verbose = FALSE, maximize = FALSE) {
   
@@ -135,6 +153,7 @@ solve_it <- function(df, nutrient_df, only_full_servings = FALSE,
                               val = rep(min_food_amount, n_foods)),
                  upper = list(ind = seq(n_foods), 
                               val = rep(max_food_amount, n_foods)))
+  
   construct_matrix <- function(df, nutrient_df) {       # Set up matrix constraints
     mat_base <- df %>% select(!!nut_quo) %>% as_vector()    # Get a vector of all our nutrients
     mat <- matrix(mat_base, nrow = nrow(nutrient_df), byrow = TRUE)       # One row per constraint, one column per food (variable)
@@ -151,7 +170,7 @@ solve_it <- function(df, nutrient_df, only_full_servings = FALSE,
     ) %>% left_join(nutrient_df, by = c("rhs" = "value")) %>% 
     select(nutrient, everything())
   
-  if(only_full_servings == TRUE) {
+  if(only_full_servings == TRUE) {    # Integer values of coefficients if only full servings
     types <- rep("I", n_foods)
   } else {
     types <- rep("C", n_foods)
@@ -172,7 +191,11 @@ solve_it <- function(df, nutrient_df, only_full_servings = FALSE,
   out <- append(append(append(                                           # Append the dataframe of all min/max nutrient values
     out, list(necessary_nutrients = nutrient_df)),
     list(constraint_matrix = constraint_matrix)),                        # our constraint matrix
-    list(original_menu = df))                                            # and our original menu
+    list(original_menu_raw = df))                                            # and our original menu
+  
+  if (!is.null(df_per_g)) {
+    out <- append(out, list(original_menu_per_g = df_per_g))
+  }
   
   if (verbose == TRUE) {
     message(paste0("Cost is $", round(out$optimum, digits = 2), ".")) 
@@ -189,9 +212,10 @@ solve_it <- function(df, nutrient_df, only_full_servings = FALSE,
 # solve_it(menu_unsolved, nutrient_df, only_full_servings = TRUE, v_v_verbose = TRUE, min_food_amount = 3)$solution
 # solve_it(menu_unsolved, nutrient_df, only_full_servings = TRUE, min_food_amount = -3)$solution
 # solve_it(menu_unsolved, nutrient_df, only_full_servings = FALSE, min_food_amount = 0.5)$solution
-solve_it(menu_unsolved, nutrient_df)
+# solve_it(menu_unsolved, nutrient_df)
+solve_it(menu_unsolved_raw, menu_unsolved_per_g, nutrient_df)
 
-full_solution <- solve_it(menu_unsolved, nutrient_df, min_food_amount = -3)
+full_solution <- solve_it(menu_unsolved_raw, menu_unsolved_per_g, nutrient_df, min_food_amount = -3)
 
 
 
@@ -201,13 +225,12 @@ solve_menu <- function(sol, v_v_verbose = TRUE) {
   
   solved_col <-  list(solution_amounts = sol$solution) %>% as_tibble()    # Grab the vector of solution amounts
   
-  df_solved <- sol$original_menu %>% bind_cols(solved_col) %>%            # cbind that to the original menu
+  browser()
+  
+  df_solved <- sol$original_menu_per_g %>% bind_cols(solved_col) %>%            # cbind that to the original menu
     select(shorter_desc, solution_amounts, everything()) %>% 
-    rename(
-      serving_gmwt = GmWt_1
-    ) %>% 
     mutate(
-      new_gmwt = serving_gmwt * solution_amounts
+      GmWt_1 = GmWt_1 * solution_amounts
     )
   
   max_food <- df_solved %>%                                   # Find what the most of any one food we've got is
@@ -224,7 +247,8 @@ solve_menu <- function(sol, v_v_verbose = TRUE) {
 }
 
 # solve_menu(full_solution)
-solved_menu <- menu_unsolved %>% solve_it(nutrient_df) %>% solve_menu()
+solved_menu <- menu_unsolved_raw %>% solve_it(menu_unsolved_per_g, nutrient_df) %>% solve_menu()
+
 compliant_solved <- solve_it(menu_unsolved, nutrient_df, only_full_servings = TRUE, min_food_amount = -10) %>% solve_menu()
 
 
