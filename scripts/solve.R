@@ -116,11 +116,31 @@ get_raw_vals <- function(df){
     select(-GmWt_1)
   
   out <- raw_vals %>% bind_cols(non_nut_cols) %>% 
-    select(shorter_desc, cost, !!quo_nutrient_names, Shrt_Desc, NDB_No)
+    select(shorter_desc, GmWt_1, cost, !!quo_nutrient_names, Shrt_Desc, NDB_No)
   
   return(out)
 }
 menu_unsolved_raw <- get_raw_vals(menu_unsolved_per_g)
+
+
+get_per_g_vals <- function(df) {
+  at_cols <- which(names(df) %in% nutrient_names)
+  non_nut_cols <- df[, setdiff(seq(1:ncol(df)), at_cols)]
+  
+  # browser()
+  
+  per_g_vals <- df %>%
+    select(GmWt_1, !!quo_nutrient_names) %>%
+    map_dfr(function(x) (x / .$GmWt_1)*100) %>% 
+    select(-GmWt_1)
+  
+  out <- per_g_vals %>% bind_cols(non_nut_cols) %>%
+    bind_cols(GmWt_1 = df$GmWt_1) %>% 
+    select(shorter_desc, GmWt_1, cost, !!quo_nutrient_names, Shrt_Desc, NDB_No)
+  
+  return(out)
+}
+get_per_g_vals(menu_unsolved_raw)
 
 
 
@@ -265,21 +285,6 @@ compliant_solved <- solve_it(menu_unsolved_per_g, nutrient_df,
 compliant_solved %>% test_all_compliance_verbose()
 
 
-# Backtransform
-# --- Needs reworking --- 
-
-# backtransform_menu <- function(menu) {
-#   raw_vals <- menu %>% 
-#     select(serving_gmwt, new_gmwt, !!quo_nutrient_names) %>%
-#     map_dfr(function(x) (x / .$serving_gmwt)*100) 
-# 
-#   non_nut_cols <- menu[, setdiff(seq(1:ncol(menu)), at_cols)]
-#   
-#   menu_backtransformed <- raw_vals %>% bind_cols(non_nut_cols) %>% 
-#     select(shorter_desc, cost, !!quo_nutrient_names, serving_gmwt, new_gmwt, GmWt_1, Shrt_Desc, NDB_No)
-# }
-
-
 
 
 # Take solution (a list resulting from solve_it()) and get the raw values of each of the nutrients in the
@@ -325,5 +330,15 @@ menu_unsolved_raw %>%
 solved_nutrients <- menu_unsolved_per_g %>% solve_it(nutrient_df) %>% solve_nutrients()
 
 
+
+# -----------
+# Start merging with old code
+
+swapped_solved <- solved_menu %>% 
+  select(NDB_No, Shrt_Desc, !!quo_nutrient_names, everything()) %>%  # get columns in old order
+  smart_swap_single() 
+
+
+score_menu(solved_menu)
 
 

@@ -219,6 +219,8 @@ replace_food_w_better <- function(orig_menu, max_offender, nutrient_to_restrict,
   return(replacement_food)
 }
 
+# Replace a food with a randomly chosen food
+# Not used in smart_swap anymore; random replacement built into replace_food_w_better()
 replace_food_w_rand <- function(orig_menu, max_offender) {
   randomized <- abbrev[sample(nrow(abbrev)),] %>%  # take our original df of all foods, randomize it, and
     drop_na_(all_nut_and_mr_df$nutrient) %>% filter(!(is.na(Energ_Kcal)) & !(is.na(GmWt_1)))
@@ -251,14 +253,6 @@ smart_swap <- function(orig_menu, cutoff = 0.5) {
         print(paste0("The worst offender in this respect is ", orig_menu[max_offender, ]$Shrt_Desc))
         
         # ------- smart swap or randomly swap in a food here --------
-          
-        # orig_menu[max_offender, ] <- if (inherits(try(replace_food_w_better(orig_menu, max_offender, nut_to_restrict), silent = FALSE), "try-error")) {
-        #   print(paste0("Replacing the max offender with a random food: ", replace_food_w_rand(orig_menu, max_offender)[["Shrt_Desc"]]))
-        #   replace_food_w_rand(orig_menu, max_offender) 
-        #   } else {
-        #     print(paste0("Replacing the max offender with a better food: ", replace_food_w_better(orig_menu, max_offender, nut_to_restrict)[["Shrt_Desc"]]))
-        #     orig_menu[max_offender, ] <- replace_food_w_better(orig_menu, max_offender, nut_to_restrict)
-        #   }
         orig_menu[max_offender, ] <- replace_food_w_better(orig_menu, max_offender, nut_to_restrict, cutoff = cutoff)
         
         to_restrict <- (sum(orig_menu[[nut_to_restrict]] * orig_menu$GmWt_1, na.rm = TRUE))/100   # recalculate the must restrict nutrient content
@@ -283,8 +277,8 @@ smartly_swapped_cutoff <- smart_swap(menu, cutoff = 3)
 # To see a more complicated version of this function that decreases the calorie count of the overall menu by the same amount as the
 # increase, see adjust_portion_sizes_and_square_calories.R
 
-# for each nutriet in <array of nutrients>, check whether we've met the required amount. if so, move on to the next
-# if not, adjust serving sizes of current foods (Gm_Wt1) until we've met the requirements by finding the food on the menu that is
+# For each nutriet in <array of nutrients>, check whether we've met the required amount. If so, move on to the next.
+# If not, adjust serving sizes of current foods (Gm_Wt1) until we've met the requirements by finding the food on the menu that is
 # highest in that nutrient per gram and increasing its weight by 10% until we've met that requirement.
 
 adjust_portion_sizes <- function(orig_menu) {

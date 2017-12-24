@@ -232,14 +232,6 @@ smart_swap <- function(orig_menu, cutoff = 0.5) {
         print(paste0("The worst offender in this respect is ", orig_menu[max_offender, ]$Shrt_Desc))
         
         # ------- smart swap or randomly swap in a food here --------
-        
-        # orig_menu[max_offender, ] <- if (inherits(try(replace_food_w_better(orig_menu, max_offender, nut_to_restrict), silent = FALSE), "try-error")) {
-        #   print(paste0("Replacing the max offender with a random food: ", replace_food_w_rand(orig_menu, max_offender)[["Shrt_Desc"]]))
-        #   replace_food_w_rand(orig_menu, max_offender) 
-        #   } else {
-        #     print(paste0("Replacing the max offender with a better food: ", replace_food_w_better(orig_menu, max_offender, nut_to_restrict)[["Shrt_Desc"]]))
-        #     orig_menu[max_offender, ] <- replace_food_w_better(orig_menu, max_offender, nut_to_restrict)
-        #   }
         orig_menu[max_offender, ] <- replace_food_w_better(orig_menu, max_offender, nut_to_restrict, cutoff = cutoff)
         
         to_restrict <- (sum(orig_menu[[nut_to_restrict]] * orig_menu$GmWt_1, na.rm = TRUE))/100   # recalculate the must restrict nutrient content
