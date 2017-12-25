@@ -64,7 +64,7 @@ test_mr_compliance <- function(orig_menu, capitalize_colname = TRUE) {
     nut_to_restrict <- mr_df$must_restrict[m]    # grab the name of the nutrient we're restricting
     to_restrict <- (sum(orig_menu[[nut_to_restrict]] * orig_menu$GmWt_1, na.rm = TRUE))/100   # get the amount of that must restrict nutrient in our original menu
     
-    if (to_restrict > mr_df$value[m]) {
+    if ((to_restrict - mr_df$value[m]) > 0.01) {    # account for rounding error
       this_compliance <- list(must_restricts_uncompliant_on = nut_to_restrict,
                               `difference_(g)` = (to_restrict - mr_df$value[m]) %>% round(digits = 2)) %>% as_tibble()
       compliance_df <- bind_rows(compliance_df, this_compliance)
@@ -87,7 +87,7 @@ test_pos_compliance <- function(orig_menu, capitalize_colname = TRUE) {
     nut_to_augment <- pos_df$positive_nut[p]    # grab the name of the nutrient we're examining
     val_nut_to_augment <- (sum(orig_menu[[nut_to_augment]] * orig_menu$GmWt_1, na.rm = TRUE))/100   # get the total amount of that nutrient in our original menu
     
-    if (val_nut_to_augment < pos_df$value[p]) {
+    if ((pos_df$value[p] - val_nut_to_augment) > 0.01) {     # account for rounding error (instead of if val_nut_to_augment < pos_df$value[p])
       this_compliance <- list(nutrients_uncompliant_on = nut_to_augment,
                               `difference_(g)` = (pos_df$value[p] - val_nut_to_augment) %>% round(digits = 2)) %>% as_tibble()
       compliance_df <- bind_rows(compliance_df, this_compliance)

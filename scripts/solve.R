@@ -123,6 +123,7 @@ get_raw_vals <- function(df){
 menu_unsolved_raw <- get_raw_vals(menu_unsolved_per_g)
 
 
+# Backtransform: get per 100g nutrient values from the raw
 get_per_g_vals <- function(df) {
   at_cols <- which(names(df) %in% nutrient_names)
   non_nut_cols <- df[, setdiff(seq(1:ncol(df)), at_cols)]
@@ -275,7 +276,7 @@ solve_menu <- function(sol, v_v_verbose = TRUE) {
 }
 
 solve_menu(full_solution)
-solved_menu <- menu_unsolved_per_g %>% solve_it(nutrient_df) %>% solve_menu()
+solved_menu <- menu_unsolved_per_g %>% solve_it(nutrient_df, min_food_amount = -2) %>% solve_menu()
 
 compliant_solved <- solve_it(menu_unsolved_per_g, nutrient_df, 
                              only_full_servings = TRUE, min_food_amount = -2) %>% solve_menu()
@@ -283,7 +284,7 @@ compliant_solved <- solve_it(menu_unsolved_per_g, nutrient_df,
 
 # Test compliance
 compliant_solved %>% test_all_compliance_verbose()
-
+solved_menu %>% test_all_compliance_verbose()
 
 
 

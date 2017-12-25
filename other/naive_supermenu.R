@@ -31,4 +31,5 @@ test_pos_compliance(best_menu) # "Not compliant on Riboflavin_mg" "Not compliant
 
 
 
-# So just building a menu 
+# So just building a menu such that it has the best score is not always a winning solution
+# (Or our scoring mechanism is off)
