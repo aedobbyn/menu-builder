@@ -47,7 +47,7 @@ quo_nutrient_names <- quo(nutrient_names)
 cols_to_keep <- c(all_nut_and_mr_df$nutrient, "Shrt_Desc", "GmWt_1", "Energ_Kcal", "NDB_No")
 
 do_menu_mutates <- function(menu) {
-  browser()
+
   menu_unsolved_per_g <- menu[, which(names(menu) %in% cols_to_keep)] %>% 
     mutate(
       shorter_desc = map_chr(Shrt_Desc, grab_first_word, splitter = ","), # Take only the fist word
@@ -180,7 +180,7 @@ solve_it <- function(df, nutrient_df, df_is_per_100g = TRUE, only_full_servings 
     df_per_100g <- df        # Save our original df in df_per_100g
     df <- get_raw_vals(df)   # Get the raw values
   } else {
-    df_per_100g <- "No per 100g menu supplied"
+    df_per_100g <- get_per_g_vals(df)
   }
   
   n_foods <- length(df$shorter_desc)
