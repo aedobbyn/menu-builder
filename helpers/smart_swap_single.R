@@ -31,9 +31,36 @@ quo_solved_names <- names(solved_menu)
 name_overlap <- intersect(names(menu), names(solved_menu))
 no_overlap <- setdiff(names(solved_menu), names(menu))
 
-do_swapping <- function(){
+
+do_swapping <- function(solved_menu, orig_menu = menu, silent = TRUE,
+                        new_solution_amount = 1){  # What should the solution amount of the newly swapped in foods be?
+  quo_solved_names <- names(solved_menu)
+  name_overlap <- intersect(names(orig_menu), names(solved_menu))
+  no_overlap <- setdiff(names(solved_menu), names(orig_menu))
   
+  if (silent == TRUE) {
+    out <- suppressWarnings(suppressMessages(solved_menu[, c(name_overlap)] %>% 
+      smart_swap_single())) 
+  } else {
+    out <- solved_menu[, c(name_overlap)] %>% 
+      smart_swap_single() 
+  }
+  
+  out <- out %>% 
+    mutate(
+      shorter_desc = map_chr(Shrt_Desc, grab_first_word, splitter = ","), # Recreate shorter_desc
+      cost = runif(nrow(.), min = 1, max = 10) %>% round(digits = 2),    # Add in some costs
+      solution_amounts = ifelse(Shrt_Desc %in% solved_menu$Shrt_Desc, 
+                                solved_menu$solution_amounts, new_solution_amount)
+    ) %>%
+    select(!!quo_solved_names) 
+  
+  return(out)
 }
+
+bar <- do_swapping(solved_menu)
+
+
 
 
 foo <- solved_menu[, c(name_overlap)] %>% 
