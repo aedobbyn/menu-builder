@@ -45,13 +45,22 @@ quo_nutrient_names <- quo(nutrient_names)
 
 # Simplify our menu space
 cols_to_keep <- c(all_nut_and_mr_df$nutrient, "Shrt_Desc", "GmWt_1", "Energ_Kcal", "NDB_No")
-menu_unsolved_per_g <- menu[, which(names(menu) %in% cols_to_keep)] %>% 
-  mutate(
-    shorter_desc = map_chr(Shrt_Desc, grab_first_word, splitter = ","), # Take only the fist word
-    cost = runif(nrow(.), min = 1, max = 10) %>% round(digits = 2), # Add a cost column
-    serving_gmwt = GmWt_1   # Single serving gram weight
-  ) %>%
-  select(shorter_desc, cost, !!quo_nutrient_names, GmWt_1, Shrt_Desc, NDB_No)
+
+do_menu_mutates <- function(menu) {
+  browser()
+  menu_unsolved_per_g <- menu[, which(names(menu) %in% cols_to_keep)] %>% 
+    mutate(
+      shorter_desc = map_chr(Shrt_Desc, grab_first_word, splitter = ","), # Take only the fist word
+      cost = runif(nrow(.), min = 1, max = 10) %>% round(digits = 2) # Add a cost column
+      # serving_gmwt = GmWt_1   # Single serving gram weight
+    ) %>%
+    select(shorter_desc, cost, !!quo_nutrient_names, GmWt_1, Shrt_Desc, NDB_No) #  serving_gmwt,
+  
+  return(menu_unsolved_per_g)
+}
+
+menu_unsolved_per_g <- do_menu_mutates(menu)
+
 
 # Give nutrients a flag for whether they're a must-restrict or not
 nutrient_df <- all_nut_and_mr_df %>% 
@@ -197,7 +206,8 @@ solve_it <- function(df, nutrient_df, df_is_per_100g = TRUE, only_full_servings 
   
   mat <- construct_matrix(df, nutrient_df)
   constraint_matrix <- mat %>% as_data_frame() 
-  names(constraint_matrix) <- df$shorter_desc
+  names(constraint_matrix) <- str_c(df$shorter_desc,  # Use combo of shorter_desc and NDB_No
+                                    df$NDB_No, sep = ", ")  # so that names are interpretable but also unique
   constraint_matrix <- constraint_matrix %>% 
     mutate(
       dir = dir,

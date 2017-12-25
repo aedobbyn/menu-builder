@@ -22,7 +22,7 @@ smart_swap_single <- function(orig_menu, cutoff = 0.5) {
       }
     }
   
-  orig_menu
+  return(orig_menu)
 }
 
 
@@ -55,4 +55,10 @@ do_single_swap <- function(solved_menu, orig_menu = menu, silent = TRUE,
 
 singly_swapped <- do_single_swap(solved_menu)
 
+
+build_menu(abbrev, seed = 11) %>% do_menu_mutates() %>% solve_it(nutrient_df, min_food_amount = -1) %>% 
+  solve_menu() %>% 
+  do_single_swap(silent = FALSE)
+  
+  
 

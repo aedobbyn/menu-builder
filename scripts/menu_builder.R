@@ -28,9 +28,12 @@ library(dobtools)
 # Build a daily menu from scratch by sampling one serving of a food at random from our dataframe 
 # until we're at or over 2300 calories
 
-set.seed(9)
 
-build_menu <- function(df) {
+build_menu <- function(df, seed = NULL) {
+  if (!is.null(seed)) {
+    set.seed(seed)
+  }
+  
   df <- df %>% drop_na_(all_nut_and_mr_df$nutrient) %>% filter(!(is.na(Energ_Kcal)) & !(is.na(GmWt_1)))    # filter out rows that have NAs in columns that we need
   i <- sample(nrow(df), 1) # sample a random row from df and save its index in i
   
@@ -48,7 +51,7 @@ build_menu <- function(df) {
   menu    # return the full menu
 }
 
-menu <- build_menu(abbrev)
+menu <- build_menu(abbrev, seed = 9)
 
 
 # -------- Compliance Tests ---------
