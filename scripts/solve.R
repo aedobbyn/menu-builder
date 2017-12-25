@@ -48,7 +48,8 @@ cols_to_keep <- c(all_nut_and_mr_df$nutrient, "Shrt_Desc", "GmWt_1", "Energ_Kcal
 menu_unsolved_per_g <- menu[, which(names(menu) %in% cols_to_keep)] %>% 
   mutate(
     shorter_desc = map_chr(Shrt_Desc, grab_first_word, splitter = ","), # Take only the fist word
-    cost = runif(nrow(.), min = 1, max = 10) %>% round(digits = 2) # Add a cost column
+    cost = runif(nrow(.), min = 1, max = 10) %>% round(digits = 2), # Add a cost column
+    serving_gmwt = GmWt_1   # Single serving gram weight
   ) %>%
   select(shorter_desc, cost, !!quo_nutrient_names, GmWt_1, Shrt_Desc, NDB_No)
 
@@ -104,6 +105,9 @@ nutrient_df <- all_nut_and_mr_df %>%
 # menu_unsolved <- per_g_vals %>% bind_cols(non_nut_cols) %>% 
 #   select(shorter_desc, cost, !!quo_nutrient_names, Shrt_Desc, NDB_No)
 
+
+# -------------- Menu transforms -----------
+# GmWt_1 is always the total gram weight -- the same between types of menus
 
 # Get raw nutrient values per food by multiplying the per 100g amounts by GmWt_1 and dividing by 100
 get_raw_vals <- function(df){
@@ -276,7 +280,7 @@ solve_menu <- function(sol, v_v_verbose = TRUE) {
 }
 
 solve_menu(full_solution)
-solved_menu <- menu_unsolved_per_g %>% solve_it(nutrient_df, min_food_amount = -2) %>% solve_menu()
+solved_menu <- menu_unsolved_per_g %>% solve_it(nutrient_df, min_food_amount = 1) %>% solve_menu()
 
 compliant_solved <- solve_it(menu_unsolved_per_g, nutrient_df, 
                              only_full_servings = TRUE, min_food_amount = -2) %>% solve_menu()

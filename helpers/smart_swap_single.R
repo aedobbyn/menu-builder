@@ -1,27 +1,54 @@
 
-# Smart swap a single food
+# Smart swap a single food for each nutrient
+
 smart_swap_single <- function(orig_menu, cutoff = 0.5) {
-  
-  # while(nrow(test_mr_compliance(orig_menu)) > 0) {
-    
+
     for (m in seq_along(mr_df$must_restrict)) {    # for each row in the df of must_restricts
       nut_to_restrict <- mr_df$must_restrict[m]    # grab the name of the nutrient we're restricting
-      print(paste0("------- The nutrient we're restricting is ", nut_to_restrict, ". It has to be below ", mr_df$value[m]))
+      message(paste0("------- The nutrient we're restricting is ", nut_to_restrict, ". It has to be below ", mr_df$value[m]))
       to_restrict <- (sum(orig_menu[[nut_to_restrict]] * orig_menu$GmWt_1, na.rm = TRUE))/100   # get the amount of that must restrict nutrient in our original menu
-      print(paste0("The original total value of that nutrient in our menu is ", to_restrict))
+      message(paste0("The original total value of that nutrient in our menu is ", to_restrict))
       
-      while (to_restrict > mr_df$value[m]) {     # if the amount of the must restrict in our current menu is above the max value it should be according to mr_df
+      if (to_restrict > mr_df$value[m]) {     # if the amount of the must restrict in our current menu is above the max value it should be according to mr_df
         max_offender <- which(orig_menu[[nut_to_restrict]] == max(orig_menu[[nut_to_restrict]]))   # get index of food that's the worst offender in this respect
         
-        print(paste0("The worst offender in this respect is ", orig_menu[max_offender, ]$Shrt_Desc))
+        message(paste0("The worst offender in this respect is ", orig_menu[max_offender, ]$Shrt_Desc))
         
         # ------- smart swap or randomly swap in a food here --------
         orig_menu[max_offender, ] <- replace_food_w_better(orig_menu, max_offender, nut_to_restrict, cutoff = cutoff)
         
         to_restrict <- (sum(orig_menu[[nut_to_restrict]] * orig_menu$GmWt_1, na.rm = TRUE))/100   # recalculate the must restrict nutrient content
-        print(paste0("Our new value of this must restrict is ", to_restrict))
+        message(paste0("Our new value of this must restrict is ", to_restrict))
       }
     }
-  # }
+  
   orig_menu
 }
+
+smart_swap_single(solved_menu %>% select())
+
+quo_solved_names <- names(solved_menu)
+name_overlap <- intersect(names(menu), names(solved_menu))
+no_overlap <- setdiff(names(solved_menu), names(menu))
+
+do_swapping <- function(){
+  
+}
+
+
+foo <- solved_menu[, c(name_overlap)] %>% 
+  smart_swap_single() %>% 
+  mutate(
+    shorter_desc = map_chr(Shrt_Desc, grab_first_word, splitter = ","), # Recreate shorter_desc
+    cost = runif(nrow(.), min = 1, max = 10) %>% round(digits = 2),    # Add in some costs
+    solution_amounts = ifelse(Shrt_Desc %in% solved_menu$Shrt_Desc, solved_menu$solution_amounts, 1)
+  ) %>%
+  # left_join(solved_menu[, c(no_overlap)]) %>% 
+  select(!!quo_solved_names) %>% 
+  View()
+
+foo <- solution
+
+suppressWarnings(suppressMessages(smart_swap_single(solved_menu)))
+
+
