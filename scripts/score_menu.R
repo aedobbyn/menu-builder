@@ -20,7 +20,8 @@ pos_score <- function(orig_menu) {
   
   for (p in seq_along(pos_df$positive_nut)) {    # for each row in the df of positives
     nut_considering <- pos_df$positive_nut[p]    # grab the name of the nutrient we're examining
-    val_nut_considering <- (sum(orig_menu[[nut_considering]] * orig_menu$GmWt_1))/100   # get the total amount of that nutrient in our original menu
+    val_nut_considering <- (sum((orig_menu[[nut_considering]] * orig_menu$GmWt_1), 
+                                na.rm = TRUE))/100   # get the total amount of that nutrient in our original menu
     
     nut_score <- (-1)*(pos_df$value[p] - val_nut_considering)    # (-1)*(min amount it's supposed to be - amount it is here)
     # print(paste0("nut_score is", nut_score))
@@ -50,7 +51,8 @@ mr_score <- function(orig_menu) {
   
   for (m in seq_along(mr_df$must_restrict)) {    # for each row in the df of positives
     mr_considering <- mr_df$must_restrict[m]    # grab the name of the nutrient we're examining
-    val_mr_considering <- (sum(orig_menu[[mr_considering]] * orig_menu$GmWt_1))/100   # get the total amount of that nutrient in our original menu
+    val_mr_considering <- (sum((orig_menu[[mr_considering]] * orig_menu$GmWt_1), 
+                                na.rm = TRUE))/100   # get the total amount of that nutrient in our original menu
     
     mr_score <- pos_df$value[m] - val_mr_considering  # max amount it's supposed to be - amount it is
 
