@@ -84,7 +84,7 @@ bounds <- list(lower = list(ind = c(1L, 2L, 3L),
                             val = c(1, 1, 1)),
                upper = list(ind = c(1L, 2L, 3L),
                             val = c(100, 100, 100)))
-solution <- Rglpk_solve_LP(obj_fn, menu_mat, dir, rhs, bounds, max = FALSE)
+solution_manual <- Rglpk_solve_LP(obj_fn, menu_mat, dir, rhs, bounds, max = FALSE)
 
 constraint_mat <- menu_mat %>% as_data_frame() 
 names(constraint_mat) <- menu_small$shorter_desc
@@ -96,17 +96,17 @@ constraint_mat %>%
   select(nutrient, everything())
 
 # cbind the solved amounts to the original menu
-solved_col <- list(solution_amounts = solution$solution) %>% as_tibble()
+solved_col <- list(solution_amounts = solution_manual$solution) %>% as_tibble()
 
 menu_small_solved <- menu_small %>% bind_cols(solved_col) %>% 
   select(shorter_desc, solution_amounts, everything())
 
-solved_nutrient_vals <- list(solution_nutrient_vals = solution$auxiliary$primal) %>% as_tibble()
+solved_nutrient_vals <- list(solution_nutrient_vals = solution_manual$auxiliary$primal) %>% as_tibble()
 
 nut_df_small_solved <- nut_df_small %>% bind_cols(solved_nutrient_vals) 
 
 # What's the max solution amount? If too high, may need to adjust down 
-max_solution_amount <- solution$solution[which(solution$solution == max(solution$solution))]
+max_solution_amount <- solution_manual$solution[which(solution_manual$solution == max(solution_manual$solution))]
 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
 
@@ -114,21 +114,21 @@ max_solution_amount <- solution$solution[which(solution$solution == max(solution
 # # # # # # # # # # # # # Programmatic solution creation # # # # # # # # # # # # # # # # # # # # # # # #
 
 # solve_it(menu_small, nut_df_small, only_full_servings = FALSE)
-solution_out <- solve_it(menu_small, nut_df_small)
+solution_auto <- solve_it(menu_small, nut_df_small)
 
 
-# solve_menu(solution_out)
+# solve_menu(solution_auto)
 solved_menu_small <- menu_small %>% solve_it(nut_df_small) %>% solve_menu()
 
 
-# solve_nutrients(solution_out)
-solved_nutrients <- menu_small %>% solve_it(nut_df_small) %>% solve_nutrients()
+# solve_nutrients(solution_auto)
+solved_nutrients_small <- menu_small %>% solve_it(nut_df_small) %>% solve_nutrients()
 
 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
 
 # # Test that the manual and programmatic solution are the same
-assertthat::are_equal(solution$optimum, solution_out$optimum)
+assertthat::are_equal(solution_manual$optimum, solution_auto$optimum)
 
 
 

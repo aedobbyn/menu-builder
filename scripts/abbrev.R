@@ -10,7 +10,6 @@ abbrev <- as_tibble(abbrev)
 names(abbrev) <- str_replace_all(names(abbrev), "\\(", "")
 names(abbrev) <- str_replace_all(names(abbrev), "\\)", "")
 names(abbrev) <- str_replace_all(names(abbrev), " ", "")
-names(abbrev)
 
 
 # get vector of must restricts
@@ -46,12 +45,5 @@ mr_hash <- hash(mr, mr_vals)
 # all nuts and must_restricts
 all_nut_and_mr_df <- rbind(mr_df %>% rename(nutrient = must_restrict), 
                            pos_df %>% rename(nutrient = positive_nut))
-
-
-
-
-
-
-
 
 
