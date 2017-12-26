@@ -17,5 +17,6 @@ transpose_menu <- function(df) {
   return(transposed_df)
 }
 
-transpose_menu(menu_unsolved_raw)
-transpose_menu(menu_unsolved_per_g)
+
+# menu_unsolved_per_g %>% transpose_menu()
+# menu_unsolved_per_g %>% get_raw_vals() %>% transpose_menu()

@@ -1,9 +1,9 @@
 # GNU solver
 # https://cran.r-project.org/web/packages/Rglpk/Rglpk.pdf
 
-source("./scripts/menu_builder_silent.R")   # Load all original menu building and tweaking functions but 
+source("./scripts/build_and_test.R")   # Load all original menu building and tweaking functions but 
                                             # only create the original menu
-source("./scripts/transpose_menu.R")   
+source("./scripts/solve/transpose_menu.R")   
 
 # devtools::install_github("aedobbyn/dobtools", force = TRUE)
 library(dobtools)
@@ -51,10 +51,10 @@ do_menu_mutates <- function(menu) {
   menu_unsolved_per_g <- menu[, which(names(menu) %in% cols_to_keep)] %>% 
     mutate(
       shorter_desc = map_chr(Shrt_Desc, grab_first_word, splitter = ","), # Take only the fist word
-      cost = runif(nrow(.), min = 1, max = 10) %>% round(digits = 2) # Add a cost column
-      # serving_gmwt = GmWt_1   # Single serving gram weight
+      cost = runif(nrow(.), min = 1, max = 10) %>% round(digits = 2), # Add a cost column
+      serving_gmwt = GmWt_1   # Single serving gram weight
     ) %>%
-    select(shorter_desc, cost, !!quo_nutrient_names, GmWt_1, Shrt_Desc, NDB_No) #  serving_gmwt,
+    select(shorter_desc, GmWt_1, serving_gmwt, cost, !!quo_nutrient_names,  Shrt_Desc, NDB_No) #  serving_gmwt,
   
   return(menu_unsolved_per_g)
 }
@@ -129,7 +129,7 @@ get_raw_vals <- function(df){
     select(-GmWt_1)
   
   out <- raw_vals %>% bind_cols(non_nut_cols) %>% 
-    select(shorter_desc, GmWt_1, cost, !!quo_nutrient_names, Shrt_Desc, NDB_No)
+    select(shorter_desc, GmWt_1, serving_gmwt, cost, !!quo_nutrient_names, Shrt_Desc, NDB_No)
   
   return(out)
 }
@@ -150,7 +150,7 @@ get_per_g_vals <- function(df) {
   
   out <- per_g_vals %>% bind_cols(non_nut_cols) %>%
     bind_cols(GmWt_1 = df$GmWt_1) %>% 
-    select(shorter_desc, GmWt_1, cost, !!quo_nutrient_names, Shrt_Desc, NDB_No)
+    select(shorter_desc, GmWt_1, serving_gmwt, cost, !!quo_nutrient_names, Shrt_Desc, NDB_No)
   
   return(out)
 }
@@ -270,7 +270,7 @@ solve_menu <- function(sol, v_v_verbose = TRUE) {
   solved_col <-  list(solution_amounts = sol$solution) %>% as_tibble()    # Grab the vector of solution amounts
   
   df_solved <- sol$original_menu_per_g %>% bind_cols(solved_col) %>%            # cbind that to the original menu
-    select(shorter_desc, solution_amounts, GmWt_1, everything()) %>% 
+    select(shorter_desc, solution_amounts, GmWt_1, serving_gmwt, everything()) %>% 
     mutate(
       GmWt_1 = GmWt_1 * solution_amounts,
       cost = cost * solution_amounts
@@ -297,8 +297,8 @@ compliant_solved <- solve_it(menu_unsolved_per_g, nutrient_df,
 
 
 # Test compliance
-compliant_solved %>% test_all_compliance_verbose()
 solved_menu %>% test_all_compliance_verbose()
+compliant_solved %>% test_all_compliance_verbose()
 
 
 
@@ -339,7 +339,7 @@ menu_unsolved_per_g %>%
   solve_nutrients()
 
 menu_unsolved_raw %>% 
-  solve_it(nutrient_df, df_is_per_100g = FALSE) %>% 
+  solve_it(nutrient_df, df_is_per_100g = FALSE, min_food_amount = -3) %>% 
   solve_nutrients()
 
 solved_nutrients <- menu_unsolved_per_g %>% solve_it(nutrient_df) %>% solve_nutrients()

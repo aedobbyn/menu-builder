@@ -44,8 +44,6 @@ build_menu <- function(df) {
   menu
 }
 
-# menu <- build_menu(abbrev)
-
 
 # -------- Compliance Tests ---------
 # Now that we've built our menu, we need to see how to tweak it so that it's in compliance with the guidelines.
@@ -154,25 +152,6 @@ test_all_compliance_verbose <- function(orig_menu) {
   combined_compliance
 }
 
-
-# --------- Test Initial Compliance ------
-
-# # all
-# test_all_compliance(menu)
-# 
-# # all, verbose
-# test_all_compliance_verbose(menu)
-# 
-# # must_restricts
-# test_mr_compliance(menu)
-# 
-# # positives
-# test_pos_compliance(menu)
-# 
-# # calories
-# test_calories(menu)
-
-# ---------------------------------------
 
 
 # ----------------------------------------------------------------------------------------------------------------
@@ -319,7 +298,6 @@ adjust_portion_sizes <- function(orig_menu) {
   orig_menu
 }
 
-# more_nutritious <- adjust_portion_sizes(menu)
 
 
 # ---------------- Add Calories -------------
@@ -382,36 +360,6 @@ master_builder <- function(seed_menu = NULL) {
   our_menu
 }
 
-# master_menu <- master_builder()
-# master_menu_seeded <- master_builder(menu)
-
-
-
-
-# 
-# # --------- Test Compliances ------
-# # all
-# test_all_compliance(menu)
-# test_all_compliance(master_menu)
-# 
-# # must_restricts
-# test_mr_compliance(menu)
-# test_mr_compliance(smartly_swapped)
-# test_mr_compliance(more_nutritious)
-# test_mr_compliance(master_menu)
-# 
-# # positives
-# test_pos_compliance(menu)
-# test_pos_compliance(smartly_swapped)
-# test_pos_compliance(more_nutritious)
-# test_pos_compliance(master_menu)
-# 
-# # calories
-# test_calories(menu)
-# test_calories(smartly_swapped)
-# test_calories(more_nutritious)
-# test_calories(master_menu)
-# ---------------------------------------
 
 
 # ------------ Find the differences between starting and ending menus -------------
@@ -423,14 +371,3 @@ see_diffs <- function(menu_1, menu_2) {
     select(Shrt_Desc, GmWt_1)
   diff
 }
-# see_diffs(menu, master_menu)
-# 
-# # indices that differ on weight between the original and new menu
-# which(!menu$GmWt_1 %in% master_menu$GmWt_1)
-# 
-# # -----------------------------------------------------------------------------------
-# 
-# 
-# # Main output we'd want to see
-# test_all_compliance(master_menu)
-# 

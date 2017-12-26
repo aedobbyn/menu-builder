@@ -27,4 +27,3 @@ build_menu <- function(df, seed = NULL) {
   menu    # return the full menu
 }
 
-menu <- build_menu(abbrev, seed = 9)
