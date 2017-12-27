@@ -4,6 +4,7 @@
 source("./scripts/build_and_test.R")   # Load all original menu building and tweaking functions but 
                                             # only create the original menu
 source("./scripts/solve/transpose_menu.R")   
+source("./scripts/solve/smart_swap_single.R") 
 source("./helpers/helpers.R")   
 
 # devtools::install_github("aedobbyn/dobtools", force = TRUE)
@@ -310,12 +311,12 @@ solve_nutrients <- function(sol) {
 
 
 # solve_nutrients(full_solution)
-menu_unsolved_per_g %>% 
+a <- menu_unsolved_per_g %>% 
   solve_it(nutrient_df, only_full_servings = TRUE, min_food_amount = -3) %>% 
   solve_nutrients()
 
-menu_unsolved_raw %>% 
-  solve_it(nutrient_df, df_is_per_100g = FALSE, min_food_amount = -3) %>% 
+b <- menu_unsolved_raw %>% 
+  solve_it(nutrient_df, df_is_per_100g = FALSE, only_full_servings = TRUE, min_food_amount = -3) %>% 
   solve_nutrients()
 
 solved_nutrients <- menu_unsolved_per_g %>% solve_it(nutrient_df) %>% solve_nutrients()

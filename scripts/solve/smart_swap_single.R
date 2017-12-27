@@ -43,6 +43,7 @@ do_single_swap <- function(solved_menu, orig_menu = menu, silent = TRUE,
   
   out <- out %>% 
     mutate(
+      serving_gmwt = solved_menu$serving_gmwt,
       shorter_desc = map_chr(Shrt_Desc, grab_first_word, splitter = ","), # Recreate shorter_desc
       cost = runif(nrow(.), min = 1, max = 10) %>% round(digits = 2),    # Add in some costs
       solution_amounts = ifelse(Shrt_Desc %in% solved_menu$Shrt_Desc, 
@@ -58,7 +59,7 @@ singly_swapped <- do_single_swap(solved_menu)
 
 build_menu(abbrev, seed = 11) %>% do_menu_mutates() %>% solve_it(nutrient_df, min_food_amount = -1) %>% 
   solve_menu() %>% 
-  do_single_swap(silent = FALSE)
+  do_single_swap(silent = TRUE)
   
   
 
