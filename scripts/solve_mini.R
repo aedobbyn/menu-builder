@@ -17,7 +17,7 @@ mr_df_small <- mr_df[1:3, ] %>% rename(nutrient = must_restrict) %>%
 nut_df_small <- bind_rows(mr_df_small, pos_df_small)
 
 # Get our test menu
-get_menu_small <- function(from_file = TRUE) {
+get_menu_small <- function(from_file = FALSE) {
   
   if (from_file == TRUE) {
     menu_small <- read_feather("./data/menu_small.feather")
@@ -29,14 +29,15 @@ get_menu_small <- function(from_file = TRUE) {
       slice(1:3) %>% 
       mutate(
         shorter_desc = map_chr(Shrt_Desc, grab_first_word, splitter = ","), # Take only the fist word
-        cost = runif(nrow(.), min = 1, max = 10) %>% round(digits = 2) # Add a cost column
+        cost = runif(nrow(.), min = 1, max = 10) %>% round(digits = 2), # Add a cost column
+        serving_gmwt = GmWt_1
       ) %>% 
-      select(shorter_desc, GmWt_1, cost, everything(), -Shrt_Desc)
-    # write_feather(menu_small, "./data/menu_small.feather")
+      select(shorter_desc, GmWt_1, serving_gmwt, cost, everything(), -Shrt_Desc)
   }
   
   return(menu_small)
 }
+# write_feather(menu_small, "./data/menu_small.feather")
 
 # Assign
 menu_small <- get_menu_small()
@@ -45,8 +46,8 @@ menu_small <- get_menu_small()
 quo_nut_small_names <- quo(c(mr_df_small$nutrient, pos_df_small$nutrient))
 
 menu_small <- menu_small %>% 
-  select(shorter_desc, GmWt_1, cost, !!quo_nut_small_names)
-
+  select(shorter_desc, GmWt_1, serving_gmwt, cost, !!quo_nut_small_names) %>%
+  get_raw_vals(nut_df_small)
 
 # ---- Small example ----
 # Transpose our menu such that it looks like the matrix of constraints we're about to create
@@ -69,14 +70,15 @@ obj_fn <- c(1.22, 3.96, 2.88)
 # Ca,     Fe,    Mg,   
 menu_mat <-   matrix(c(
   # CHERRIES  CHEESE CEREALS 
-  0.130,   27.34,   6.370,   # Lipid
-  1.000, 1696.00, 499.000,   # Na
-  0.000,   72.00,   0.000,   # Chol
-  11.000, 1253.00, 307.000,  # Ca,   
-  0.360,    0.87,  11.300,   # Fe
-  9.000,   51.00,  84.000,   # Mg
-  46.00,  415.00,  379.00),  # cals
+  0.2560,   1.3670,   5.2938,   # Lipid
+  17.92, 84.80, 27.54,   # Na
+  0.000,   3.60,   1.02,   # Chol
+  25.60, 62.65, 51.51,  # Ca,   
+  3.3280,    0.0435,  1.3719,   # Fe
+  15.36,   2.55,  56.10,   # Mg
+  232.96,  20.75,  210.12),  # cals
   nrow = 7, byrow = TRUE)  
+
 
 dir <- c("<", "<", "<", ">", ">", ">", ">")
 rhs <- c(65, 2400, 300, 1000, 18, 400, 2300)    # Ca, Fe, Mg, Lipid, Na, Chol, cals
@@ -88,7 +90,7 @@ solution_manual <- Rglpk_solve_LP(obj_fn, menu_mat, dir, rhs, bounds, max = FALS
 
 constraint_mat <- menu_mat %>% as_data_frame() 
 names(constraint_mat) <- menu_small$shorter_desc
-constraint_mat %>% 
+constraint_mat <- constraint_mat %>% 
   mutate(
     dir = dir,
     rhs = rhs

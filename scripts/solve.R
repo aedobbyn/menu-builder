@@ -1,6 +1,7 @@
 # Use the GNU solver linear program solver to get from a random menu to a compliant
 # menu, if possible, by adjusting food portions
 library(Rglpk)
+devtools::install_github("aedobbyn/dobtools", force = FALSE) ; library(dobtools)
 
 source("./helpers/helpers.R")
 source("./scripts/build.R")   # Load all original menu building and tweaking functions but 
