@@ -53,13 +53,6 @@ do_single_swap <- function(solved_menu, orig_menu = menu, silent = TRUE,
   
   return(out)
 }
-
-singly_swapped <- do_single_swap(solved_menu)
-
-
-build_menu(abbrev, seed = 11) %>% do_menu_mutates() %>% solve_it(nutrient_df, min_food_amount = -1) %>% 
-  solve_menu() %>% 
-  do_single_swap(silent = TRUE)
   
   
 
