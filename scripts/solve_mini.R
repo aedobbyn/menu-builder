@@ -65,18 +65,18 @@ transposed_menu <- menu_small %>% select(-shorter_desc) %>%
 
 
 # # # # # # # # # # # # # # # # # # Manual solution creation # # # # # # # # # # # # # # #
-obj_fn <- c(1.22, 3.96, 2.88)
+obj_fn <- c(9.40, 9.97, 5.83)
 
 # Ca,     Fe,    Mg,   
 menu_mat <-   matrix(c(
-  # CHERRIES  CHEESE CEREALS 
-  0.2560,   1.3670,   5.2938,   # Lipid
-  17.92, 84.80, 27.54,   # Na
-  0.000,   3.60,   1.02,   # Chol
-  25.60, 62.65, 51.51,  # Ca,   
-  3.3280,    0.0435,  1.3719,   # Fe
-  15.36,   2.55,  56.10,   # Mg
-  232.96,  20.75,  210.12),  # cals
+  # CHERRIES  CHEESE     CEREALS 
+  0.2560,     1.3670,    5.2938,   # Lipid
+  17.92,      84.80,     27.54,   # Na
+  0.000,      3.60,      1.02,   # Chol
+  25.60,      62.65,     51.51,  # Ca,   
+  3.3280,     0.0435,    1.3719,   # Fe
+  15.36,      2.55,      56.10,   # Mg
+  232.96,     20.75,     210.12),  # cals
   nrow = 7, byrow = TRUE)  
 
 
@@ -116,21 +116,21 @@ max_solution_amount <- solution_manual$solution[which(solution_manual$solution =
 # # # # # # # # # # # # # Programmatic solution creation # # # # # # # # # # # # # # # # # # # # # # # #
 
 # solve_it(menu_small, nut_df_small, only_full_servings = FALSE)
-solution_auto <- solve_it(menu_small, nut_df_small)
+solution_auto <- solve_it(menu_small, nut_df_small, df_is_per_100g = FALSE)
 
 
 # solve_menu(solution_auto)
-solved_menu_small <- menu_small %>% solve_it(nut_df_small) %>% solve_menu()
+solved_menu_small <- menu_small %>% solve_it(nut_df_small, df_is_per_100g = FALSE) %>% solve_menu()
 
 
 # solve_nutrients(solution_auto)
-solved_nutrients_small <- menu_small %>% solve_it(nut_df_small) %>% solve_nutrients()
+solved_nutrients_small <- menu_small %>% solve_it(nut_df_small, df_is_per_100g = FALSE) %>% solve_nutrients()
 
 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
 
 # # Test that the manual and programmatic solution are the same
-assertthat::are_equal(solution_manual$optimum, solution_auto$optimum)
+assertthat::are_equal(solution_manual$solution, solution_auto$solution)
 
 
 
