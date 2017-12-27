@@ -1,6 +1,4 @@
 
-source("./menu_builder.R")
-
 # ------------ Score menus on how nutritional they are
 # - - - more positive scores are always better - - -
 # 1) on positive nutrients, you can't get a better score than 0
@@ -36,9 +34,6 @@ pos_score <- function(orig_menu) {
   total_nut_score
 }
 
-pos_score(menu)
-pos_score(master_menu)
-
 
 # -------------------- Must Restricts ----------------
 # we both penalize for going over the max daily limit and give you brownie points for getting below the max
@@ -63,9 +58,6 @@ mr_score <- function(orig_menu) {
   total_mr_score
 }
 
-mr_score(menu)
-mr_score(master_menu)
-
 
 # -------------------- Combined Score ----------------
 # sum the two scores
@@ -74,38 +66,4 @@ score_menu <- function(orig_menu) {
   healthiness_score
 }
 
-score_menu(menu)
-score_menu(master_menu)
-
-
-
-
-
-
-
-# ------------- Score individual foods -----------
-# How "healthy" is a food overall? We use the score_menu function on a single food or a vector of foods and
-# return a vector of their ranks that we can cbind to the menu
-
-rank_foods <- function(this_menu) {
-  food_ranks <- vector()
-  for (i in 1:nrow(this_menu)) {
-    this_food_rank <- score_menu(this_menu[i, ])
-    food_ranks <- c(food_ranks, this_food_rank)
-  }
-  return(food_ranks)
-}
-
-# A random sample of 20 foods
-samp <- sample_n(abbrev_sans_na, 20)
-sample_foods_ranked <- cbind(name = samp$Shrt_Desc, 
-                             score = as.numeric(rank_foods(samp)))
-
-
-# Arrange all foods in our db by their rank, from best to worst
-ranked_foods <- cbind(abbrev_sans_na, score = rank_foods(abbrev_sans_na)) %>% 
-  arrange(desc(score)) %>% 
-  as_tibble()
-
-write_feather(ranked_foods, "./data/ranked_foods.feather")
 

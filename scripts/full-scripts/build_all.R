@@ -43,3 +43,13 @@ test_all_compliance(master_menu)
 
 # ---------------------------------------
 
+# Score
+
+pos_score(menu)
+pos_score(master_menu)
+
+mr_score(menu)
+mr_score(master_menu)
+
+score_menu(menu)
+score_menu(master_menu)

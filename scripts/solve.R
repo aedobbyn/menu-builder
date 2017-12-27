@@ -6,7 +6,8 @@ devtools::install_github("aedobbyn/dobtools", force = FALSE) ; library(dobtools)
 source("./helpers/helpers.R")
 source("./scripts/build.R")   # Load all original menu building and tweaking functions but 
                               # only create the original menu (with seed = 9)
-  
+source("./scripts/score/score_menu.R")
+
 # Load solving scripts in /solve
 path <- "./scripts/solve"
 for (f in list.files(path, pattern = "*.R", ignore.case = TRUE)) {
@@ -41,6 +42,11 @@ compliant_menu %>% test_all_compliance_verbose()
 # Swap a single 
 solved_one_swap <- solved_menu %>% do_single_swap()
 compliant_one_swap <- compliant_menu %>% do_single_swap()
+
+# Score
+score_menu(menu)
+score_menu(solved_menu)
+score_menu(compliant_one_swap)
 
 # Full thing from beginning to end
 out <- build_menu(abbrev, seed = 9) %>% 

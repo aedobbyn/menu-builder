@@ -30,7 +30,6 @@ assertthat::are_equal(solution_raw$solution, solution_per_g$solution)
 
 
 # Menu
-
 solve_menu(full_solution)
 solved_menu <- menu_unsolved_per_g %>% solve_it(nutrient_df, min_food_amount = 1) %>% solve_menu()
 
@@ -46,8 +45,6 @@ compliant_solved %>% test_all_compliance_verbose()
 
 
 # Nutrients
-
-# solve_nutrients(full_solution)
 a <- menu_unsolved_per_g %>% 
   solve_it(nutrient_df, only_full_servings = TRUE, min_food_amount = -3) %>% 
   solve_nutrients()
@@ -61,18 +58,7 @@ solved_nutrients <- menu_unsolved_per_g %>% solve_it(nutrient_df) %>% solve_nutr
 
 
 
-# all the way through
-
-
-# -----------
-# Start merging with old code
-
-swapped_solved <- solved_menu %>% 
-  select(NDB_No, Shrt_Desc, !!quo_nutrient_names, everything()) %>%  # get columns in old order
-  smart_swap_single() 
-
-
-
+# Score
 score_menu(solved_menu)
 score_menu(swapped_solved)
 
