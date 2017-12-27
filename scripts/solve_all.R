@@ -1,38 +1,6 @@
-# GNU solver
-# https://cran.r-project.org/web/packages/Rglpk/Rglpk.pdf
 
-source("./scripts/build_and_test.R")   # Load all original menu building and tweaking functions but 
-                                        # only create the original menu
-source("./helpers/helpers.R")  
+source("./scripts/solve.R")
 
-library(Rglpk)
-
-
-# Quosure the nutrient and must restrict names
-nutrient_names <- c(all_nut_and_mr_df$nutrient, "Energ_Kcal")
-quo_nutrient_names <- quo(nutrient_names)
-
-# Simplify our menu space
-cols_to_keep <- c(all_nut_and_mr_df$nutrient, "Shrt_Desc", "GmWt_1", "Energ_Kcal", "NDB_No")
-
-nutrient_df <- all_nut_and_mr_df %>% 
-  bind_rows(list(nutrient = "Energ_Kcal",     # Add calorie restriction in
-                 value = 2300) %>% as_tibble()) %>%
-  mutate(
-    is_must_restrict = ifelse(nutrient %in% mr_df$must_restrict, TRUE, FALSE)
-  )
-
-
-# Building and tweaking scripts in /build_menu
-path <- "./scripts/solve"
-for (f in list.files(path, pattern = "*.R", ignore.case = TRUE)) {
-  source(str_c(path, "/", f))
-}
-
-
-menu_unsolved_per_g <- do_menu_mutates(menu)
-
-menu_unsolved_raw <- get_raw_vals(menu_unsolved_per_g)
 
 get_per_g_vals(menu_unsolved_raw)
 
