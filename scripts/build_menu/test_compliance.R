@@ -8,6 +8,7 @@
 
 # Must restrict compliance
 test_mr_compliance <- function(orig_menu, capitalize_colname = TRUE) {
+  
   compliance_df <- list(must_restricts_uncompliant_on = vector(), 
                         `difference_(g)` = vector()) %>% as_tibble()
   

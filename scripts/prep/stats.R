@@ -1,5 +1,5 @@
 
-source("./scripts/abbrev.R")
+# source("./scripts/prep/abbrev.R")
 
 # means and standard deviations
 abbrev_st_dev <- apply(abbrev[, 3:which(names(abbrev)=="Cholestrl_mg")],  # everything after cholesterol is not necc numeric

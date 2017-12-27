@@ -4,38 +4,13 @@
 source("./scripts/build_and_test.R")   # Load all original menu building and tweaking functions but 
                                             # only create the original menu
 source("./scripts/solve/transpose_menu.R")   
+source("./helpers/helpers.R")   
 
 # devtools::install_github("aedobbyn/dobtools", force = TRUE)
 library(dobtools)
 library(feather)
 library(Rglpk)
 
-# --------------------------------------------------------------------------------------------------
-# Now in dobtools
-grab_first_word <- function(e, splitter = " ") {
-  stopifnot(is.character(e))
-  
-  e <- e %>% stringr::str_split(pattern = splitter, simplify = TRUE) %>% first()
-  return(e)
-}
-
-is_plural <- function(word, return_bool = FALSE) {
-  
-  if(substr(word, nchar(word), nchar(word)) %>% tolower() == "s") {
-    is_plural_bool <- TRUE
-    word_to_say <- "them"
-  } else {
-    is_plural_bool <- FALSE
-    word_to_say <- "it"
-  }
-  
-  if(return_bool == TRUE) {
-    return(is_plural_bool)
-  } else {
-    return(word_to_say)
-  }
-  
-}
 # --------------------------------------------------------------------------------------------------
 
 
@@ -161,10 +136,11 @@ get_per_g_vals(menu_unsolved_raw)
 
 # ---------- Transpose ----------
 # Take a look at what the constraing matrix will look like 
-menu_unsolved_per_g %>% transpose_menu()
-menu_unsolved_per_g %>% get_raw_vals() %>% transpose_menu()
-
-
+foo <- menu_unsolved_per_g %>% transpose_menu()
+bar <- menu_unsolved_per_g %>% get_raw_vals() %>% transpose_menu()
+baz <- menu_unsolved_raw %>% get_per_g_vals() %>% transpose_menu()
+  
+# assertthat::are_equal(foo, baz)
 
 
 # # # # # # # # # # # # # # # # # # # # Solve  # # # # # # # # # # # # # # # # # # # # # # # #
@@ -355,5 +331,6 @@ swapped_solved <- solved_menu %>%
 
 
 score_menu(solved_menu)
+score_menu(swapped_solved)
 
 

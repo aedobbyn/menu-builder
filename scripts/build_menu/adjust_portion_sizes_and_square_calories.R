@@ -62,6 +62,3 @@ adjust_portion_sizes_and_square_calories <- function(orig_menu) {
   orig_menu
 }
 
-more_nutritious <- adjust_portion_sizes(menu)
-more_nutritious
-View(more_nutritious)

@@ -1,7 +1,7 @@
 
 # Source in all scripts
-source("./scripts/abbrev.R")
-source("./scripts/stats.R")
+source("./scripts/prep/abbrev.R")
+source("./scripts/prep/stats.R")
 
 # Building and tweaking scripts in /build_menu
 path <- "./scripts/build_menu"
