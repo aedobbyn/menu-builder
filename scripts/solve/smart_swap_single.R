@@ -20,6 +20,8 @@ smart_swap_single <- function(orig_menu, cutoff = 0.5) {
         
         to_restrict <- (sum(orig_menu[[nut_to_restrict]] * orig_menu$GmWt_1, na.rm = TRUE))/100   # recalculate the must restrict nutrient content
         message(paste0("Our new value of this must restrict is ", to_restrict))
+      } else {
+        message("We're all good on this nutrient.")
       }
     }
   

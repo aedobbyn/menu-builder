@@ -40,8 +40,8 @@ solved_menu %>% test_all_compliance_verbose()
 compliant_menu %>% test_all_compliance_verbose()
 
 # Swap a single 
-solved_one_swap <- solved_menu %>% do_single_swap()
-compliant_one_swap <- compliant_menu %>% do_single_swap()
+solved_one_swap <- solved_menu %>% do_single_swap(silent = FALSE)
+compliant_one_swap <- compliant_menu %>% do_single_swap(silent = FALSE)
 
 # Score
 score_menu(menu)

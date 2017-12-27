@@ -12,6 +12,16 @@ more_nutritious <- adjust_portion_sizes(menu)
 master_menu <- master_builder(menu)
 
 
+# -------------- Score ----------------
+pos_score(menu)
+pos_score(master_menu)
+
+mr_score(menu)
+mr_score(master_menu)
+
+score_menu(menu)
+score_menu(master_menu)
+
 
 # --------- Test Compliances ------
 # all
@@ -41,15 +51,4 @@ test_calories(master_menu)
 test_all_compliance_verbose(menu)
 test_all_compliance(master_menu)
 
-# ---------------------------------------
 
-# Score
-
-pos_score(menu)
-pos_score(master_menu)
-
-mr_score(menu)
-mr_score(master_menu)
-
-score_menu(menu)
-score_menu(master_menu)
