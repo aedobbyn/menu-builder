@@ -11,6 +11,7 @@ for (f in list.files(path, pattern = "*.R", ignore.case = TRUE)) {
 
 library(dobtools)
 library(feather)
+library(assertthat)
 
 # --------- Build ---------
 

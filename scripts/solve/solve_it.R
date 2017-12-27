@@ -1,3 +1,6 @@
+# GNU solver
+# https://cran.r-project.org/web/packages/Rglpk/Rglpk.pdf
+
 # Return a solution that contains the original menu and the needed nutrient df along with the rest
 # of the solution in a list
 solve_it <- function(df, nutrient_df, df_is_per_100g = TRUE, only_full_servings = FALSE, 

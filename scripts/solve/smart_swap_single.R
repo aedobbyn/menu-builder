@@ -1,5 +1,6 @@
 
-# Smart swap a single food for each nutrient
+# ---- Smart swap a single food for each nutrient
+# Same as smart_swap() without the while loops
 
 smart_swap_single <- function(orig_menu, cutoff = 0.5) {
 
