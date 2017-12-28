@@ -37,10 +37,11 @@ get_menu_small <- function(from_file = FALSE) {
   
   return(menu_small)
 }
-# write_feather(menu_small, "./data/menu_small.feather")
 
 # Assign
 menu_small <- get_menu_small()
+# write_feather(menu_small, "./data/menu_small.feather")
+
 
 # Get names in correct order
 quo_nut_small_names <- quo(c(mr_df_small$nutrient, pos_df_small$nutrient))

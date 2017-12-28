@@ -18,7 +18,7 @@ solve_it(menu_unsolved_per_g, nutrient_df, only_full_servings = FALSE,
 
 solve_it(menu_unsolved_raw, nutrient_df, df_is_per_100g = FALSE)
 solve_it(menu_unsolved_per_g, nutrient_df, min_food_amount = -3)
-solve_it(menu_unsolved_per_g, nutrient_df, min_food_amount = -1)
+full_solution <- solve_it(menu_unsolved_per_g, nutrient_df, min_food_amount = -1)
 
 solution_raw <- solve_it(menu_unsolved_raw, nutrient_df, df_is_per_100g = FALSE, min_food_amount = 0.5)
 solution_per_g <- solve_it(menu_unsolved_per_g, nutrient_df, df_is_per_100g = TRUE, min_food_amount = 0.5)
