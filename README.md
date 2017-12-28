@@ -1,6 +1,6 @@
-# Menu Builder
+# Smart Menu Builder
 
-Daily menu planning and optimization using the [USDA food database](https://ndb.nal.usda.gov/ndb/doc/index).
+Daily menu planning and optimization using foods from the [USDA food database](https://ndb.nal.usda.gov/ndb/doc/index) and the simplex algorithm to implement the [GNU linear programming solver](https://www.gnu.org/software/glpk/) implemented using the `Rglpk` package. This minimizes the cost of each menu while keeping us above the minimum daily nutrient values and below the daily maximum "must restrict" values.
 
 
 
@@ -14,8 +14,8 @@ Daily menu planning and optimization using the [USDA food database](https://ndb.
         * Normalized in `scaled.csv`
     * Daily nutrient constraints in `all_nut_and_mr_df.csv`
 * `menu-builder`
-    * Shiny app for building a random menu and tweaking it into compliance
-* `scripts`
+    * [Shiny app](https://amandadobbyn.shinyapps.io/menu-builder/) for building a random menu and tweaking it into compliance
+* `scripts` -- the meat of things
     * `prep`
         * Read in, clean, and standardize data
         * Adds daily guidelines for
@@ -31,11 +31,11 @@ Daily menu planning and optimization using the [USDA food database](https://ndb.
             * If the combined amount of a nutrient in our menu is below the minimum, find the food in our menu that is highest in this positive nutrient per gram and increase its amount by 10% until we're above that particular nutrient threshold
             * `adjust_portion_sizes_and_square_calories.R` does the same while decreasing the total calorie count in the amount that it was increased by the adjustment
         * `master_builder.R` does all the above while staying above the 2300 calorie minimum
-    * `solve.R` sources all scripts in `solve`
+    * `solve.R` sources in `build.R` and all scripts in `solve` to build a random menu, solve it, do a single smart swap, and test its compliance
         * `solve_it.R` uses the GNU lienar programming solver from the `Rglpk` package to minimize cost while satisfying each nutritional and calorie constraint 
             * First argument is a menu -- with either nutrients in nutrient values per 100g of food or raw gram weight of nutrients, as specified by the `df_is_per_100g` boolean flag
             * Second is a dataframe of nutritional constraints
-            * Other levers 
+            * Other levers to pull:
                 * Should this be solved with only full portion sizes (integer coefficients on the original portion sizes provided)
                 * Upper and lower bounds for each portion size
                 * Should you be told the cost and whether we arrived at a feasible solution
@@ -49,13 +49,15 @@ Daily menu planning and optimization using the [USDA food database](https://ndb.
 
     * `score`
         * Give a given menu a score on must-restricts, positive nutrients, and a combined measure
-    * Helpers
+        * Also `rank_foods()` by their score
+            * This allows us to build a `naive_supermenu.R` using `build_best_menu()`
+    * Helper functions
         * `get_raw_vals()` and `get_per_g_vals()`, which both take dataframes and a dataframe of nutrients, allow us to go back and forth between nutrients per 100g and raw weight of nutrients using the helper functions 
         * `transpose_menu()` makes foods into columns and nutrients into rows, leaving us with something that looks more like our constraint matrix and can be read left to right
      * `full_scripts` are the legacy scripts containing all building and solving functions; will likely be deprecated soon 
         
             
-
+***
 
 * Potential future improvements
     * Implement a calorie ceiling in addition to the floor of 2300
@@ -65,8 +67,6 @@ Daily menu planning and optimization using the [USDA food database](https://ndb.
         * Incorporate food flavor profiles to increase flavor consistency within a meal
     * Cluster analyses
         * Can we reverse-engineer food groups?
-    * Supermenus
-        * Take the randomness out: what are the best menus overall? (Lowest in must restricts, highest in nutrients, any serving size)
 
 ***
 
