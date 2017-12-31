@@ -1,6 +1,6 @@
 # Smart Menu Builder
 
-Daily menu planning and optimization using foods from the [USDA food database](https://ndb.nal.usda.gov/ndb/doc/index) and the simplex algorithm to implement the [GNU linear programming solver](https://www.gnu.org/software/glpk/) implemented using the `Rglpk` package. This minimizes the cost of each menu while keeping us above the minimum daily nutrient values and below the daily maximum "must restrict" values.
+Daily menu planning and optimization using foods from the [USDA food database](https://ndb.nal.usda.gov/ndb/doc/index) and the `Rglpk` package interface to the [GNU linear programming solver](https://www.gnu.org/software/glpk/) to implement the simplex algorithm. This minimizes the cost of each menu while keeping us above the minimum daily nutrient values and below the daily maximum "must restrict" values.
 
 
 
@@ -14,19 +14,19 @@ Daily menu planning and optimization using foods from the [USDA food database](h
         * Normalized in `scaled.csv`
     * Daily nutrient constraints in `all_nut_and_mr_df.csv`
 * `menu-builder`
-    * [Shiny app](https://amandadobbyn.shinyapps.io/menu-builder/) for building a random menu and tweaking it into compliance
-* `scripts` -- the meat of things
+    * Code for the [Shiny app](https://amandadobbyn.shinyapps.io/menu-builder/) for building a random menu and tweaking it into compliance
+* `scripts`
     * `prep`
         * Read in, clean, and standardize data
-        * Adds daily guidelines for
+        * Define daily guidelines for
             * "Must restricts" (i.e. macros that have an daily upper limit)
             * "Positive nutrients" (i.e. micronutrients that have a daily lower bound)
     * `build.R` sources all scripts in `build_menu`
         * `build_menu.R` adds random foods (1 serving size per food) until we reach 2300 calories (the daily minimum)
         * `test_compliance.R` tests for compliance on the three dimensions we care about: must restricts, positives, and calorie content
         * `smart_swap.R` loops through must restricts; if the daily value of that must restrict is over the max limit, until we're compliant, swap out the "worst offender" that respect and replace it  
-               * if possible, with a food from our corpus that is < 0.5 standard deviations below the mean per gram on that nutrient
-               * else, with a random food 
+            * if possible, with a food from our corpus that is < 0.5 standard deviations below the mean per gram on that nutrient
+            * else, with a random food 
         * `adjust_portion_sizes.R` is a brute force alternative to a linear programming solver that only addresses positive nutrients
             * If the combined amount of a nutrient in our menu is below the minimum, find the food in our menu that is highest in this positive nutrient per gram and increase its amount by 10% until we're above that particular nutrient threshold
             * `adjust_portion_sizes_and_square_calories.R` does the same while decreasing the total calorie count in the amount that it was increased by the adjustment
@@ -36,9 +36,9 @@ Daily menu planning and optimization using foods from the [USDA food database](h
             * First argument is a menu -- with either nutrients in nutrient values per 100g of food or raw gram weight of nutrients, as specified by the `df_is_per_100g` boolean flag
             * Second is a dataframe of nutritional constraints
             * Other levers to pull:
-                * Should this be solved with only full portion sizes (integer coefficients on the original portion sizes provided)
+                * Should this be solved with only full portion sizes (integer coefficients on the original portion sizes provided)?
                 * Upper and lower bounds for each portion size
-                * Should you be told the cost and whether we arrived at a feasible solution
+                * Should you be told the cost and whether we arrived at a feasible solution?
          * `solve_menu.R` 
              * Take a solution (from `solve_it()`) and return a menu with the newly solved portion sizes (GmWt_1)
              * Optionally be told which food we've got the most of (largest number of portions) -- something we might want to decrease
