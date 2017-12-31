@@ -1,9 +1,9 @@
 library(tidyverse)
 library(rvest)
 
-example_url <- "http://allrecipes.com/recipe/244950/baked-chicken-schnitzel/?internalSource=streams&referringId=1947&referringContentType=recipe%20hub&clickId=st_trending_b"
+example_url <- "http://allrecipes.com/recipe/244950/baked-chicken-schnitzel/"
 schnitzel <- example_url %>% get_recipes()
-example_url %>% get_recipe_name()
+example_url %>% try_read() %>% get_recipe_name()
 
 base_url <- "http://allrecipes.com/recipe/"
 urls <- grab_urls(base_url, 244940:244950)
@@ -49,33 +49,44 @@ read_url <- function(url) {
 try_read <- possibly(read_url, otherwise = "Bad URL", quiet = TRUE)
 
 # Get recipe content and name it with the recipe title
-get_recipes <- function(url) {
+get_recipes <- function(url, obj) {
   
   recipe_page <- try_read(url)
   
-  if(recipe_page == "Bad URL" | (!class(recipe_page) %in% c("xml_document", "xml_node"))) { 
+  if(recipe_page == "Bad URL" | 
+     (!class(recipe_page) %in% c("xml_document", "xml_node"))) { 
     recipe_df <- recipe_page
+    
   } else {
-  
     recipe <- recipe_page %>% 
       get_recipe_content() %>% 
       map(remove_whitespace) %>% as_vector()
     
     recipe_name <- get_recipe_name(recipe_page)
     
-    
     recipe_df <- list(this_name = recipe) %>% as_tibble()   # could do with deparse(recipe_name)?
     names(recipe_df) <- recipe_name
-    
   } 
   
-  return(recipe_df)
+  out <- append(obj, recipe_df)
 }
 
-get_recipes(example_url)
+obj <- "x"
+
+foo <- get_recipes(example_url, obj)
 
 some_recipes <- c(urls[1:3], bad_url) %>% map(get_recipes)
 
 # Test that our bad URL doesn't error out
 expect_equal(get_recipes(bad_url), "Bad URL")
+
+
+
+# Most IDs seem to start with 1 or 2 and be either 5 or 6 digits long
+# Some 
+more_urls <- grab_urls(base_url, 10000:15000)
+more_recipes <- more_urls %>% map(get_recipes)
+
+
+
 
