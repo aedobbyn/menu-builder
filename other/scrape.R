@@ -20,6 +20,29 @@ recipe <- recipe %>%
   str_replace_all("\r", "")
 
 
+recipe <- recipe_page %>% 
+  html_nodes(".checkList__line") %>% 
+  html_text() %>% 
+  str_replace_all("ADVERTISEMENT", "") %>% 
+  str_replace_all("\n", "") %>% 
+  str_replace_all("\r", "")
+
+foo <- recipe[1] %>% str_split(" ") %>% as_vector()
+foo <- foo[!foo == ""]
+foo <- str_c(foo, collapse = " ")
+  
+  recipe[1] %>% str_extract_all(boundary("word"))
+
+remove_whitespace <- function(str) {
+  str <- recipe %>% str_split(" ") %>% as_vector()
+  str <- str[!str == ""]
+  str <- str_c(str, collapse = " ")
+  return(str)
+}
+
+recipe %>% map_chr(remove_whitespace)
+
+
 
   <ul class="checklist dropdownwrapper list-ingredients-1" ng-hide="reloaded" id="lst_ingredients_1">
     <li class="checkList__line">
