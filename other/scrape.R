@@ -21,6 +21,7 @@ remove_whitespace <- function(str) {
   return(str)
 }
 
+# Get the recipe title
 # Takes a page (a url that's been read_html'd)
 get_recipe_name <- function(page) {
   recipe_name <- page %>% 
@@ -29,6 +30,7 @@ get_recipe_name <- function(page) {
   return(recipe_name)
 }
 
+# Get the recipe content
 get_recipe_content <- function(page) {
   recipe <- page %>% 
     html_nodes(".checkList__line") %>% 
@@ -40,21 +42,40 @@ get_recipe_content <- function(page) {
   return(recipe)
 }
 
+# Safe reading -- don't error if we've got a bad URL, just tell us
+read_url <- function(url) {
+  page <- read_html(url)
+}
+try_read <- possibly(read_url, otherwise = "Bad URL", quiet = TRUE)
+
+# Get recipe content and name it with the recipe title
 get_recipes <- function(url) {
   
-  recipe_page <- read_html(url)
+  recipe_page <- try_read(url)
   
-  recipe <- recipe_page %>% 
-    get_recipe_content() %>% 
-    map(remove_whitespace) %>% as_vector()
+  if(recipe_page == "Bad URL" | (!class(recipe_page) %in% c("xml_document", "xml_node"))) { 
+    recipe_df <- recipe_page
+  } else {
   
-  recipe_name <- get_recipe_name(recipe_page)
-  
-  recipe_df <- list(this_name = recipe) %>% as_tibble()   # could do with deparse(recipe_name)?
-  names(recipe_df) <- recipe_name
+    recipe <- recipe_page %>% 
+      get_recipe_content() %>% 
+      map(remove_whitespace) %>% as_vector()
+    
+    recipe_name <- get_recipe_name(recipe_page)
+    
+    
+    recipe_df <- list(this_name = recipe) %>% as_tibble()   # could do with deparse(recipe_name)?
+    names(recipe_df) <- recipe_name
+    
+  } 
   
   return(recipe_df)
 }
 
-some_recipes <- urls[1:3] %>% map(get_recipes)
+get_recipes(example_url)
+
+some_recipes <- c(urls[1:3], bad_url) %>% map(get_recipes)
+
+# Test that our bad URL doesn't error out
+expect_equal(get_recipes(bad_url), "Bad URL")
 
