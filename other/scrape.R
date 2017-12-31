@@ -90,3 +90,20 @@ more_recipes <- more_urls %>% map(get_recipes)
 
 
 
+dfize <- function(lst) {
+  df <- NULL
+  lst <- lst[!lst == "Bad URL"]
+  
+  for (i in seq_along(lst)) {
+      recipe_name <- names(lst[[i]])
+      names(lst[[i]]) <- "ingredients"
+      this_df <- lst[[i]] %>% 
+        mutate(recipe_name = recipe_name)
+      df <- df %>% bind_rows(this_df)
+  }
+  return(df)
+}
+
+some_recipes_df <- dfize(some_recipes)
+
+
