@@ -89,7 +89,6 @@ more_recipes <- more_urls %>% map(get_recipes)
 
 
 
-
 dfize <- function(lst) {
   df <- NULL
   lst <- lst[!lst == "Bad URL"]
@@ -105,5 +104,37 @@ dfize <- function(lst) {
 }
 
 some_recipes_df <- dfize(some_recipes)
+
+
+measures <- c("ounce", "cup", "pound", "teaspoon", "tablespoon")
+# measures_plural <- str_c(measures, "s")    #  <--- probably don't need this 
+# measures <- c(measures, measures_plural)
+measures_collapsed <- str_c(measures, collapse = "|")
+  
+# Match any number, even if it has a decimal or slash in it
+portions_reg <- "[[:digit:]]+\\.*[[:digit:]]*+\\/*[[:digit:]]*"
+
+frac_to_dec <- function(e) {
+  e <- parse(text = e) %>% eval() %>% as.character()
+  return(e)
+}
+
+get_portions <- function(df) {
+  df <- df %>% 
+    mutate(
+      portion_num = str_extract(ingredients, portions_reg) %>% 
+        map_chr(frac_to_dec) %>% as.numeric() %>% round(digits = 2),
+      portion_name = str_extract(ingredients, measures_collapsed)
+    )
+  return(df)
+}
+
+
+
+some_recipes_df_decimal <- some_recipes_df
+some_recipes_df_decimal[1, ] <- "1.2 ounces chipotle cooking sauce"
+
+get_portions(some_recipes_df_decimal) %>% 
+  select(-recipe_name)
 
 
