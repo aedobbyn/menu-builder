@@ -42,7 +42,7 @@ get_recipe_content <- function(page) {
   return(recipe)
 }
 
-# Safe reading -- don't error if we've got a bad URL, just tell us
+# Safe reading -- don't error if we've got a bad URL, just tell us, don't exit the loop
 read_url <- function(url) {
   page <- read_html(url)
 }
@@ -70,10 +70,6 @@ get_recipes <- function(url, obj) {
   
   out <- append(obj, recipe_df)
 }
-
-obj <- "x"
-
-foo <- get_recipes(example_url, obj)
 
 some_recipes <- c(urls[1:3], bad_url) %>% map(get_recipes)
 
@@ -104,6 +100,7 @@ dfize <- function(lst) {
 }
 
 some_recipes_df <- dfize(some_recipes)
+# write_feather(some_recipes_df, "./data/some_recipes_df.feather")
 
 
 measures <- c("ounce", "cup", "pound", "teaspoon", "tablespoon")
@@ -121,17 +118,17 @@ frac_to_dec <- function(e) {
   return(out)
 }
 
+# We need this because eval() in frac_to_dec() only evaluates the last string in a vector, not both
 map_frac_to_dec <- function(e) {
   out <- NULL
-  # browser()
   for (i in e) {
     out <- e %>% map_chr(frac_to_dec)
   }
   return(out)
 }
 
-# Multiply numbers by each other
-# e.g., if we've got 2 (14 ounce) cans beef broth we want to know we need 28 oz
+# Multiply all numbers by each other 
+# e.g., if we've got 3 (14 ounce) cans beef broth we want to know we need 42 oz
 multiply_portions <- function(e) {
   out <- e %>% map_chr(frac_to_dec) %>% as.numeric() 
   if (length(e) > 1) {
@@ -140,36 +137,81 @@ multiply_portions <- function(e) {
   return(out)
 }
 
+# If two numbers are separated by an "or" or a "-" we know that this is a range,
+# e.g., 4-5 teaspoons of sugar. So we want to say that this
+
+is_range_reg <- "[[:digit:]]+\\-*[[:digit:]]*+\\or*[[:digit:]]*"
+range_splitters <- c(" or ", "-", " - ") %>% 
+  str_c(to_taste, collapse = "|")
+# dont_multiply
+# 
+# get_avg <- function(a, b) {
+#   if (dont_multiply == TRUE) {
+#     out <- mean(a, b)
+#   }
+#   return(out)
+# }
+
+# Logical indicating whether the amount is exact or not
+to_taste <- c("as desired", "as needed", "optional", "to taste") %>% 
+  str_c(to_taste, collapse = "|")
+
+
+# Putting it together, we get portion names and amounts
 get_portions <- function(df) {
   df <- df %>% 
     mutate(
-      portion_num = str_extract_all(ingredients, portions_reg) %>% 
-        map(map_frac_to_dec) %>% as.numeric() %>% 
-        map_dbl(multiply_portions) %>% round(digits = 2),
-      portion_name = str_extract(ingredients, measures_collapsed) # %>% first()
+      portion_num_avgd = str_extract_all(ingredients, is_range_reg) %>% 
+        map(str_split, pattern = range_splitters) %>% 
+        map(map_frac_to_dec) %>% map(as.numeric) %>%   
+        map_dbl(mean),
+      
+      portion_num = str_extract_all(ingredients, portions_reg) %>%  # Get all numbers in a list
+        map(map_frac_to_dec) %>% map(as.numeric) %>%   # Convert fractions to decimals
+        map_dbl(multiply_portions) %>% round(digits = 2),  # Multiply all numbers 
+      
+      portion_name = str_extract_all(ingredients, measures_collapsed) %>% 
+        map_chr(str_c, collapse = ", ", default = ""),   # If there are multiple arguments that match, separate them with a comma,
+      
+      to_taste = str_detect(ingredients, to_taste)
     )
   return(df)
 }
 
+get_portions(some_recipes_df)
+
+# Test it
+some_recipes_tester <- list(ingredients = vector()) %>% as_tibble()
+some_recipes_tester[1, ] <- "1.2 ounces or maybe pounds of something with a decimal"
+some_recipes_tester[2, ] <- "3 (14 ounce) cans o' beef broth"
+some_recipes_tester[3, ] <- "4 to 5 eels"
 
 
-some_recipes_tester <- some_recipes_df
-some_recipes_tester[1, ] <- "1.2 ounces of something with a decimal"
-some_recipes_tester[2, ] <- "3 (14 ounce) can reduced-sodium beef broth"
-some_recipes_tester <- some_recipes_tester %>% slice(1:3) %>% select(-recipe_name)
+tester_w_portions <- get_portions(some_recipes_tester) 
+expect_equal(tester_w_portions[1, ]$portion_name, "ounce, pound")
 
-bar <- get_portions(some_recipes_tester) 
-bar
-  
-baz <- str_extract_all(some_recipes_tester$ingredients, portions_reg) 
 
-baz[[2]] %>% map_chr(frac_to_dec)
 
-foo <- str_extract_all(some_recipes_df_decimal$ingredients, portions_reg) 
 
-foo[[2]] %>% map_chr(frac_to_dec) %>% as.numeric() %>% 
-  reduce(`*`)
 
-foo %>% map_dbl(multiply_portions)
+get_portion_avgs <- function(df) {
+  df <- df %>% 
+    mutate(
+      portion_num = if_else(str_detect(ingredients, pattern = " to "), 
+                            
+         str_extract_all(ingredients, portions_reg) %>%   # replace with is_range_reg
+          map(str_split, pattern = " to ", simplify = TRUE) %>%   # change to range_splitters
+          map(map_frac_to_dec) %>% map(as.numeric) %>%   
+          map_dbl(mean) %>% round(digits = 2),
+         
+         str_extract_all(ingredients, portions_reg) %>%  # Get all numbers in a list
+           map(map_frac_to_dec) %>% map(as.numeric) %>%   # Convert fractions to decimals
+           map_dbl(multiply_portions) %>% round(digits = 2)  # Multiply all numbers 
+      )
+    )
+  return(df)
+}
+
+get_portion_avgs(some_recipes_tester)
 
 
