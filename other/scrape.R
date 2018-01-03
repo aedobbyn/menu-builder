@@ -143,17 +143,18 @@ multiply_portions <- function(e) {
 
 # Regex for " or ", "-", " - " appearing between two numbers
 to_reg <- "([0-9])(( to ))(([0-9]))"
+or_reg <- "([0-9])(( or ))(([0-9]))"
 dash_reg_1 <- "([0-9])((-))(([0-9]))"
 dash_reg_2 <- "([0-9])(( - ))(([0-9]))"
 
 # --- Attempt to combine these, but lookaheads/behinds don't work
 # is_range_reg <- "(?<=[0-9])((-)*\n?)(( - )*\n?)(( to )*\n?)(?=([0-9]))" 
-# range_splitters <- c(" or ", "-", " - ") %>% 
-#   str_c(to_taste, collapse = "|")
+# range_splitters <- c(" to ",  or ", "-", " - ") %>% 
+#   str_c(collapse = "|")
 
 # Logical indicating whether the amount is exact or not
-to_taste <- c("as desired", "as needed", "optional", "to taste") %>% 
-  str_c(to_taste, collapse = "|")
+approximate <- c("about", "around", "as desired", "as needed", "optional",  "or so", "to taste") %>% 
+  str_c(collapse = "|")
 
 
 # Putting it together, we get portion names and amounts
@@ -165,8 +166,9 @@ get_portions <- function(df) {
       
       
       portion_num = if_else(str_detect(ingredients, pattern = to_reg) | 
-                              str_detect(ingredients, pattern = dash_reg_1) |
-                                 str_detect(ingredients, pattern = dash_reg_2),  
+                              str_detect(ingredients, pattern = or_reg) |
+                                str_detect(ingredients, pattern = dash_reg_1) |
+                                   str_detect(ingredients, pattern = dash_reg_2),  
                             
           # If we've got a range, (e.g., 3-4 cloves of garlic) take the average of the two, so 3.5                  
           str_extract_all(ingredients, portions_reg) %>%  
@@ -179,9 +181,9 @@ get_portions <- function(df) {
             map(as.numeric) %>% 
             map_dbl(mean) %>% round(digits = 2),
           
-          # Otherwise, if there are two numbers, we multiply them (i.e., 4 12 oz bottles of beer)
+          # Otherwise, if there are two numbers, we multiply them (i.e., 6 12oz bottles of beer)
           str_extract_all(ingredients, portions_reg) %>%  # Get all numbers in a list
-            modify_depth(1, frac_to_dec) %>% 
+            map(map_frac_to_dec) %>%   # not same as modify_depth(1, frac_to_dec)
             map(as.numeric) %>%   # Convert fractions to decimals
             map_dbl(multiply_portions) %>% round(digits = 2)  # Multiply all numbers 
       ),
@@ -189,7 +191,7 @@ get_portions <- function(df) {
       portion_name = str_extract_all(ingredients, measures_collapsed) %>% 
         map_chr(str_c, collapse = ", ", default = ""),   # If there are multiple arguments that match, separate them with a comma,
       
-      to_taste = str_detect(ingredients, to_taste)
+      approximate = str_detect(ingredients, approximate)
     )
   return(df)
 }
@@ -202,10 +204,10 @@ get_portions(some_recipes_df) %>% View()
 some_recipes_tester <- list(ingredients = vector()) %>% as_tibble()
 some_recipes_tester[1, ] <- "1.2 ounces or maybe pounds of something with a decimal"
 some_recipes_tester[2, ] <- "3 (14 ounce) cans o' beef broth"
-some_recipes_tester[3, ] <- "4 to 5 eels"
+some_recipes_tester[3, ] <- "around 4 or 5 eels"
 some_recipes_tester[4, ] <- "5-6 cans spam"
-some_recipes_tester[5, ] <- "11 - 46 birds"
-some_recipes_tester[6, ] <- "1/32 of a ham"
+some_recipes_tester[5, ] <- "11 - 46 tablespoons of sugar"
+some_recipes_tester[6, ] <- "1/3 to 1/2 of a ham"
 
 
 tester_w_portions <- get_portions(some_recipes_tester) 
@@ -215,3 +217,39 @@ expect_equal(tester_w_portions[1, ]$portion_name, "ounce, pound")
 get_portions(some_recipes_tester)
 
 
+
+
+# measurement types
+
+measurement_url <- "https://www.convert-me.com/en/convert/cooking/"
+
+measurement_types_raw <- measurement_url %>% 
+  read_html() %>% 
+  html_nodes(".usystem") %>% 
+  html_text()
+
+measurement_types <- measurement_types_raw %>% 
+  str_replace_all("\n", "") %>% 
+  str_replace_all("/", "") %>%
+  str_replace_all("Units:" , "")  %>% 
+  str_replace_all("U.S." , "")  %>% 
+  str_replace_all("British" , "")  %>% 
+  str_replace_all("\\(" , "") %>% 
+  str_replace_all("\\)" , "")
+
+measurement_types <- measurement_types[1:2] # third contains no more information
+
+for (i in seq_along(measurement_types)) {
+  measurement_types[i] <- substr(measurement_types[i], 42, nchar(measurement_types[i]))
+}
+
+measurement_types <- measurement_types %>% remove_whitespace() %>% 
+  str_split(" ") %>% unlist() %>% map_chr(str_replace_all, "[[:space:]]", "")
+measurement_types <- measurement_types[which(measurement_types != " " | measurement_types != "")] 
+measurement_types <- c(measurement_types, "fluid oz", "fluid ounces")
+measurement_types <- list(name = measurement_types) %>% as_tibble() %>% 
+  distinct() %>% 
+  filter(! name %in% c("dessert", "spoon", "fluid") & nchar(name) > 0) 
+
+
+measurement_types %>% print(n = nrow(.))
