@@ -1,5 +1,6 @@
 library(tidyverse)
 library(rvest)
+library(hash)
 
 example_url <- "http://allrecipes.com/recipe/244950/baked-chicken-schnitzel/"
 schnitzel <- example_url %>% get_recipes()
@@ -103,11 +104,59 @@ some_recipes_df <- dfize(some_recipes)
 # write_feather(some_recipes_df, "./data/some_recipes_df.feather")
 
 
-measures <- c("ounce", "cup", "pound", "teaspoon", "tablespoon")
-# measures_plural <- str_c(measures, "s")    #  <--- probably don't need this 
-# measures <- c(measures, measures_plural)
-measures_collapsed <- str_c(measures, collapse = "|")
-  
+# ---------------
+# Measurement types
+measurement_url <- "https://www.convert-me.com/en/convert/cooking/"
+
+measurement_types_raw <- measurement_url %>% 
+  read_html() %>% 
+  html_nodes(".usystem") %>% 
+  html_text()
+
+measurement_types <- measurement_types_raw %>% 
+  str_replace_all("\n", "") %>% 
+  str_replace_all("/", "") %>%
+  str_replace_all("Units:" , "")  %>% 
+  str_replace_all("U.S." , "")  %>% 
+  str_replace_all("British" , "")  %>% 
+  str_replace_all("\\(" , "") %>% 
+  str_replace_all("\\)" , "")
+
+measurement_types <- measurement_types[1:2] # third contains no more information
+
+for (i in seq_along(measurement_types)) {
+  measurement_types[i] <- substr(measurement_types[i], 42, nchar(measurement_types[i]))
+}
+
+measurement_types <- measurement_types %>% remove_whitespace() %>% 
+  str_split(" ") %>% unlist() %>% map_chr(str_replace_all, "[[:space:]]", "") 
+measurement_types <- measurement_types[which(measurement_types != " " | measurement_types != "")] 
+measurement_types <- list(name = measurement_types) %>% as_tibble() %>% 
+  distinct() %>% 
+  filter(! name %in% c("dessert", "spoon", "fluid", "fl") & nchar(name) > 0) 
+
+measurement_types %>% print(n = nrow(.))
+measures_collapsed <- measurement_types$name %>% str_c(collapse = "|")
+
+
+needs_abbrev <- c("tablespoon", "teaspoon", "cup")
+abbrevs_needed <- c("tbsp", "tsp", "c")
+extra_measurements <- list(name = needs_abbrev, key = abbrevs_needed) %>% as_tibble()
+
+measurement_types <- measurement_types %>% filter(!name %in% needs_abbrev) 
+abbrev_dict <- measurement_types %>%  mutate(
+  rownum = 1:nrow(.),
+  key = ifelse(rownum %% 2 != 0, lead(name), name)
+  ) %>% 
+  filter(!name == key) %>% 
+  select(-rownum) 
+abbrev_dict <- abbrev_dict %>% bind_rows(extra_measurements)
+
+# measurement_types <- c(measurement_types, "fluid oz", "fl oz", "fluid ounce")
+
+
+# ---------------
+
 # Match any number, even if it has a decimal or slash in it
 portions_reg <- "[[:digit:]]+\\.*[[:digit:]]*+\\/*[[:digit:]]*"
 
@@ -128,12 +177,16 @@ map_frac_to_dec <- function(e) {
 }
 
 
-# Multiply all numbers by each other, unless they're a range
+# Multiply all numbers by each other, unless they're a range or a complex fraction
 # e.g., if we've got 3 (14 ounce) cans beef broth we want to know we need 42 oz
-multiply_portions <- function(e) {
+multiply_or_add_portions <- function(e) {
   out <- e %>% map_chr(frac_to_dec) %>% as.numeric() 
   if (length(e) > 1) {
-    out <- out %>% reduce(`*`)
+    if (e[2] < 1) {  # If our second element is a fraction, we know this is a complex fraction so we add the two
+      out <- out %>% reduce(`+`)
+    } else {   # Otherwise, we multiply them
+      out <- out %>% reduce(`*`)
+    }   
   }
   return(out)
 }
@@ -185,11 +238,15 @@ get_portions <- function(df) {
           str_extract_all(ingredients, portions_reg) %>%  # Get all numbers in a list
             map(map_frac_to_dec) %>%   # not same as modify_depth(1, frac_to_dec)
             map(as.numeric) %>%   # Convert fractions to decimals
-            map_dbl(multiply_portions) %>% round(digits = 2)  # Multiply all numbers 
+            map_dbl(multiply_or_add_portions) %>% round(digits = 2)  # Multiply all numbers 
       ),
       
       portion_name = str_extract_all(ingredients, measures_collapsed) %>% 
-        map_chr(str_c, collapse = ", ", default = ""),   # If there are multiple arguments that match, separate them with a comma,
+        map_chr(str_c, collapse = ", ", default = ""),   # If there are multiple arguments that match, separate them with a ,
+      
+      portion_abbrev = ifelse(portion_name %in% abbrev_dict$name, 
+                            abbrev_dict[which(abbrev_dict$name == portion_name), ]$key, 
+                            portion_name),  
       
       approximate = str_detect(ingredients, approximate)
     )
@@ -208,6 +265,8 @@ some_recipes_tester[3, ] <- "around 4 or 5 eels"
 some_recipes_tester[4, ] <- "5-6 cans spam"
 some_recipes_tester[5, ] <- "11 - 46 tablespoons of sugar"
 some_recipes_tester[6, ] <- "1/3 to 1/2 of a ham"
+some_recipes_tester[7, ] <- "5 1/2 apples"
+
 
 
 tester_w_portions <- get_portions(some_recipes_tester) 
@@ -219,37 +278,4 @@ get_portions(some_recipes_tester)
 
 
 
-# measurement types
 
-measurement_url <- "https://www.convert-me.com/en/convert/cooking/"
-
-measurement_types_raw <- measurement_url %>% 
-  read_html() %>% 
-  html_nodes(".usystem") %>% 
-  html_text()
-
-measurement_types <- measurement_types_raw %>% 
-  str_replace_all("\n", "") %>% 
-  str_replace_all("/", "") %>%
-  str_replace_all("Units:" , "")  %>% 
-  str_replace_all("U.S." , "")  %>% 
-  str_replace_all("British" , "")  %>% 
-  str_replace_all("\\(" , "") %>% 
-  str_replace_all("\\)" , "")
-
-measurement_types <- measurement_types[1:2] # third contains no more information
-
-for (i in seq_along(measurement_types)) {
-  measurement_types[i] <- substr(measurement_types[i], 42, nchar(measurement_types[i]))
-}
-
-measurement_types <- measurement_types %>% remove_whitespace() %>% 
-  str_split(" ") %>% unlist() %>% map_chr(str_replace_all, "[[:space:]]", "")
-measurement_types <- measurement_types[which(measurement_types != " " | measurement_types != "")] 
-measurement_types <- c(measurement_types, "fluid oz", "fluid ounces")
-measurement_types <- list(name = measurement_types) %>% as_tibble() %>% 
-  distinct() %>% 
-  filter(! name %in% c("dessert", "spoon", "fluid") & nchar(name) > 0) 
-
-
-measurement_types %>% print(n = nrow(.))
