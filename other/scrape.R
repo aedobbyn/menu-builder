@@ -122,19 +122,13 @@ frac_to_dec <- function(e) {
 map_frac_to_dec <- function(e) {
   out <- NULL
   for (i in e) {
-    # if(length(e) > 0) {
       out <- e %>% map_chr(frac_to_dec)
-    # } else {
-    #   out <- NA
-    # }
   }
   return(out)
 }
 
 
-
-
-# Multiply all numbers by each other 
+# Multiply all numbers by each other, unless they're a range
 # e.g., if we've got 3 (14 ounce) cans beef broth we want to know we need 42 oz
 multiply_portions <- function(e) {
   out <- e %>% map_chr(frac_to_dec) %>% as.numeric() 
@@ -148,17 +142,14 @@ multiply_portions <- function(e) {
 # e.g., 4-5 teaspoons of sugar. So we want to say that this
 
 # Regex for " or ", "-", " - " appearing between two numbers
-is_range_reg <- "([0-9])((-)*\n?)(( - )*\n?)(( to )*\n?)([0-9])"
-range_splitters <- c(" or ", "-", " - ") %>% 
-  str_c(to_taste, collapse = "|")
-# dont_multiply
-# 
-# get_avg <- function(a, b) {
-#   if (dont_multiply == TRUE) {
-#     out <- mean(a, b)
-#   }
-#   return(out)
-# }
+to_reg <- "([0-9])(( to ))(([0-9]))"
+dash_reg_1 <- "([0-9])((-))(([0-9]))"
+dash_reg_2 <- "([0-9])(( - ))(([0-9]))"
+
+# --- Attempt to combine these, but lookaheads/behinds don't work
+# is_range_reg <- "(?<=[0-9])((-)*\n?)(( - )*\n?)(( to )*\n?)(?=([0-9]))" 
+# range_splitters <- c(" or ", "-", " - ") %>% 
+#   str_c(to_taste, collapse = "|")
 
 # Logical indicating whether the amount is exact or not
 to_taste <- c("as desired", "as needed", "optional", "to taste") %>% 
@@ -172,25 +163,26 @@ get_portions <- function(df) {
       raw_portion_num = str_extract_all(ingredients, portions_reg, simplify = FALSE) %>%   # Extract the raw portion numbers,
         map_chr(str_c, collapse = ", ", default = ""),   # separating by comma if multiple
       
-      # If we've got a range, (e.g., 3-4 cloves of garlic) take the average of the two, so 3.5
-      # Otherwise, if there are two numbers, we multiply them (i.e., 4 12 oz bottles of beer)
-      portion_num = if_else(str_detect(ingredients, pattern = is_range_reg),  
+      
+      portion_num = if_else(str_detect(ingredients, pattern = to_reg) | 
+                              str_detect(ingredients, pattern = dash_reg_1) |
+                                 str_detect(ingredients, pattern = dash_reg_2),  
                             
-          str_extract_all(ingredients, portions_reg) %>%   # Grab anything that's a number with our splitters between it
-            # as_vector() %>% str_extract_all(portions_reg) %>% # Now take just the numbers
-            # map(str_extract_all, pattern = portions_reg) %>% # Now take just the numbers
+          # If we've got a range, (e.g., 3-4 cloves of garlic) take the average of the two, so 3.5                  
+          str_extract_all(ingredients, portions_reg) %>%  
             
-            map(str_split, pattern = " to ", simplify = FALSE) %>%   # See if we can find a more elegant way of doing this
-            map(str_split, pattern = " - ", simplify = FALSE) %>% 
+            map(str_split, pattern = " to ", simplify = FALSE) %>%  # Split out numbers
+            map(str_split, pattern = " - ", simplify = FALSE) %>%  # See if we can find a more elegant way of doing this, maybe with range_splitters
             map(str_split, pattern = "-", simplify = FALSE) %>%
             
-            map(map_frac_to_dec) %>%
+            modify_depth(2, frac_to_dec) %>%  # same as map(map_frac_to_dec)
             map(as.numeric) %>% 
-            # modify_if(.p = is.character, .f = as.numeric) %>%   
-            map_dbl(mean) %>% map_dbl(multiply_portions) %>% round(digits = 2),
+            map_dbl(mean) %>% round(digits = 2),
           
+          # Otherwise, if there are two numbers, we multiply them (i.e., 4 12 oz bottles of beer)
           str_extract_all(ingredients, portions_reg) %>%  # Get all numbers in a list
-            map(map_frac_to_dec) %>% map(as.numeric) %>%   # Convert fractions to decimals
+            modify_depth(1, frac_to_dec) %>% 
+            map(as.numeric) %>%   # Convert fractions to decimals
             map_dbl(multiply_portions) %>% round(digits = 2)  # Multiply all numbers 
       ),
       
@@ -204,12 +196,16 @@ get_portions <- function(df) {
 
 get_portions(some_recipes_df) %>% View()
 
+
+
 # Test it
 some_recipes_tester <- list(ingredients = vector()) %>% as_tibble()
 some_recipes_tester[1, ] <- "1.2 ounces or maybe pounds of something with a decimal"
 some_recipes_tester[2, ] <- "3 (14 ounce) cans o' beef broth"
 some_recipes_tester[3, ] <- "4 to 5 eels"
 some_recipes_tester[4, ] <- "5-6 cans spam"
+some_recipes_tester[5, ] <- "11 - 46 birds"
+some_recipes_tester[6, ] <- "1/32 of a ham"
 
 
 tester_w_portions <- get_portions(some_recipes_tester) 
@@ -217,26 +213,5 @@ expect_equal(tester_w_portions[1, ]$portion_name, "ounce, pound")
 
 
 get_portions(some_recipes_tester)
-
-
-get_portion_avgs <- function(df) {
-  df <- df %>% 
-    mutate(
-      portion_num = if_else(str_detect(ingredients, pattern = " to "), 
-                            
-         str_extract_all(ingredients, portions_reg) %>%   # replace with is_range_reg
-          map(str_split, pattern = " to ", simplify = TRUE) %>%   # change to range_splitters
-          map(map_frac_to_dec) %>% map(as.numeric) %>%   
-          map_dbl(mean) %>% round(digits = 2),
-         
-         str_extract_all(ingredients, portions_reg) %>%  # Get all numbers in a list
-           map(map_frac_to_dec) %>% map(as.numeric) %>%   # Convert fractions to decimals
-           map_dbl(multiply_portions) %>% round(digits = 2)  # Multiply all numbers 
-      )
-    )
-  return(df)
-}
-
-get_portion_avgs(some_recipes_tester)
 
 
