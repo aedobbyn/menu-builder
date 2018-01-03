@@ -1,10 +1,8 @@
 library(tidyverse)
+library(stringr)
 library(rvest)
 library(hash)
-
-example_url <- "http://allrecipes.com/recipe/244950/baked-chicken-schnitzel/"
-schnitzel <- example_url %>% get_recipes()
-example_url %>% try_read() %>% get_recipe_name()
+library(testthat)
 
 base_url <- "http://allrecipes.com/recipe/"
 urls <- grab_urls(base_url, 244940:244950)
@@ -50,8 +48,9 @@ read_url <- function(url) {
 try_read <- possibly(read_url, otherwise = "Bad URL", quiet = TRUE)
 
 # Get recipe content and name it with the recipe title
-get_recipes <- function(url, obj) {
+get_recipes <- function(url, sleep = 5, trace = TRUE) {
   
+  Sys.sleep(sleep)    # Sleep in between requests to avoid 429 (too many requests)
   recipe_page <- try_read(url)
   
   if(recipe_page == "Bad URL" | 
@@ -64,18 +63,20 @@ get_recipes <- function(url, obj) {
       map(remove_whitespace) %>% as_vector()
     
     recipe_name <- get_recipe_name(recipe_page)
+    if (trace == TRUE) { message(recipe_page) }
     
-    recipe_df <- list(this_name = recipe) %>% as_tibble()   # could do with deparse(recipe_name)?
+    recipe_df <- list(tmp_name = recipe) %>% as_tibble()   # could do with deparse(recipe_name)?
     names(recipe_df) <- recipe_name
   } 
   
-  out <- append(obj, recipe_df)
+  recipe_df
+  # out <- append(obj, recipe_df)
 }
 
-some_recipes <- c(urls[1:3], bad_url) %>% map(get_recipes)
+some_recipes_2 <- c(urls[4:7]) %>% map(get_recipes)
 
 # Test that our bad URL doesn't error out
-expect_equal(get_recipes(bad_url), "Bad URL")
+expect_equal(get_recipes("foo"), "Bad URL")
 
 
 
@@ -100,7 +101,7 @@ dfize <- function(lst) {
   return(df)
 }
 
-some_recipes_df <- dfize(some_recipes)
+some_recipes_df <- dfize(some_recipes_2)
 # write_feather(some_recipes_df, "./data/some_recipes_df.feather")
 
 
@@ -136,8 +137,6 @@ measurement_types <- list(name = measurement_types) %>% as_tibble() %>%
   filter(! name %in% c("dessert", "spoon", "fluid", "fl") & nchar(name) > 0) 
 
 measurement_types %>% print(n = nrow(.))
-measures_collapsed <- measurement_types$name %>% str_c(collapse = "|")
-
 
 needs_abbrev <- c("tablespoon", "teaspoon", "cup")
 abbrevs_needed <- c("tbsp", "tsp", "c")
@@ -153,6 +152,8 @@ abbrev_dict <- measurement_types %>%  mutate(
 abbrev_dict <- abbrev_dict %>% bind_rows(extra_measurements)
 
 # measurement_types <- c(measurement_types, "fluid oz", "fl oz", "fluid ounce")
+
+measures_collapsed <- abbrev_dict$name %>% str_c(collapse = "|")
 
 
 # ---------------
@@ -171,7 +172,11 @@ frac_to_dec <- function(e) {
 map_frac_to_dec <- function(e) {
   out <- NULL
   for (i in e) {
+    if (length(e) == 0) {
+      out <- 0
+    } else {
       out <- e %>% map_chr(frac_to_dec)
+    }
   }
   return(out)
 }
@@ -180,8 +185,10 @@ map_frac_to_dec <- function(e) {
 # Multiply all numbers by each other, unless they're a range or a complex fraction
 # e.g., if we've got 3 (14 ounce) cans beef broth we want to know we need 42 oz
 multiply_or_add_portions <- function(e) {
-  out <- e %>% map_chr(frac_to_dec) %>% as.numeric() 
-  if (length(e) > 1) {
+  out <- e 
+  if (length(e) == 0) {
+    out <- 0    # NA to 0
+  } else if (length(e) > 1) {
     if (e[2] < 1) {  # If our second element is a fraction, we know this is a complex fraction so we add the two
       out <- out %>% reduce(`+`)
     } else {   # Otherwise, we multiply them
@@ -212,6 +219,7 @@ approximate <- c("about", "around", "as desired", "as needed", "optional",  "or 
 
 # Putting it together, we get portion names and amounts
 get_portions <- function(df) {
+  
   df <- df %>% 
     mutate(
       raw_portion_num = str_extract_all(ingredients, portions_reg, simplify = FALSE) %>%   # Extract the raw portion numbers,
@@ -230,23 +238,25 @@ get_portions <- function(df) {
             map(str_split, pattern = " - ", simplify = FALSE) %>%  # See if we can find a more elegant way of doing this, maybe with range_splitters
             map(str_split, pattern = "-", simplify = FALSE) %>%
             
-            modify_depth(2, frac_to_dec) %>%  # same as map(map_frac_to_dec)
+            map(map_frac_to_dec) %>%  # same as modify_depth(2, frac_to_dec)
             map(as.numeric) %>% 
+            # map(.f = function(x) ifelse(length(x) == 0, 0, x)) %>%   # Make NAs 0s
             map_dbl(mean) %>% round(digits = 2),
           
           # Otherwise, if there are two numbers, we multiply them (i.e., 6 12oz bottles of beer)
           str_extract_all(ingredients, portions_reg) %>%  # Get all numbers in a list
             map(map_frac_to_dec) %>%   # not same as modify_depth(1, frac_to_dec)
-            map(as.numeric) %>%   # Convert fractions to decimals
-            map_dbl(multiply_or_add_portions) %>% round(digits = 2)  # Multiply all numbers 
+            map(as.numeric) %>% 
+            map_dbl(multiply_or_add_portions) %>% 
+            round(digits = 2)  # Multiply all numbers 
       ),
       
       portion_name = str_extract_all(ingredients, measures_collapsed) %>% 
         map_chr(str_c, collapse = ", ", default = ""),   # If there are multiple arguments that match, separate them with a ,
       
-      portion_abbrev = ifelse(portion_name %in% abbrev_dict$name, 
-                            abbrev_dict[which(abbrev_dict$name == portion_name), ]$key, 
-                            portion_name),  
+      # portion_abbrev = ifelse(portion_name %in% abbrev_dict$name, 
+      #                       abbrev_dict[which(abbrev_dict$name == portion_name), ]$key, 
+      #                       portion_name),  
       
       approximate = str_detect(ingredients, approximate)
     )
@@ -254,7 +264,6 @@ get_portions <- function(df) {
 }
 
 get_portions(some_recipes_df) %>% View()
-
 
 
 # Test it
@@ -277,5 +286,7 @@ get_portions(some_recipes_tester)
 
 
 
-
+example_url <- "http://allrecipes.com/recipe/244950/baked-chicken-schnitzel/"
+schnitzel <- example_url %>% get_recipes()
+example_url %>% try_read() %>% get_recipe_name()
 
