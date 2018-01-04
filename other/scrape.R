@@ -55,7 +55,7 @@ get_recipes <- function(url, sleep = 5, trace = TRUE) {
   
   if(recipe_page == "Bad URL" | 
      (!class(recipe_page) %in% c("xml_document", "xml_node"))) { 
-    recipe_df <- recipe_page
+    recipe_df <- recipe_page    # If we've got a bad URL, recipe_df will be "Bad URL" because of the othwersie clause
     
   } else {
     recipe <- recipe_page %>% 
@@ -63,7 +63,7 @@ get_recipes <- function(url, sleep = 5, trace = TRUE) {
       map(remove_whitespace) %>% as_vector()
     
     recipe_name <- get_recipe_name(recipe_page)
-    if (trace == TRUE) { message(recipe_page) }
+    if (trace == TRUE) { message(recipe_name) }
     
     recipe_df <- list(tmp_name = recipe) %>% as_tibble()   # could do with deparse(recipe_name)?
     names(recipe_df) <- recipe_name
@@ -73,17 +73,12 @@ get_recipes <- function(url, sleep = 5, trace = TRUE) {
   # out <- append(obj, recipe_df)
 }
 
+# Get a list of recipes
 some_recipes_2 <- c(urls[4:7]) %>% map(get_recipes)
 
 # Test that our bad URL doesn't error out
 expect_equal(get_recipes("foo"), "Bad URL")
 
-
-
-# Most IDs seem to start with 1 or 2 and be either 5 or 6 digits long
-# Some 
-more_urls <- grab_urls(base_url, 10000:15000)
-more_recipes <- more_urls %>% map(get_recipes)
 
 
 # Take our list of recipes and make them into a dataframe with 
@@ -153,7 +148,23 @@ abbrev_dict <- abbrev_dict %>% bind_rows(extra_measurements)
 
 # measurement_types <- c(measurement_types, "fluid oz", "fl oz", "fluid ounce")
 
-measures_collapsed <- abbrev_dict$name %>% str_c(collapse = "|")
+name_measures_collapsed <- abbrev_dict$name %>% str_c(collapse = "|")
+
+abbrev_dict$name %>% str_c(collapse = "\b") %>%
+  str_split("\b") %>% str_c(collapse = "[[:digit:]]")
+
+vec_no_spaces <- vector()
+vec_w_spaces <- vector()
+for (i in abbrev_dict$key) {
+  out_no_spaces <- c("[[:digit:]]", i, " ") %>% str_c(collapse = "")    # using " " instead of \b for word boundary
+  out_w_spaces <- c("[[:digit:]] ", i, " ") %>% str_c(collapse = "")
+  vec_no_spaces <- c(vec_no_spaces, out_no_spaces) 
+  vec_w_spaces <- c(vec_w_spaces, out_w_spaces)
+}
+vec_no_spaces <- str_c(vec_no_spaces, collapse = "|")
+vec_w_spaces <- str_c(vec_w_spaces, collapse = "|")
+key_all <- str_c(vec_no_spaces, vec_w_spaces, collapse = "|")
+measures_collapsed <- str_c(key_all, name_measures_collapsed, collapse = "|")
 
 
 # ---------------
@@ -164,7 +175,11 @@ portions_reg <- "[[:digit:]]+\\.*[[:digit:]]*+\\/*[[:digit:]]*"
 # Turn fractions into decimals but keep them as character so we can put this in pipeline before 
 # the as.numeric() call
 frac_to_dec <- function(e) {
-  out <- parse(text = e) %>% eval() %>% as.character()
+  if (length(e) == 0) {    # If NA, make the portion 0
+    out <- 0
+  } else {
+    out <- parse(text = e) %>% eval() %>% as.character()
+  }
   return(out)
 }
 
@@ -172,11 +187,7 @@ frac_to_dec <- function(e) {
 map_frac_to_dec <- function(e) {
   out <- NULL
   for (i in e) {
-    if (length(e) == 0) {
-      out <- 0
-    } else {
       out <- e %>% map_chr(frac_to_dec)
-    }
   }
   return(out)
 }
@@ -240,7 +251,6 @@ get_portions <- function(df) {
             
             map(map_frac_to_dec) %>%  # same as modify_depth(2, frac_to_dec)
             map(as.numeric) %>% 
-            # map(.f = function(x) ifelse(length(x) == 0, 0, x)) %>%   # Make NAs 0s
             map_dbl(mean) %>% round(digits = 2),
           
           # Otherwise, if there are two numbers, we multiply them (i.e., 6 12oz bottles of beer)
@@ -252,11 +262,12 @@ get_portions <- function(df) {
       ),
       
       portion_name = str_extract_all(ingredients, measures_collapsed) %>% 
+        str_extract_all("[a-z]+") %>% # Get rid of numbers
         map_chr(str_c, collapse = ", ", default = ""),   # If there are multiple arguments that match, separate them with a ,
       
-      # portion_abbrev = ifelse(portion_name %in% abbrev_dict$name, 
-      #                       abbrev_dict[which(abbrev_dict$name == portion_name), ]$key, 
-      #                       portion_name),  
+      portion_abbrev = ifelse(portion_name %in% abbrev_dict$name,
+                            abbrev_dict[which(abbrev_dict$name == portion_name), ]$key,
+                            portion_name),
       
       approximate = str_detect(ingredients, approximate)
     )
@@ -272,10 +283,10 @@ some_recipes_tester[1, ] <- "1.2 ounces or maybe pounds of something with a deci
 some_recipes_tester[2, ] <- "3 (14 ounce) cans o' beef broth"
 some_recipes_tester[3, ] <- "around 4 or 5 eels"
 some_recipes_tester[4, ] <- "5-6 cans spam"
-some_recipes_tester[5, ] <- "11 - 46 tablespoons of sugar"
+some_recipes_tester[5, ] <- "11 - 46 tbsp of sugar"
 some_recipes_tester[6, ] <- "1/3 to 1/2 of a ham"
 some_recipes_tester[7, ] <- "5 1/2 apples"
-
+some_recipes_tester[8, ] <- "4g cinnamon"
 
 
 tester_w_portions <- get_portions(some_recipes_tester) 
@@ -289,4 +300,28 @@ get_portions(some_recipes_tester)
 example_url <- "http://allrecipes.com/recipe/244950/baked-chicken-schnitzel/"
 schnitzel <- example_url %>% get_recipes()
 example_url %>% try_read() %>% get_recipe_name()
+
+
+
+# ---------- Get a lot of recipes ---------
+
+# Most IDs seem to start with 1 or 2 and be either 5 or 6 digits long
+# Some 
+more_urls <- grab_urls(base_url, 10000:11000)
+more_recipes <- more_urls %>% map(get_recipes)
+
+
+
+
+foo <- list (a = rep(1, 3), b = rep(2, 3), c = rep(3, 3))
+
+
+out <- NULL
+for (i in foo) {
+  out <- append(out, list(i, "b"))
+  print(out)
+}
+out
+
+
 
