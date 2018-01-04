@@ -134,7 +134,7 @@ measurement_types <- list(name = measurement_types) %>% as_tibble() %>%
 measurement_types %>% print(n = nrow(.))
 
 needs_abbrev <- c("tablespoon", "teaspoon", "cup")
-abbrevs_needed <- c("tbsp", "tsp", "c")
+abbrevs_needed <- c("tbsp", "tsp", "cup")
 extra_measurements <- list(name = needs_abbrev, key = abbrevs_needed) %>% as_tibble()
 
 measurement_types <- measurement_types %>% filter(!name %in% needs_abbrev) 
@@ -164,7 +164,7 @@ for (i in abbrev_dict$key) {
 vec_no_spaces <- str_c(vec_no_spaces, collapse = "|")
 vec_w_spaces <- str_c(vec_w_spaces, collapse = "|")
 key_all <- str_c(vec_no_spaces, vec_w_spaces, collapse = "|")
-measures_collapsed <- str_c(key_all, name_measures_collapsed, collapse = "|")
+measures_collapsed <- str_c(key_all, "|", name_measures_collapsed, collapse = "|")
 
 
 # ---------------
@@ -228,6 +228,27 @@ approximate <- c("about", "around", "as desired", "as needed", "optional",  "or 
   str_c(collapse = "|")
 
 
+nix_nas <- function(x) {
+  if (length(x) == 0) {
+    x <- ""
+  }
+  x
+}
+
+add_abbrevs <- function(df) {
+  out <- NULL
+  for (i in 1:nrow(df)) {
+    if (df$portion_name[i] %in% abbrev_dict$name) {
+      x <- abbrev_dict[which(abbrev_dict$name == df$portion_name[i]), ]$key
+    } else {
+      x <- df$portion_name[i]
+    }
+    out <- c(out, x)
+  }
+  out <- df %>% bind_cols(portion_abbrev = out)
+  return(out)
+}
+
 # Putting it together, we get portion names and amounts
 get_portions <- function(df) {
   
@@ -261,20 +282,30 @@ get_portions <- function(df) {
             round(digits = 2)  # Multiply all numbers 
       ),
       
-      portion_name = str_extract_all(ingredients, measures_collapsed) %>% 
-        str_extract_all("[a-z]+") %>% # Get rid of numbers
+      portion_name = str_extract_all(ingredients, measures_collapsed) %>% map(nix_nas) %>% 
+        str_extract_all("[a-z]+") %>% map(nix_nas) %>% # Get rid of numbers
         map_chr(str_c, collapse = ", ", default = ""),   # If there are multiple arguments that match, separate them with a ,
       
-      portion_abbrev = ifelse(portion_name %in% abbrev_dict$name,
-                            abbrev_dict[which(abbrev_dict$name == portion_name), ]$key,
-                            portion_name),
+      # portion_abbrev = ifelse(portion_name %in% abbrev_dict$name,
+      #                       abbrev_dict[which(abbrev_dict$name == portion_name), ]$key,
+      #                       portion_name),
       
       approximate = str_detect(ingredients, approximate)
     )
   return(df)
 }
 
-get_portions(some_recipes_df) %>% View()
+get_portions(some_recipes_df) %>% add_abbrevs() %>% View()
+
+
+
+
+foo <- get_portions(some_recipes_tester)
+
+foo %>% mutate(
+  portion_abbrev = portion_name %>% add_abbrevs()
+) %>% View()
+
 
 
 # Test it
@@ -285,7 +316,7 @@ some_recipes_tester[3, ] <- "around 4 or 5 eels"
 some_recipes_tester[4, ] <- "5-6 cans spam"
 some_recipes_tester[5, ] <- "11 - 46 tbsp of sugar"
 some_recipes_tester[6, ] <- "1/3 to 1/2 of a ham"
-some_recipes_tester[7, ] <- "5 1/2 apples"
+some_recipes_tester[7, ] <- "5 1/2 pounds apples"
 some_recipes_tester[8, ] <- "4g cinnamon"
 
 
@@ -307,21 +338,11 @@ example_url %>% try_read() %>% get_recipe_name()
 
 # Most IDs seem to start with 1 or 2 and be either 5 or 6 digits long
 # Some 
-more_urls <- grab_urls(base_url, 10000:11000)
-more_recipes <- more_urls %>% map(get_recipes)
+more_urls <- grab_urls(base_url, sample(10000:200000, size = 50))
+more_recipes <- more_urls %>% map(get_recipes, sleep = 3)
 
+more_recipes_df <- dfize(more_recipes)
 
+more_recipes_df <- get_portions(more_recipes_df) 
 
-
-foo <- list (a = rep(1, 3), b = rep(2, 3), c = rep(3, 3))
-
-
-out <- NULL
-for (i in foo) {
-  out <- append(out, list(i, "b"))
-  print(out)
-}
-out
-
-
-
+more_recipes_df %>% filter(approximate == TRUE)
