@@ -133,8 +133,9 @@ measurement_types <- list(name = measurement_types) %>% as_tibble() %>%
 
 measurement_types %>% print(n = nrow(.))
 
-needs_abbrev <- c("tablespoon", "teaspoon", "cup")
-abbrevs_needed <- c("tbsp", "tsp", "cup")
+# Add in things that didn't have abbreviations 
+needs_abbrev <- c("tablespoon", "teaspoon", "cup", "fluid ounce")
+abbrevs_needed <- c("tbsp", "tsp", "cup", "fluid oz")
 extra_measurements <- list(name = needs_abbrev, key = abbrevs_needed) %>% as_tibble()
 
 measurement_types <- measurement_types %>% filter(!name %in% needs_abbrev) 
@@ -163,7 +164,7 @@ for (i in abbrev_dict$key) {
 }
 vec_no_spaces <- str_c(vec_no_spaces, collapse = "|")
 vec_w_spaces <- str_c(vec_w_spaces, collapse = "|")
-key_all <- str_c(vec_no_spaces, vec_w_spaces, collapse = "|")
+key_all <- str_c(vec_no_spaces, "|", vec_w_spaces, collapse = "|")
 measures_collapsed <- str_c(key_all, "|", name_measures_collapsed, collapse = "|")
 
 
@@ -236,16 +237,16 @@ nix_nas <- function(x) {
 }
 
 add_abbrevs <- function(df) {
-  out <- NULL
-  for (i in 1:nrow(df)) {
+  # browser()
+  out <- vector(length = nrow(df))
+  for (i in seq_along(out)) {
     if (df$portion_name[i] %in% abbrev_dict$name) {
-      x <- abbrev_dict[which(abbrev_dict$name == df$portion_name[i]), ]$key
+      out[i] <- abbrev_dict[which(abbrev_dict$name == df$portion_name[i]), ]$key
     } else {
-      x <- df$portion_name[i]
+      out[i] <- df$portion_name[i]
     }
-    out <- c(out, x)
   }
-  out <- df %>% bind_cols(portion_abbrev = out)
+  out <- df %>% bind_cols(list(portion_abbrev = out) %>% as_tibble())
   return(out)
 }
 
@@ -284,7 +285,8 @@ get_portions <- function(df) {
       
       portion_name = str_extract_all(ingredients, measures_collapsed) %>% map(nix_nas) %>% 
         str_extract_all("[a-z]+") %>% map(nix_nas) %>% # Get rid of numbers
-        map_chr(str_c, collapse = ", ", default = ""),   # If there are multiple arguments that match, separate them with a ,
+        map(last),       # If there are multiple arguments that match, grab the last one
+        # map_chr(str_c, collapse = ", ", default = ""),   # If there are multiple arguments that match, separate them with a ,
       
       # portion_abbrev = ifelse(portion_name %in% abbrev_dict$name,
       #                       abbrev_dict[which(abbrev_dict$name == portion_name), ]$key,
@@ -299,15 +301,6 @@ get_portions(some_recipes_df) %>% add_abbrevs() %>% View()
 
 
 
-
-foo <- get_portions(some_recipes_tester)
-
-foo %>% mutate(
-  portion_abbrev = portion_name %>% add_abbrevs()
-) %>% View()
-
-
-
 # Test it
 some_recipes_tester <- list(ingredients = vector()) %>% as_tibble()
 some_recipes_tester[1, ] <- "1.2 ounces or maybe pounds of something with a decimal"
@@ -316,15 +309,16 @@ some_recipes_tester[3, ] <- "around 4 or 5 eels"
 some_recipes_tester[4, ] <- "5-6 cans spam"
 some_recipes_tester[5, ] <- "11 - 46 tbsp of sugar"
 some_recipes_tester[6, ] <- "1/3 to 1/2 of a ham"
-some_recipes_tester[7, ] <- "5 1/2 pounds apples"
+some_recipes_tester[7, ] <- "5 1/2 pounds of apples"
 some_recipes_tester[8, ] <- "4g cinnamon"
+some_recipes_tester[9, ] <- "about 17 fluid ounces of wine"
 
 
 tester_w_portions <- get_portions(some_recipes_tester) 
 expect_equal(tester_w_portions[1, ]$portion_name, "ounce, pound")
 
 
-get_portions(some_recipes_tester)
+get_portions(some_recipes_tester) %>% add_abbrevs() %>% View()
 
 
 
