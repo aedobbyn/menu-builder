@@ -58,12 +58,12 @@ get_recipes <- function(url, sleep = 5, trace = TRUE) {
     recipe_df <- recipe_page    # If we've got a bad URL, recipe_df will be "Bad URL" because of the othwersie clause
     
   } else {
+    recipe_name <- get_recipe_name(recipe_page)
+    if (trace == TRUE) { message(recipe_name) }
+    
     recipe <- recipe_page %>% 
       get_recipe_content() %>% 
       map(remove_whitespace) %>% as_vector()
-    
-    recipe_name <- get_recipe_name(recipe_page)
-    if (trace == TRUE) { message(recipe_name) }
     
     recipe_df <- list(tmp_name = recipe) %>% as_tibble()   # could do with deparse(recipe_name)?
     names(recipe_df) <- recipe_name
@@ -74,15 +74,67 @@ get_recipes <- function(url, sleep = 5, trace = TRUE) {
 }
 
 # Get a list of recipes
-some_recipes_2 <- c(urls[4:7]) %>% map(get_recipes)
+some_recipes_3 <- c(urls[4:7]) %>% map(get_recipes)
 
 # Test that our bad URL doesn't error out
 expect_equal(get_recipes("foo"), "Bad URL")
 
 
 
+
+get_recipes_full <- function(urls, sleep = 5, trace = TRUE) {
+  out <- NULL
+  
+  for (url in urls) {
+    Sys.sleep(sleep)    # Sleep in between requests to avoid 429 (too many requests)
+    recipe_page <- try_read(url)
+  
+    if(recipe_page == "Bad URL" | 
+       (!class(recipe_page) %in% c("xml_document", "xml_node"))) { 
+      recipe_df <- recipe_page    # If we've got a bad URL, recipe_df will be "Bad URL" because of the othwersie clause
+      
+    } else {
+      recipe_name <- get_recipe_name(recipe_page)
+      if (trace == TRUE) { message(recipe_name) }
+      
+      if (!recipe_name %in% names(out)) {
+      
+        recipe <- recipe_page %>% 
+          get_recipe_content() %>% 
+          map(remove_whitespace) %>% as_vector()
+        
+        recipe_list <- list(tmp_name = recipe) %>% as_tibble()   # could do with deparse(recipe_name)?
+        names(recipe_list) <- recipe_name
+      }
+    } 
+    out <- list(out, recipe_list)
+  }
+  return(out)
+}
+
+asdf <- get_recipes_full(urls[4:7])
+
+
+dfize_full <- function(lst) {
+  # browser()
+  df <- NULL
+  lst <- lst[!lst == "Bad URL"]
+  
+  for (i in seq_along(lst)) {
+    this_df <- lst[i] %>% as_tibble()
+    recipe_name <- names(lst[i])
+    names(this_df) <- "ingredients"
+    this_df <- this_df %>% 
+      mutate(recipe_name = recipe_name)
+    df <- df %>% bind_rows(this_df)
+  }
+  return(df)
+}
+
+
 # Take our list of recipes and make them into a dataframe with 
 dfize <- function(lst) {
+  # browser()
   df <- NULL
   lst <- lst[!lst == "Bad URL"]
   
@@ -283,8 +335,10 @@ get_portions <- function(df) {
             round(digits = 2)  # Multiply all numbers 
       ),
       
-      portion_name = str_extract_all(ingredients, measures_collapsed) %>% map(nix_nas) %>% 
-        str_extract_all("[a-z]+") %>% map(nix_nas) %>% # Get rid of numbers
+      portion_name = str_extract_all(ingredients, measures_collapsed) %>%
+        map(nix_nas) %>%
+        str_extract_all("[a-z]+") %>% 
+        # map(nix_nas) %>% # Get rid of numbers
         map(last),       # If there are multiple arguments that match, grab the last one
         # map_chr(str_c, collapse = ", ", default = ""),   # If there are multiple arguments that match, separate them with a ,
       
@@ -332,11 +386,13 @@ example_url %>% try_read() %>% get_recipe_name()
 
 # Most IDs seem to start with 1 or 2 and be either 5 or 6 digits long
 # Some 
-more_urls <- grab_urls(base_url, sample(10000:200000, size = 50))
-more_recipes <- more_urls %>% map(get_recipes, sleep = 3)
+more_urls_2 <- grab_urls(base_url, sample(100000:200000, size = 50))
+more_recipes_2 <- more_urls_2 %>% map(get_recipes, sleep = 3)
 
-more_recipes_df <- dfize(more_recipes)
+more_recipes_df_2 <- dfize(more_recipes_2)
 
-more_recipes_df <- get_portions(more_recipes_df) 
+more_recipes_df_2 <- get_portions(more_recipes_df_2) 
 
-more_recipes_df %>% filter(approximate == TRUE)
+View(more_recipes_df_2)
+
+more_recipes_df_2 %>% add_abbrevs() %>% View()
