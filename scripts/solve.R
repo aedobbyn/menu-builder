@@ -58,3 +58,25 @@ out <- build_menu(abbrev, seed = 9) %>%
 # Test equality
 are_equal(out %>% select(-cost),   # Cost is randomly assigned, for now
           compliant_one_swap %>% select(-cost))
+
+
+# Solve and swap if needed
+solve_and_swap <- function(df, seed = 9) {
+  menu <- build_menu(df, seed = seed) %>% 
+    do_menu_mutates() %>% 
+    solve_it(nutrient_df, min_food_amount = -1) %>% 
+    solve_menu()
+  
+  if (test_all_compliance(menu) == "Not Compliant") {
+    menu <- menu %>% 
+      do_single_swap(silent = TRUE)
+  }
+  
+  return(swapped_menu)
+}
+
+
+
+
+
+

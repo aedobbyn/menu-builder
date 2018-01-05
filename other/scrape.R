@@ -47,42 +47,9 @@ read_url <- function(url) {
 }
 try_read <- possibly(read_url, otherwise = "Bad URL", quiet = TRUE)
 
+
 # Get recipe content and name it with the recipe title
-get_recipes <- function(url, sleep = 5, trace = TRUE) {
-  
-  Sys.sleep(sleep)    # Sleep in between requests to avoid 429 (too many requests)
-  recipe_page <- try_read(url)
-  
-  if(recipe_page == "Bad URL" | 
-     (!class(recipe_page) %in% c("xml_document", "xml_node"))) { 
-    recipe_df <- recipe_page    # If we've got a bad URL, recipe_df will be "Bad URL" because of the othwersie clause
-    
-  } else {
-    recipe_name <- get_recipe_name(recipe_page)
-    if (trace == TRUE) { message(recipe_name) }
-    
-    recipe <- recipe_page %>% 
-      get_recipe_content() %>% 
-      map(remove_whitespace) %>% as_vector()
-    
-    recipe_df <- list(tmp_name = recipe) %>% as_tibble()   # could do with deparse(recipe_name)?
-    names(recipe_df) <- recipe_name
-  } 
-  
-  recipe_df
-  # out <- append(obj, recipe_df)
-}
-
-# Get a list of recipes
-some_recipes_3 <- c(urls[4:7]) %>% map(get_recipes)
-
-# Test that our bad URL doesn't error out
-expect_equal(get_recipes("foo"), "Bad URL")
-
-
-
-
-get_recipes_full <- function(urls, sleep = 5, trace = TRUE) {
+get_recipes <- function(urls, sleep = 5, trace = TRUE) {
   out <- NULL
   
   for (url in urls) {
@@ -95,9 +62,10 @@ get_recipes_full <- function(urls, sleep = 5, trace = TRUE) {
       
     } else {
       recipe_name <- get_recipe_name(recipe_page)
-      if (trace == TRUE) { message(recipe_name) }
       
       if (!recipe_name %in% names(out)) {
+        
+        if (trace == TRUE) { message(recipe_name) }
       
         recipe <- recipe_page %>% 
           get_recipe_content() %>% 
@@ -105,17 +73,33 @@ get_recipes_full <- function(urls, sleep = 5, trace = TRUE) {
         
         recipe_list <- list(tmp_name = recipe) %>% as_tibble()   # could do with deparse(recipe_name)?
         names(recipe_list) <- recipe_name
+        
+        out <- append(out, recipe_list)
+        
+      } else {
+        if (trace = TRUE) {
+          message("Skipping recipe we already have")
+        }
       }
     } 
-    out <- list(out, recipe_list)
   }
   return(out)
 }
 
+
+# Get a list of recipes
+some_recipes_4 <- get_recipes(c(urls[4], urls[4:7]))
+
+# Test that our bad URL doesn't error out
+expect_equal(get_recipes("foo"), "Bad URL")
+
+
+
 asdf <- get_recipes_full(urls[4:7])
 
 
-dfize_full <- function(lst) {
+# Take our list of recipes and make them into a dataframe with 
+dfize <- function(lst) {
   # browser()
   df <- NULL
   lst <- lst[!lst == "Bad URL"]
@@ -131,22 +115,6 @@ dfize_full <- function(lst) {
   return(df)
 }
 
-
-# Take our list of recipes and make them into a dataframe with 
-dfize <- function(lst) {
-  # browser()
-  df <- NULL
-  lst <- lst[!lst == "Bad URL"]
-  
-  for (i in seq_along(lst)) {
-      recipe_name <- names(lst[[i]])
-      names(lst[[i]]) <- "ingredients"
-      this_df <- lst[[i]] %>% 
-        mutate(recipe_name = recipe_name)
-      df <- df %>% bind_rows(this_df)
-  }
-  return(df)
-}
 
 some_recipes_df <- dfize(some_recipes_2)
 # write_feather(some_recipes_df, "./data/some_recipes_df.feather")
