@@ -58,7 +58,7 @@ test_pos_compliance <- function(orig_menu, capitalize_colname = TRUE) {
 # Calories
 test_calories <- function(our_menu) {
   total_cals <- sum((our_menu$Energ_Kcal * our_menu$GmWt_1), na.rm = TRUE)/100 
-  if (total_cals < 2300) {
+  if (2300 - total_cals > 0.01) {
     cal_compliance <- "Calories too low"
   } else {
     cal_compliance <- "Calorie compliant"

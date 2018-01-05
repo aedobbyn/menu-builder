@@ -27,8 +27,8 @@ positives <- names(abbrev)[c((!names(abbrev) %in% must_restrict) & (!names(abbre
 
 # Based on Rick's guidelines, set per the sheet PantryFoods, 100g Nutrient Data
 # Only considering Calcium to B6
-pos_nuts <- positives[4:18]
-pos_vals <- c(1000, 18, 400, 1000, 3500, 15, 2, 2, 70, 60, 2, 2, 20, 10, 2)
+pos_nuts <- positives[c(1, 4:18)]
+pos_vals <- c(56, 1000, 18, 400, 1000, 3500, 15, 2, 2, 70, 60, 2, 2, 20, 10, 2)
 
 pos_df <- as_tibble(list(positive_nut = pos_nuts, value = pos_vals))
 pos_hash <- hash(pos_nuts, pos_vals)
@@ -45,5 +45,4 @@ mr_hash <- hash(mr, mr_vals)
 # all nuts and must_restricts
 all_nut_and_mr_df <- rbind(mr_df %>% rename(nutrient = must_restrict), 
                            pos_df %>% rename(nutrient = positive_nut))
-
 
