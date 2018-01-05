@@ -51,6 +51,7 @@ try_read <- possibly(read_url, otherwise = "Bad URL", quiet = TRUE)
 # Get recipe content and name it with the recipe title
 get_recipes <- function(urls, sleep = 5, trace = TRUE) {
   out <- NULL
+  # browser()
   
   for (url in urls) {
     Sys.sleep(sleep)    # Sleep in between requests to avoid 429 (too many requests)
@@ -58,7 +59,8 @@ get_recipes <- function(urls, sleep = 5, trace = TRUE) {
   
     if(recipe_page == "Bad URL" | 
        (!class(recipe_page) %in% c("xml_document", "xml_node"))) { 
-      recipe_df <- recipe_page    # If we've got a bad URL, recipe_df will be "Bad URL" because of the othwersie clause
+      recipe_list <- recipe_page    # If we've got a bad URL, recipe_df will be "Bad URL" because of the otherwise clause
+      out <- append(out, recipe_list)   # Still append the message that we've got a bad URL 
       
     } else {
       recipe_name <- get_recipe_name(recipe_page)
@@ -77,22 +79,24 @@ get_recipes <- function(urls, sleep = 5, trace = TRUE) {
         out <- append(out, recipe_list)
         
       } else {
-        if (trace = TRUE) {
+        if (trace == TRUE) {
           message("Skipping recipe we already have")
         }
       }
-    } 
+    }
   }
   return(out)
 }
 
 
 # Get a list of recipes
-some_recipes_4 <- get_recipes(c(urls[4], urls[4:7]))
+# some_recipes_4 <- get_recipes(c(urls[4], urls[4:7]))
 
 # Test that our bad URL doesn't error out
 expect_equal(get_recipes("foo"), "Bad URL")
 
+# Check that we're not pulling in duplicate recipes
+expect_equal(get_recipes(c(urls[2], urls[2:3])), get_recipes(c(urls[2:3])))
 
 
 asdf <- get_recipes_full(urls[4:7])
