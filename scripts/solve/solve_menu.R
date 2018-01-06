@@ -15,12 +15,12 @@ solve_menu <- function(sol, v_v_verbose = TRUE) {
       ) 
   } else {
     df_solved <- sol$original_menu_per_g %>% 
-      select(shorter_desc, GmWt_1, serving_gmwt, everything()) %>% 
       mutate(
         solution_amounts = solved_col %>% as_vector(),    # If we've already got a solution amounts column, replace the old one with the new
         GmWt_1 = GmWt_1 * solution_amounts,
         cost = cost * solution_amounts
-      ) 
+      ) %>% 
+      select(shorter_desc, GmWt_1, serving_gmwt, everything()) 
   }
   
   max_food <- df_solved %>%                                   # Find what the most of any one food we've got is
