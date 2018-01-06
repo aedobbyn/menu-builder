@@ -4,6 +4,7 @@ wholesale_swap <- function(menu, df = abbrev, percent_to_swap = 0.5) {
   
   # browser()
   
+  # Get foods with the lowest solution amounts -- might think about using lowest scores instead
   min_solution_amount <- min(menu$solution_amounts)
   worst_foods <- menu %>% 
     filter(solution_amounts == min_solution_amount)
@@ -22,7 +23,9 @@ wholesale_swap <- function(menu, df = abbrev, percent_to_swap = 0.5) {
   }
   
   get_swap_candidates <- function(df, to_swap_out) {
-    swap_candidate <- sample_n(df, size = nrow(to_swap_out)) %>% 
+    swap_candidate <- df %>% 
+      filter(! (NDB_No %in% menu)) %>%    # We can't swap in a food that already exists in our menu
+      sample_n(., size = nrow(to_swap_out)) %>% 
       do_menu_mutates() %>% 
       mutate(solution_amounts = 1)    # Give us one serving of each of these new foods
     

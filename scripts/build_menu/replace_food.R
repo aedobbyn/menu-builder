@@ -24,6 +24,7 @@ replace_food_w_better <- function(orig_menu, max_offender, nutrient_to_restrict,
   
   replacment_food_pool <- abbrev %>% 
     drop_na_(all_nut_and_mr_df$nutrient) %>% filter(!(is.na(Energ_Kcal)) & !(is.na(GmWt_1))) %>% 
+    filter(! NDB_No %in% scaled$NDB_No) %>%    # This has to be a new food
     filter(NDB_No %in% scaled[scaled[[nutrient_to_restrict]] < (-1 * cutoff), ][["NDB_No"]])
   
   if(nrow(replacment_food_pool) == 0) {    # Rather than subbing in replace_food_w_rand() for replace_food_w_better() if we get an exception, just build it in

@@ -31,6 +31,9 @@ solve_full <- function(menu, seed = 15, min_food_amount = 1, percent_to_swap = 0
       counter <- counter + 1
       
       menu <- menu %>% 
+        # solve_it(nutrient_df, min_food_amount = min_food_amount) %>% 
+        # solve_menu() %>% 
+        # wholesale_swap(df = abbrev, percent_to_swap = percent_to_swap)
         do_single_swap(silent = silent)
       
     } else if (nrow(test_pos_compliance(menu)) > 0) {
@@ -55,11 +58,14 @@ solve_full <- function(menu, seed = 15, min_food_amount = 1, percent_to_swap = 0
 
 solve_full(solved_menu)
 
-build_menu(abbrev, seed = 11) %>% 
+# Test that our min solution amount gets carried through 
+x <- build_menu(abbrev, seed = 9) %>% 
   do_menu_mutates() %>% 
-  solve_it(nutrient_df, min_food_amount = 0.5) %>% 
-  solve_menu() %>% 
-  solve_full()
+  solve_it(nutrient_df, min_food_amount = 0.5) %>% solve_menu() %>%
+  solve_full(min_food_amount = 0.5, percent_to_swap = 1) 
 
-# expect_equal(solve_full(out), out)
+expect_equal(min(x$solution_amounts), 0.5)
+
+# Test that we're not touching menus that are already compliant
+expect_equal(solve_full(out), out)
 
