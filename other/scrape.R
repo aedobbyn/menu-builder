@@ -125,6 +125,7 @@ some_recipes_df <- dfize(some_recipes_2)
 source("./scripts/scrape/get_measurement_types.R")
 measures_collapsed <- get_measurement_types(from_file = TRUE)
 
+
 # Match any number, even if it has a decimal or slash in it
 portions_reg <- "[[:digit:]]+\\.*[[:digit:]]*+\\/*[[:digit:]]*"
 
@@ -149,20 +150,29 @@ map_frac_to_dec <- function(e) {
 }
 
 
+# We only do calculations on the first two numbers that appear
 # Multiply all numbers by each other, unless they're a range or a complex fraction
 # e.g., if we've got 3 (14 ounce) cans beef broth we want to know we need 42 oz
 multiply_or_add_portions <- function(e) {
-  out <- e 
   if (length(e) == 0) {
-    out <- 0    # NA to 0
+    e <- 0    # NA to 0
   } else if (length(e) > 1) {
     if (e[2] < 1) {  # If our second element is a fraction, we know this is a complex fraction so we add the two
-      out <- out %>% reduce(`+`)
+      e <- e[1:2] %>% reduce(`+`)
     } else {   # Otherwise, we multiply them
-      out <- out %>% reduce(`*`)
+      e <- e[1:2] %>% reduce(`*`)
     }   
   }
-  return(out)
+  return(e)
+}
+
+get_portion_means <- function(e) {
+  if (length(e) == 0) {
+    e <- 0    # NA to 0
+  } else if (length(e) > 1) {
+      e <- mean(e[1:2])
+  }
+  return(e)
 }
 
 # If two numbers are separated by an "or" or a "-" we know that this is a range,
@@ -183,7 +193,7 @@ dash_reg_2 <- "([0-9])(( - ))(([0-9]))"
 approximate <- c("about", "around", "as desired", "as needed", "optional",  "or so", "to taste") %>% 
   str_c(collapse = "|")
 
-
+# Change NAs to 0s elementwise
 nix_nas <- function(x) {
   if (length(x) == 0) {
     x <- ""
@@ -191,8 +201,9 @@ nix_nas <- function(x) {
   x
 }
 
+# Take portion types and add a column for their abbreviations
 add_abbrevs <- function(df) {
-  # browser()
+
   out <- vector(length = nrow(df))
   for (i in seq_along(out)) {
     if (df$portion_name[i] %in% abbrev_dict$name) {
@@ -204,6 +215,7 @@ add_abbrevs <- function(df) {
   out <- df %>% bind_cols(list(portion_abbrev = out) %>% as_tibble())
   return(out)
 }
+
 
 # Putting it together, we get portion names and amounts
 get_portions <- function(df) {
@@ -228,7 +240,7 @@ get_portions <- function(df) {
             
             map(map_frac_to_dec) %>%  # same as modify_depth(2, frac_to_dec)
             map(as.numeric) %>% 
-            map_dbl(mean) %>% round(digits = 2),
+            map_dbl(get_portion_means) %>% round(digits = 2),
           
           # Otherwise, if there are two numbers, we multiply them (i.e., 6 12oz bottles of beer)
           str_extract_all(ingredients, portions_reg) %>%  # Get all numbers in a list
@@ -241,8 +253,8 @@ get_portions <- function(df) {
       portion_name = str_extract_all(ingredients, measures_collapsed) %>%
         map(nix_nas) %>%
         str_extract_all("[a-z]+") %>% 
-        # map(nix_nas) %>% # Get rid of numbers
-        map(last),       # If there are multiple arguments that match, grab the last one
+        map(nix_nas) %>% # Get rid of numbers
+        map(last) %>% unlist(),       # If there are multiple arguments that match, grab the last one
         # map_chr(str_c, collapse = ", ", default = ""),   # If there are multiple arguments that match, separate them with a ,
       
       # portion_abbrev = ifelse(portion_name %in% abbrev_dict$name,
@@ -269,6 +281,9 @@ some_recipes_tester[6, ] <- "1/3 to 1/2 of a ham"
 some_recipes_tester[7, ] <- "5 1/2 pounds of apples"
 some_recipes_tester[8, ] <- "4g cinnamon"
 some_recipes_tester[9, ] <- "about 17 fluid ounces of wine"
+some_recipes_tester[10, ] <- "4-5 cans of 1/2 caf coffee"
+some_recipes_tester[11, ] <- "3 7oz figs with 1/3 rind"
+
 
 
 tester_w_portions <- get_portions(some_recipes_tester) 
