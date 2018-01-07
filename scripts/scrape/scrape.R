@@ -117,7 +117,7 @@ portions_reg <- "[[:digit:]]+\\.*[[:digit:]]*+\\/*[[:digit:]]*"
 
 # Only multiply numbers separated by " (" as in "3 (5 ounce) cans of broth"
 multiplier_reg <- "[[:digit:]]+ \\(+[[:digit:]]"   
-multiplier_reg_looser <- "[[:digit:]]+ \\(+[[:digit:]]"
+multiplier_reg_looser <- "[0-9]+\ +[0-9]"
 multiplier_regs <- str_c(multiplier_reg, multiplier_reg_looser, collapse = "|")
 
 # Turn fractions into decimals but keep them as character so we can put this in pipeline before 
@@ -247,6 +247,7 @@ get_portion_text <- function(df) {
 
 # If we've got a range, (e.g., 3-4 cloves of garlic) take the average of the two, so 3.5                  
 get_ranges <- function(e) {
+  
   if (determine_if_range(e) == TRUE) {
     out <- str_extract_all(e, portions_reg) %>%  
       
@@ -266,13 +267,22 @@ get_ranges <- function(e) {
 
 # If we've got something that needs to be multiplied, like "4 (12 oz) hams" or a fraction like "2/3 pound of butter",
 # then multiply or add those numbers as appropriate
-get_mult_add_portion <- function(e) {
-  if (str_detect(e, multiplier_reg) == TRUE) {
-    out <- e %>% str_extract_all(portions_reg) %>% 
-      map(map_frac_to_dec) %>%   # not same as modify_depth(1, frac_to_dec)
-      map(as.numeric) %>% 
-      map_dbl(multiply_or_add_portions) %>%   # Multiply all numbers
-      round(digits = 2)  
+get_mult_add_portion <- function(e, only_mult_after_paren = FALSE) {
+  if ((str_detect(e, multiplier_reg) == TRUE | str_detect(e, multiplier_reg_looser) == TRUE)
+      & only_mult_after_paren == FALSE) {  # If either matches and we don't care about where there's a parenthesis there or not
+      if (str_detect(e, multiplier_reg) == TRUE) {
+        out <- e %>% str_extract_all(portions_reg) %>% 
+          map(map_frac_to_dec) %>%   
+          map(as.numeric) %>% 
+          map_dbl(multiply_or_add_portions) %>%   
+          round(digits = 2)
+    } else {    # If we do care, and we have a parenthesis
+      out <- e %>% str_extract_all(portions_reg) %>% 
+        map(map_frac_to_dec) %>%   
+        map(as.numeric) %>% 
+        map_dbl(multiply_or_add_portions) %>%   
+        round(digits = 2)
+    }
   } else {
     out <- 0
   }
@@ -298,33 +308,37 @@ get_final_portion <- function(e, range_portion, mult_add_portion, ...) {
 
 
 
-get_portion_values <- function(df) {
+get_portion_values <- function(df, only_mult_after_paren = FALSE) {
   df <- df %>% 
     mutate(
       range_portion = map_dbl(ingredients, get_ranges),
-      mult_portion = map_dbl(ingredients, get_multiplied),
-      # portion = pmap_dbl(.l = list(ingredients, range_portion, mult_portion), .f = get_final_portion)  # TODO: implement this instead of the below
-      portion = ifelse(range_portion == 0 & mult_portion == 0,
+      mult_add_portion = map_dbl(ingredients, get_mult_add_portion, only_mult_after_paren = only_mult_after_paren),
+      # portion = pmap_dbl(.l = list(ingredients, range_portion, mult_add_portion), .f = get_final_portion)  # TODO: implement this instead of the below
+      portion = ifelse(range_portion == 0 & mult_add_portion == 0,
                        str_extract_all(ingredients, portions_reg) %>%
                          map(map_frac_to_dec) %>%
                          map(as.numeric) %>%
                          map_dbl(first),
-                       range_portion + mult_portion)   # Otherwise, take either the range or the multiplied value
+                       range_portion + mult_add_portion)   # Otherwise, take either the range or the multiplied value
     )
   return(df)
 }
 
 
 # Get portion text, 
-get_portions <- function(df, add_abbrevs = TRUE) {
+get_portions <- function(df, add_abbrevs = FALSE, pare_portion_info = FALSE) {
   df %<>% get_portion_text() 
   if (add_abbrevs == TRUE) {
     df %<>% add_abbrevs()
   }
   df %<>% get_portion_values()
+  if (pare_portion_info == TRUE) {
+    df %<>% select(-range_portion, -mult_add_portion)
+  }
   return(df)
 }
 
-some_recipes_tester %>% get_portion_text() %>% get_portion_values() %>% map_dbl(get_final_portion)
+some_recipes_tester %>% get_portion_text() %>% add_abbrevs %>% get_portion_values() %>% View()
+some_recipes_tester %>% get_portions(add_abbrevs = TRUE)
 
   
