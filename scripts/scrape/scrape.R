@@ -1,4 +1,5 @@
 library(tidyverse)
+library(magrittr)
 library(stringr)
 library(rvest)
 library(hash)
@@ -114,6 +115,11 @@ measures_collapsed <- get_measurement_types(from_file = TRUE)
 # Match any number, even if it has a decimal or slash in it
 portions_reg <- "[[:digit:]]+\\.*[[:digit:]]*+\\/*[[:digit:]]*"
 
+# Only multiply numbers separated by " (" as in "3 (5 ounce) cans of broth"
+multiplier_reg <- "[[:digit:]]+ \\(+[[:digit:]]"   
+multiplier_reg_looser <- "[[:digit:]]+ \\(+[[:digit:]]"
+multiplier_regs <- str_c(multiplier_reg, multiplier_reg_looser, collapse = "|")
+
 # Turn fractions into decimals but keep them as character so we can put this in pipeline before 
 # the as.numeric() call
 frac_to_dec <- function(e) {
@@ -216,43 +222,18 @@ add_abbrevs <- function(df) {
 
 
 # Putting it together, we get portion names and amounts
-get_portions <- function(df) {
+get_portion_text <- function(df) {
   
   df <- df %>% 
     mutate(
       raw_portion_num = str_extract_all(ingredients, portions_reg, simplify = FALSE) %>%   # Extract the raw portion numbers,
         map_chr(str_c, collapse = ", ", default = ""),   # separating by comma if multiple
       
-      
-      portion_num = if_else(str_detect(ingredients, pattern = to_reg | or_reg | dash_reg_1 | dash_reg_2) | 
-                              str_detect(ingredients, pattern = or_reg) |
-                              str_detect(ingredients, pattern = dash_reg_1) |
-                              str_detect(ingredients, pattern = dash_reg_2),  
-                            
-          # If we've got a range, (e.g., 3-4 cloves of garlic) take the average of the two, so 3.5                  
-          str_extract_all(ingredients, portions_reg) %>%  
-            
-            map(str_split, pattern = " to ", simplify = FALSE) %>%  # Split out numbers
-            map(str_split, pattern = " - ", simplify = FALSE) %>%  # See if we can find a more elegant way of doing this, maybe with range_splitters
-            map(str_split, pattern = "-", simplify = FALSE) %>%
-            
-            map(map_frac_to_dec) %>%  # same as modify_depth(2, frac_to_dec)
-            map(as.numeric) %>% 
-            map_dbl(get_portion_means) %>% round(digits = 2),
-          
-          # Otherwise, if there are two numbers, we multiply them (i.e., 6 12oz bottles of beer)
-          str_extract_all(ingredients, portions_reg) %>%  # Get all numbers in a list
-            map(map_frac_to_dec) %>%   # not same as modify_depth(1, frac_to_dec)
-            map(as.numeric) %>% 
-            map_dbl(multiply_or_add_portions) %>% 
-            round(digits = 2)  # Multiply all numbers 
-      ),
-      
       portion_name = str_extract_all(ingredients, measures_collapsed) %>%
         map(nix_nas) %>%
         str_extract_all("[a-z]+") %>% 
         map(nix_nas) %>% # Get rid of numbers
-        map(last) %>% unlist(),       # If there are multiple arguments that match, grab the last one
+        map_chr(last),       # If there are multiple arguments that match, grab the last one
         # map_chr(str_c, collapse = ", ", default = ""),   # If there are multiple arguments that match, separate them with a ,
       
       # portion_abbrev = ifelse(portion_name %in% abbrev_dict$name,
@@ -264,5 +245,86 @@ get_portions <- function(df) {
   return(df)
 }
 
+# If we've got a range, (e.g., 3-4 cloves of garlic) take the average of the two, so 3.5                  
+get_ranges <- function(e) {
+  if (determine_if_range(e) == TRUE) {
+    out <- str_extract_all(e, portions_reg) %>%  
+      
+      map(str_split, pattern = " to ", simplify = FALSE) %>%  # Split out numbers
+      map(str_split, pattern = " - ", simplify = FALSE) %>%  # See if we can find a more elegant way of doing this, maybe with range_splitters
+      map(str_split, pattern = "-", simplify = FALSE) %>%
+      
+      map(map_frac_to_dec) %>%  # same as modify_depth(2, frac_to_dec)
+      map(as.numeric) %>% 
+      map_dbl(get_portion_means) %>% round(digits = 2)
+    
+  } else {
+    out <- 0
+  }
+  return(out)
+}
+
+# If we've got something that needs to be multiplied, like "4 (12 oz) hams" or a fraction like "2/3 pound of butter",
+# then multiply or add those numbers as appropriate
+get_mult_add_portion <- function(e) {
+  if (str_detect(e, multiplier_reg) == TRUE) {
+    out <- e %>% str_extract_all(portions_reg) %>% 
+      map(map_frac_to_dec) %>%   # not same as modify_depth(1, frac_to_dec)
+      map(as.numeric) %>% 
+      map_dbl(multiply_or_add_portions) %>%   # Multiply all numbers
+      round(digits = 2)  
+  } else {
+    out <- 0
+  }
+  return(out)
+}
+
+# If we neither need to get a range nor multiply/add portions, we'll just take whatever number is in there
+
+get_final_portion <- function(e, range_portion, mult_add_portion, ...) {
+  if (range_portion == 0 & mult_add_portion == 0) {
+    out <- str_extract_all(e, portions_reg) %>% 
+      map(map_frac_to_dec) %>%   
+      map(as.numeric) %>% map_dbl(first)
+  # } else if (range_portion != 0 & mult_add_portion == 0) {
+  #   out <- range_portion
+  # } else if (range_portion == 0 & mult_add_portion != 0) {
+  #   out <- mult_add_portion
+  } else {
+    out <- range_portion + mult_add_portion 
+  }
+  return(out)
+}
 
 
+
+get_portion_values <- function(df) {
+  df <- df %>% 
+    mutate(
+      range_portion = map_dbl(ingredients, get_ranges),
+      mult_portion = map_dbl(ingredients, get_multiplied),
+      # portion = pmap_dbl(.l = list(ingredients, range_portion, mult_portion), .f = get_final_portion)  # TODO: implement this instead of the below
+      portion = ifelse(range_portion == 0 & mult_portion == 0,
+                       str_extract_all(ingredients, portions_reg) %>%
+                         map(map_frac_to_dec) %>%
+                         map(as.numeric) %>%
+                         map_dbl(first),
+                       range_portion + mult_portion)   # Otherwise, take either the range or the multiplied value
+    )
+  return(df)
+}
+
+
+# Get portion text, 
+get_portions <- function(df, add_abbrevs = TRUE) {
+  df %<>% get_portion_text() 
+  if (add_abbrevs == TRUE) {
+    df %<>% add_abbrevs()
+  }
+  df %<>% get_portion_values()
+  return(df)
+}
+
+some_recipes_tester %>% get_portion_text() %>% get_portion_values() %>% map_dbl(get_final_portion)
+
+  

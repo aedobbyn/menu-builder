@@ -37,10 +37,13 @@ get_portions(some_recipes_df) %>% add_abbrevs() %>% View()
 
 
 
-# Check that our range determiner is working
+# Check that our range and multiplier functions are working
 expect_true(determine_if_range("4 to 5 things"))
 expect_false(determine_if_range("4 5 things"))
 
+expect_equal(get_ranges("3-4"), get_ranges("3 to 4"), mean(3, 4))
+expect_equal(get_multiplied("3 (5 ounce cans)"), 3*5)
+expect_equal(get_multiplied("3 5 ounce cans)"), 0)
 
 
 # Test on our tester
@@ -48,7 +51,7 @@ tester_w_portions <- get_portions(some_recipes_tester)
 expect_equal(tester_w_portions[1, ]$portion_name, "ounce, pound")
 
 # Add abbreviations
-get_portions(some_recipes_tester) %>% add_abbrevs() %>% View()
+some_recipes_tester %>% get_portions() %>% add_abbrevs() %>% View()
 
 
 
