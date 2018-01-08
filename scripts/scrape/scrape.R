@@ -4,6 +4,8 @@ library(stringr)
 library(rvest)
 library(hash)
 library(testthat)
+devtools::install_github("aedobbyn/dobtools")
+library(dobtools)
 
 base_url <- "http://allrecipes.com/recipe/"
 
