@@ -341,4 +341,6 @@ get_portions <- function(df, add_abbrevs = FALSE, pare_portion_info = FALSE) {
 some_recipes_tester %>% get_portion_text() %>% add_abbrevs %>% get_portion_values() %>% View()
 some_recipes_tester %>% get_portions(add_abbrevs = TRUE)
 
+
+
   
