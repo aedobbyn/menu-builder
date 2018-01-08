@@ -88,3 +88,50 @@ get_measurement_types <- function(from_file = TRUE) {
   return(measures_collapsed)
 }
 
+
+
+# Other measurement types from https://github.com/NYTimes/ingredient-phrase-tagger/blob/master/ingredient_phrase_tagger/training/utils.py
+
+units <- c(
+  "cups", "cup",
+  "tablespoons", "tablespoon",
+  "teaspoons", "teaspoon",
+  "pounds", "pound",
+  "ounces", "ounce",
+  "cloves", "clove",
+  "sprigs", "sprig",
+  "pinches", "pinch",
+  "bunches", "bunch",
+  "slices", "slice",
+  "grams", "gram",
+  "heads", "head",
+  "quarts", "quart",
+  "stalks", "stalk",
+  "pints", "pint",
+  "pieces", "piece",
+  "sticks", "stick",
+  "dashes", "dash",
+  "fillets", "fillet",
+  "cans", "can",
+  "ears", "ear",
+  "packages", "package",
+  "strips", "strip",
+  "bulbs", "bulb",
+  "bottles", "bottle"
+)
+
+remove_plurals <- function(vec) {
+  plurals <- seq(1, length(vec), by = 2)
+  vec <- vec[-plurals]
+  return(vec)
+}
+
+units <- remove_plurals(units)
+
+add_other_measurement_types <- function() {
+  if (!exists(measurement_types)) {
+    measurement_types <- get_measurement_types_from_source() %>% as_vector()
+  }
+  all_measurement_types <- c(measurement_types, units) %>% unique()
+  return(all_measurement_types)
+}
