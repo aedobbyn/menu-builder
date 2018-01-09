@@ -13,8 +13,6 @@ build_menu <- function(df, seed = NULL, from_better_cutoff = NULL) {
     set.seed(seed)
   }
   
-  # browser()
-  
   # Optionally choose a floor for what the z-score of each food to build from should be
   if (!is.null(from_better_cutoff)) {
     assert_that(is.numeric(from_better_cutoff), msg = "from_better_cutoff must be numeric or NULL")
@@ -27,7 +25,7 @@ build_menu <- function(df, seed = NULL, from_better_cutoff = NULL) {
   }
   
   if (nrow(df) == 0) {
-    stop("No foods at this cutoff; try a lower cutoff.")
+    stop("No foods to speak of; you might try a lower cutoff.")
   }
     
   df <- df %>% drop_na_(all_nut_and_mr_df$nutrient) %>% 
@@ -54,21 +52,8 @@ build_menu <- function(df, seed = NULL, from_better_cutoff = NULL) {
     
     menu <- bind_rows(menu, food_i)   # add that row to our menu
   }
-  menu    # return the full menu
+  
+  return(menu)
 }
-
-
-# Make sure from_better_cutoff can't be character
-expect_error(build_menu(abbrev, from_better_cutoff = "foo"))
-
-# Scale on the way
-x <- build_menu(abbrev, seed = 15, from_better_cutoff = 1)
-# Scaled score should be greater than or equal to the cutoff we set 
-expect_gte(x %>% summarise(mean_score = mean(scaled_score)) %>% as_vector(),
-           1)
-# Change ranks to scaled wrt this particular menu, so mean scaled score should be 0
-y <- x %>% add_ranked_foods()
-expect_lt(y %>% summarise(mean_score = mean(scaled_score)) %>% as_vector(),
-           1)
 
 

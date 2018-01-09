@@ -63,7 +63,7 @@ test_calories <- function(our_menu) {
   } else {
     cal_compliance <- "Calorie compliant"
   }
-  cal_compliance
+  return(cal_compliance)
 }
 
 
@@ -82,7 +82,7 @@ test_all_compliance <- function(orig_menu) {
   } else {
     combined_compliance <- "Undetermined"
   }
-  combined_compliance
+  return(combined_compliance)
 }
 
 
@@ -106,6 +106,6 @@ test_all_compliance_verbose <- function(orig_menu) {
   } else {
     combined_compliance <- "Undetermined"
   }
-  print(uncompliant_message)
-  combined_compliance
+  message(uncompliant_message)
+  return(combined_compliance)
 }

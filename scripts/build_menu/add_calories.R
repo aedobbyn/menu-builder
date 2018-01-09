@@ -1,4 +1,5 @@
 # ---------------- Add Calories -------------
+# *** Refactored inside of build_menu, so this is deprecated ***
 
 # swapping in a single serving size of a given food for another might have put us below the minimum calorie requirement of 2300. If our
 # menu's total calories are too low, increase them by adding one serving of a random food from our database to the menu
@@ -19,5 +20,5 @@ add_calories <- function(orig_menu) {
     
     i <- sample(nrow(df), 1)   # resample a new index
   }
-  menu    # return the full menu
+  return(menu)    # return the full menu
 }

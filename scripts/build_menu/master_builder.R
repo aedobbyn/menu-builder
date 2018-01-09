@@ -3,8 +3,14 @@
 # ---------------- Build Compliant Menu ---------------
 # Combine all of the above to build a menu that is compliant in all three respects
 
-master_builder <- function(our_menu) {
-  # our_menu <- build_menu(abbrev)   # seed with a random menu
+master_builder <- function(from_scratch = FALSE, our_menu = NULL, verbose = TRUE) {
+  
+  assert_that(!(from_scratch == FALSE & is.null(our_menu)))
+  
+  if (from_scratch == TRUE & is.null(our_menu)) {
+    if (verbose == TRUE) { message("Building menu from scratch.") }
+    our_menu <- build_menu(abbrev)   # seed with a random menu
+  } 
   
   # define conditions
   total_cals <- sum((our_menu$Energ_Kcal * our_menu$GmWt_1), na.rm = TRUE)/100 
@@ -24,5 +30,9 @@ master_builder <- function(our_menu) {
       print("Something went wrong")
     }
   }
-  our_menu
+  return(our_menu)
 }
+
+
+
+
