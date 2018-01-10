@@ -27,6 +27,7 @@ pos_score <- function(orig_menu) {
     if (nut_score > 0) {
       nut_score <- 0
     } else if (is.na(nut_score)) {
+      message("Nutrient has no score")
       break
     }
     total_nut_score <- total_nut_score + nut_score

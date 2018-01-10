@@ -22,13 +22,10 @@ test_that("build_menu() works as expected", {
           })
 
 
-x <- add_calories(seed = 4)
-x$NDB_No %>% unique() %>% length()
-nrow(x)
 
-menu_too_low <- build_menu(abbrev) %>% smart_swap()
+menu_too_low <- build_menu(abbrev) %>% slice(1:2)
 test_calories(menu_too_low)
-menu_too_low %>% add_calories() %>% test_calories
+add_calories(menu_too_low) %>% test_calories()
 
 
 # Either from_scratch must be FALSE or our_menu must not be NULL
