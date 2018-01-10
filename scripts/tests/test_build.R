@@ -18,14 +18,19 @@ test_that("build_menu() works as expected", {
           # Make sure we have no dupes
           expect_equal(x$NDB_No %>% unique() %>% length(), 
                        nrow(x))
+          
+          # add_calories() works correctly 
+          menu_too_low <- build_menu(abbrev) %>% slice(1:2)
+          expect_equal(test_calories(menu_too_low), 
+                       "Calories too low")
+          expect_equal(add_calories(menu_too_low) %>% test_calories(), 
+                       "Calorie compliant")
 
           })
 
 
 
-menu_too_low <- build_menu(abbrev) %>% slice(1:2)
-test_calories(menu_too_low)
-add_calories(menu_too_low) %>% test_calories()
+
 
 
 # Either from_scratch must be FALSE or our_menu must not be NULL

@@ -1,5 +1,6 @@
 
-# source("./scripts/score/score_menu.R")
+source("./scripts/score/score_menu.R")
+source("./scripts/build/add_calories.R")
 # ranked_foods <- read_feather("./data/ranked_foods.feather")
 
 # ------------- Initial Builder ---------------
@@ -12,7 +13,7 @@ build_menu <- function(df = abbrev, menu = NULL, seed = NULL, from_better_cutoff
   if (!is.null(seed)) {
     set.seed(seed)
   }
-  # browser()
+  
   df <- df %>% drop_na_(all_nut_and_mr_df$nutrient) %>% 
     filter(!(is.na(Energ_Kcal)) & !(is.na(GmWt_1)))    # filter out rows that have NAs in columns that we need 
   
