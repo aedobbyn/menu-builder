@@ -5,15 +5,7 @@
 # requirement of 2300. If our menu's total calories are too low, increase them by adding one serving of a 
 # random food from our database to the menu
 
-add_calories <- function(menu = NULL, df = abbrev, seed = NULL) {
-  if (!is.null(seed)) {
-    set.seed(seed)
-  }
-  
-  df <- df %>% drop_na_(all_nut_and_mr_df$nutrient) %>% 
-    filter(!(is.na(Energ_Kcal)) & !(is.na(GmWt_1)))    # filter out rows that have NAs in columns that we need 
-  
-  # browser()
+add_calories <- function(menu = NULL, df = abbrev, seed = NULL, ...) {
   
   if (! is.null(menu)) {
     menu <- menu %>% drop_na_(all_nut_and_mr_df$nutrient) %>%  filter(!(is.na(Energ_Kcal)) & !(is.na(GmWt_1))) 
@@ -30,7 +22,7 @@ add_calories <- function(menu = NULL, df = abbrev, seed = NULL) {
       message("No more elligible foods to sample from. Returning menu too low in calories.")
       return(menu)
     } else {
-      food_i <- df %>% filter(!(NDB_No %in% menu$NDB_No)) %>% 
+      food_i <- df %>%
         sample_n(1) # resample a new index from a food that doesn't already exist in our menu
     }
     
@@ -41,15 +33,5 @@ add_calories <- function(menu = NULL, df = abbrev, seed = NULL) {
   }
   return(menu)    # return the full menu
 }
-
-menu_too_low <- build_menu(abbrev) %>% smart_swap()
-test_calories(menu_too_low)
-menu_too_low %>% add_calories() %>% test_calories
-
-
-# Make sure we have no dupes
-expect_equal(add_calories(seed = 4) %>% select(NDB_No) %>% count(), 
-             add_calories(seed = 4) %>% nrow())
-
 
 

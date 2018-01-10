@@ -1,6 +1,6 @@
 
 # source("./scripts/score/score_menu.R")
-ranked_foods <- write_feather("./data/ranked_foods.feather")
+# ranked_foods <- read_feather("./data/ranked_foods.feather")
 
 # ------------- Initial Builder ---------------
 
@@ -8,7 +8,7 @@ ranked_foods <- write_feather("./data/ranked_foods.feather")
 # until we're at or over 2300 calories
 # If we want to start building from a base of higher-scored foods, we can set from_better_cutoff to a z-score > 0
 
-build_menu <- function(df, seed = NULL, from_better_cutoff = NULL) {
+build_menu <- function(menu = NULL, df = abbrev, seed = NULL, from_better_cutoff = NULL) {
   if (!is.null(seed)) {
     set.seed(seed)
   }
@@ -27,14 +27,20 @@ build_menu <- function(df, seed = NULL, from_better_cutoff = NULL) {
   if (nrow(df) == 0) {
     stop("No foods to speak of; you might try a lower cutoff.")
   }
-    
+  
+  
   df <- df %>% drop_na_(all_nut_and_mr_df$nutrient) %>% 
     filter(!(is.na(Energ_Kcal)) & !(is.na(GmWt_1)))    # filter out rows that have NAs in columns that we need 
   
-  food_i <- df %>% filter(!NDB_No %in% menu$NDB_No) %>% sample_n(1) # sample a random row from df and save its index in i
-
-  cals <- 0   # set the builder variables to 0
-  menu <- NULL
+  menu <- menu %>% add_calories(menu = menu, df = df)
+  
+  if (! is.null(menu)) {
+    menu <- menu %>% drop_na_(all_nut_and_mr_df$nutrient) %>%  filter(!(is.na(Energ_Kcal)) & !(is.na(GmWt_1))) 
+    cals <- sum((menu$Energ_Kcal * menu$GmWt_1), na.rm = TRUE)/100   # set calories to our current number of calories
+  } else {
+    cals <- 0   # set the builder variables to 0
+    menu <- NULL
+  }
   
   while (cals < 2300) {
     df <- df %>% filter(!NDB_No %in% menu$NDB_No)
@@ -43,7 +49,8 @@ build_menu <- function(df, seed = NULL, from_better_cutoff = NULL) {
       message("No more elligible foods to sample from. Returning menu too low in calories.")
       return(menu)
     } else {
-      food_i <- df %>% sample_n(1) # resample a new index from a food that doesn't already exist in our menu
+      food_i <- df %>%
+        sample_n(1) # resample a new index from a food that doesn't already exist in our menu
     }
     
     this_food_cal <- (food_i$Energ_Kcal * food_i$GmWt_1)/100    # get the number of calories in 1 serving of this food (see N = (V*W)/100 formula)

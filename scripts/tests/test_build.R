@@ -15,7 +15,20 @@ test_that("build_menu() works as expected", {
           y <- x %>% add_ranked_foods()
           expect_lt(y %>% summarise(mean_score = mean(scaled_score)) %>% as_vector(),
                     1)
+          # Make sure we have no dupes
+          expect_equal(x$NDB_No %>% unique() %>% length(), 
+                       nrow(x))
+
           })
+
+
+x <- add_calories(seed = 4)
+x$NDB_No %>% unique() %>% length()
+nrow(x)
+
+menu_too_low <- build_menu(abbrev) %>% smart_swap()
+test_calories(menu_too_low)
+menu_too_low %>% add_calories() %>% test_calories
 
 
 # Either from_scratch must be FALSE or our_menu must not be NULL
