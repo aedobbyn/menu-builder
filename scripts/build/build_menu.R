@@ -31,7 +31,6 @@ build_menu <- function(df, seed = NULL, from_better_cutoff = NULL) {
   df <- df %>% drop_na_(all_nut_and_mr_df$nutrient) %>% 
     filter(!(is.na(Energ_Kcal)) & !(is.na(GmWt_1)))    # filter out rows that have NAs in columns that we need 
   
-  
   food_i <- df %>% filter(!NDB_No %in% menu$NDB_No) %>% sample_n(1) # sample a random row from df and save its index in i
 
   cals <- 0   # set the builder variables to 0

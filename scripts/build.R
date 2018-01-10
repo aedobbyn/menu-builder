@@ -4,7 +4,7 @@ source("./scripts/prep/abbrev.R")
 source("./scripts/prep/stats.R")
 
 # Building and tweaking scripts in /build_menu
-path <- "./scripts/build_menu"
+path <- "./scripts/build"
 for (f in list.files(path, pattern = "*.R", ignore.case = TRUE)) {
   source(str_c(path, "/", f))
 }
