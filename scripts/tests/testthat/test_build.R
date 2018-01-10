@@ -1,6 +1,5 @@
 
-source("./scripts/build_menu.R")
-
+source("./scripts/build.R")
 
 test_that("build_menu() works as expected", {
           # Make sure from_better_cutoff can't be character
@@ -19,7 +18,7 @@ test_that("build_menu() works as expected", {
           expect_equal(x$NDB_No %>% unique() %>% length(), 
                        nrow(x))
           
-          # add_calories() works correctly 
+          # add_calories() works correctly; note that menu is the first argument to add_calories() and df is the first argument to build_menu()
           menu_too_low <- build_menu(abbrev) %>% slice(1:2)
           expect_equal(test_calories(menu_too_low), 
                        "Calories too low")
