@@ -2,7 +2,7 @@
 # ---- Smart swap a single food for each nutrient
 # Same as smart_swap() without the while loops
 
-smart_swap_single <- function(orig_menu, cutoff = 0.5) {
+smart_swap_single <- function(orig_menu, cutoff = 0.5, verbose = FALSE) {
   
   swap_count <- 0
 
@@ -29,8 +29,10 @@ smart_swap_single <- function(orig_menu, cutoff = 0.5) {
       }
     }
   
-  print(paste0(swap_count, " swaps were completed."))
-  # message(paste0(swap_count, " swaps were completed."))
+  if (verbose == TRUE) {
+    print(paste0(swap_count, " swaps were completed."))
+  }
+  
   return(orig_menu)
 }
 

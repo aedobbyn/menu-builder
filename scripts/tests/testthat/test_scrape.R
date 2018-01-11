@@ -1,6 +1,6 @@
 
 # Scrape test
-source("./scripts/scrape.R")
+source("./scripts/scrape/scrape.R")
 
 # Artifically hard dataframe
 some_recipes_tester <- list(ingredients = vector()) %>% as_tibble()
@@ -26,15 +26,13 @@ urls <- grab_urls(base_url, 244940:244950)
 expect_equal(get_recipes("foo"), "Bad URL")
 
 # Check that we're not pulling in duplicate recipes
-expect_equal(get_recipes(c(urls[2], urls[2:3])), get_recipes(c(urls[2:3])))
+some_recipes <- get_recipes(urls[4:7]) 
+expect_equal(get_recipes(c(urls[4], urls[4:7])), some_recipes)
 
 
 # Get a list of recipes and form them into a dataframe
-some_recipes <- get_recipes(urls[4:7])
 some_recipes_df <- dfize(some_recipes)
-get_portions(some_recipes_df) %>% add_abbrevs() %>% View()
-# write_feather(some_recipes_df, "./data/some_recipes_df.feather")
-
+get_portions(some_recipes_df) %>% add_abbrevs()
 
 
 # Check that our range and multiplier functions are working
@@ -42,32 +40,22 @@ expect_true(determine_if_range("4 to 5 things"))
 expect_false(determine_if_range("4 5 things"))
 
 expect_equal(get_ranges("3-4"), get_ranges("3 to 4"), mean(3, 4))
-expect_equal(get_multiplied("3 (5 ounce cans)"), 3*5)
-expect_equal(get_multiplied("3 5 ounce cans)"), 0)
+expect_equal(get_mult_add_portion("3 (5 ounce cans)"), 3*5)
+expect_equal(get_mult_add_portion("3 5 ounce cans)"), 15)
 
 
 # Test on our tester
 tester_w_portions <- get_portions(some_recipes_tester) 
-expect_equal(tester_w_portions[1, ]$portion_name, "ounce, pound")
+expect_equal(tester_w_portions[1, ]$portion_name, "pound")    # We only grab the last word
 
 # Add abbreviations
-some_recipes_tester %>% get_portions() %>% add_abbrevs() %>% View()
+some_recipes_tester %>% get_portions() %>% add_abbrevs()
 
 
 
-example_url <- "http://allrecipes.com/recipe/244950/baked-chicken-schnitzel/"
-schnitzel <- example_url %>% get_recipes()
-example_url %>% try_read() %>% get_recipe_name()
 
+# ---------- Portion text and values ---------
 
-
-# ---------- Get a lot of recipes ---------
-
-# Most IDs seem to start with 1 or 2 and be either 5 or 6 digits long
-# Some 
-more_urls <- grab_urls(base_url, sample(100000:200000, size = 50))
-more_recipes <- more_urls %>% map(get_recipes, sleep = 3)
-more_recipes_df <- dfize(more_recipes)
-more_recipes_df <- get_portions(more_recipes_df) 
-more_recipes_df %>% add_abbrevs() %>% View()
+some_recipes_tester %>% get_portion_text() %>% add_abbrevs %>% get_portion_values()
+some_recipes_tester %>% get_portions(add_abbrevs = TRUE)
 

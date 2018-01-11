@@ -29,9 +29,6 @@ test_that("build_menu() works as expected", {
 
 
 
-
-
-
 # Either from_scratch must be FALSE or our_menu must not be NULL
 expect_error(
   master_builder(from_scratch = FALSE)

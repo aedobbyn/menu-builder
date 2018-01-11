@@ -4,8 +4,10 @@ library(stringr)
 library(rvest)
 library(hash)
 library(testthat)
-devtools::install_github("aedobbyn/dobtools")
+# devtools::install_github("aedobbyn/dobtools")
 library(dobtools)
+
+source("./scripts/scrape/get_measurement_types.R")
 
 base_url <- "http://allrecipes.com/recipe/"
 
@@ -53,7 +55,6 @@ try_read <- possibly(read_url, otherwise = "Bad URL", quiet = TRUE)
 # Get recipe content and name it with the recipe title
 get_recipes <- function(urls, sleep = 5, trace = TRUE, append_bad_URLs = TRUE) {
   out <- NULL
-  # browser()
   
   for (url in urls) {
     Sys.sleep(sleep)    # Sleep in between requests to avoid 429 (too many requests)
@@ -110,9 +111,8 @@ dfize <- function(lst) {
 }
 
 
-# Get a dictionary of our portion measurements
-source("./scripts/scrape/get_measurement_types.R")
-measures_collapsed <- get_measurement_types(from_file = TRUE)
+# Get a dictionary of our portion measurements; this gives us measurement_types() and abbrev_dict()
+get_measurement_types(from_file = TRUE)
 
 # Match any number, even if it has a decimal or slash in it
 portions_reg <- "[[:digit:]]+\\.*[[:digit:]]*+\\/*[[:digit:]]*"
@@ -340,8 +340,7 @@ get_portions <- function(df, add_abbrevs = FALSE, pare_portion_info = FALSE) {
   return(df)
 }
 
-some_recipes_tester %>% get_portion_text() %>% add_abbrevs %>% get_portion_values() %>% View()
-some_recipes_tester %>% get_portions(add_abbrevs = TRUE)
+
 
 
 

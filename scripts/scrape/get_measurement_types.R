@@ -84,7 +84,7 @@ get_measurement_types_from_source <- function(measurement_url = "https://www.con
   abbrevs_needed <- c("tbsp", "tsp", "cup", "fluid oz")
   extra_measurements <- list(name = needs_abbrev, key = abbrevs_needed) %>% as_tibble()
   
-  measurement_types <- measurement_types %>% filter(!name %in% needs_abbrev) 
+  measurement_types <<- measurement_types %>% filter(!name %in% needs_abbrev) 
   abbrev_dict <<- measurement_types %>%  mutate(
     rownum = 1:nrow(.),
     key = ifelse(rownum %% 2 != 0, lead(name), name)
@@ -92,8 +92,6 @@ get_measurement_types_from_source <- function(measurement_url = "https://www.con
     filter(!name == key) %>% 
     select(-rownum) 
   abbrev_dict <- abbrev_dict %>% bind_rows(extra_measurements)
-  
-  # measurement_types <- c(measurement_types, "fluid oz", "fl oz", "fluid ounce")
   
   if (add_other_measurement_types == TRUE) {
     measurement_types <- add_other_measurement_types()
@@ -132,11 +130,11 @@ get_measurement_types_from_source_collapsed <- function() {
 
 get_measurement_types <- function(from_file = TRUE) {
   if (from_file == TRUE) {
-    measures_collapsed <- read_rds("./data/measurement_types.rds")
+    measures_collapsed <<- read_rds("./data/measurement_types.rds")
+    abbrev_dict <<- read_feather("./data/abbrev_dict.feather")
   } else {
-    measures_collapsed <- get_measurement_types_from_source_collapsed()
+    measures_collapsed <<- get_measurement_types_from_source_collapsed()
   }
-  return(measures_collapsed)
 }
 
 
