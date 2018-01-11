@@ -1,20 +1,18 @@
 
+
+get_status <- function(seed = NULL, min_food_amount = 0.5, verbose = TRUE) {  
+  this_menu <- build_menu(seed = seed) %>% do_menu_mutates() %>% 
+    solve_it(min_food_amount = min_food_amount, verbose = verbose, only_full_servings = FALSE) %>% 
+    pluck("status")
+}
+
 # 0 means that an optimal solution was found
 simulate_menus <- function(n_sims = 10, min_food_amount = 0.5, verbose = FALSE) {
   
-  # browser()
-  
   # Choose as many random seeds as we have simulations
   seeds <- sample(1:n_sims, size = n_sims, replace = FALSE)
-
-  get_status <- function(seed = NULL, min_food_amount) {  
-    this_menu <- build_menu(seed = seed) %>% do_menu_mutates() %>% 
-      solve_it(min_food_amount = min_food_amount, verbose = verbose) %>% 
-      pluck("status")
-  }
   
   out <- seeds %>% map2_dbl(.y = min_food_amount, .f = get_status)
-  
   return(out)
 }
 # simulate_menus()
@@ -27,17 +25,22 @@ double_portions <- simulate_menus(n_sims = 100,
 
 
 
-simulate_spectrum <- function(min_food_amount = NULL) {
-  spectrum <- seq(from = 0, to = 1, by = 0.1)
-  out <- vector(length = n_sims)
+simulate_spectrum <- function(n_sims = 10, min_food_amount = NULL,
+                              from = 0, to = 1) {
+  interval <- (to - from) / n_sims
+  
+  spectrum <- seq(from = from, to = to, by = interval)
+  out <- vector(length = length(spectrum))
   for (prop in seq_along(spectrum)) {
-    this_status <- get_status(seed, min_food_amount = prop)
-    # out <- spectrum %>% map2_dbl(.y = min_food_amount, .f = simulate_menus
+    this_status <- get_status(min_food_amount = prop)
   }
+  # out <- spectrum %>% map2_dbl(.y = min_food_amount, .f = simulate_menus
+  
   out <- c(out, this_status)
+  return(out)
 }
 
-simulate_spectrum()
+simulate_spectrum(n_sims = 20)
 
 
 # ------ 10 simulations w for loop ----
