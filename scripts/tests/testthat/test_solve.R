@@ -1,4 +1,10 @@
 
+source("./scripts/solve.R")
+
+# Test equality
+are_equal(out %>% select(-cost),   # Cost is randomly assigned, for now
+          compliant_one_swap %>% select(-cost))
+
 
 test_that("The building and solving in full works correctly", {
   # Test that our min solution amount gets carried through 
@@ -13,8 +19,13 @@ test_that("The building and solving in full works correctly", {
   
           })
 
-wholesale_out <- wholesale_swap(out)
-setdiff(wholesale_out, out)
+
+test_that("Wholesale swap works", {
+  wholesale_out <- wholesale_swap(out)
+  setdiff(wholesale_out, out)
+})
 
 
-suppressMessages(solve_full(solved_menu, silent = TRUE))
+suppressMessages(solve_full(solved_menu, verbose = FALSE))
+
+

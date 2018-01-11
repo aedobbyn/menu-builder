@@ -52,8 +52,8 @@ solved_menu %>% test_all_compliance_verbose()
 compliant_menu %>% test_all_compliance_verbose()
 
 # Swap a single 
-solved_one_swap <- solved_menu %>% do_single_swap(silent = FALSE)
-compliant_one_swap <- compliant_menu %>% do_single_swap(silent = FALSE)
+solved_one_swap <- solved_menu %>% do_single_swap(verbose = TRUE)
+compliant_one_swap <- compliant_menu %>% do_single_swap(verbose = TRUE)
 
 # Score
 score_menu(menu)
@@ -65,15 +65,8 @@ out <- build_menu(abbrev, seed = 9) %>%
   do_menu_mutates() %>% 
   solve_it(nutrient_df, min_food_amount = -1) %>% 
   solve_menu() %>% 
-  do_single_swap(silent = TRUE)
+  do_single_swap(verbose = FALSE)
 
-# Test equality
-are_equal(out %>% select(-cost),   # Cost is randomly assigned, for now
-          compliant_one_swap %>% select(-cost))
-
-
-
-# solve_and_swap(abbrev)
 
 
 

@@ -50,11 +50,12 @@ simulate_spectrum <- function(n_intervals = 10, n_sims = 2, min_food_amount = NU
 status_spectrum <- simulate_spectrum(n_intervals = 100, n_sims = 10)
 
 
-ggplot(aes(min_amount, status)) +
-  geom_smooth() +
+ggplot(data = status_spectrum, aes(min_amount, 1 - status)) +
+  geom_smooth(se = FALSE, span = 0.01) +
   theme_minimal() +
   ggtitle("Curve of portion size vs. solvability") +
-  labs(x = "Minimum portion size", y = "Proportion of solutions")
+  labs(x = "Minimum portion size", y = "Proportion of solutions") +
+  ylim(0, 1)
 
 
 # ------ 10 simulations w for loop ----

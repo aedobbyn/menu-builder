@@ -64,5 +64,5 @@ build_menu(abbrev, seed = 11) %>%
   do_menu_mutates() %>% 
   solve_it(nutrient_df, min_food_amount = -1) %>% 
   solve_menu() %>% 
-  do_single_swap(silent = TRUE)
+  do_single_swap(verbose = FALSE)
 

@@ -199,7 +199,7 @@ determine_if_range <- function(ingredients) {
 approximate <- c("about", "around", "as desired", "as needed", "optional",  "or so", "to taste") %>% 
   str_c(collapse = "|")
 
-# Change NAs to 0s elementwise
+# Change NAs to 0s elementwise; this can also be done with coalesce(), apparenly emo::ji("sad")
 nix_nas <- function(x) {
   if (length(x) == 0) {
     x <- ""

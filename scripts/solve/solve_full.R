@@ -7,21 +7,24 @@
 # If we can't get to compliance after 50 iterations, give up and return what we've got
 
 solve_full <- function(menu, seed = 15, min_food_amount = 1, percent_to_swap = 0.5,
-                           silent = FALSE) {
-  # browser()
+                           verbose = TRUE, time_out_count = 50, return_menu = TRUE) {
   counter <- 0
   
   while (test_all_compliance(menu) == "Not Compliant") {
-    if (silent == FALSE) { message("No solution found -- menu not currently compliant") }
+    if (verbose == TRUE) { 
+      message("No solution found -- menu not currently compliant") 
+      message(test_all_compliance_verbose(menu)) }
     
-    if (silent == FALSE) { message(test_all_compliance_verbose(menu)) }
-    
-    if (counter == 50) {
-      if (silent == FALSE) { message("Time out; returning menu as is") }
-      return(menu)
+    if (counter == time_out_count) {
+      if (verbose == TRUE) { message("Time out; returning menu as is") }
+      if (return_menu == TRUE) {
+        return(menu)
+      }  else {
+        return(counter)
+      }
       
     } else if (counter > 0 && counter %% 10 == 0) {    # Every 10, do a wholesale swap
-      if (silent == FALSE) { message(" *** Running a wholesale swap. *** ") }
+      if (verbose == TRUE) { message(" *** Running a wholesale swap. *** ") }
       counter <- counter + 1
       
       menu <- menu %>% solve_it(nutrient_df, min_food_amount = min_food_amount) %>% 
@@ -29,21 +32,21 @@ solve_full <- function(menu, seed = 15, min_food_amount = 1, percent_to_swap = 0
         wholesale_swap(df = abbrev, percent_to_swap = percent_to_swap)
       
     } else if (nrow(test_mr_compliance(menu)) > 0) {
-      if (silent == FALSE) { message("Doing a single swap on all must restricts") }
+      if (verbose == TRUE) { message("Doing a single swap on all must restricts") }
       counter <- counter + 1
       
       menu <- menu %>% 
-        do_single_swap(silent = silent)
+        do_single_swap(verbose = verbose)
       
     } else if (nrow(test_pos_compliance(menu)) > 0) {
-      if (silent == FALSE) { message("Nutrients uncompliant; adjusting portions sizes") }
+      if (verbose == TRUE) { message("Nutrients uncompliant; adjusting portions sizes") }
       counter <- counter + 1
       
       menu <- menu %>% solve_it(nutrient_df, min_food_amount = min_food_amount) %>% 
         solve_menu()
       
     } else if (test_calories(menu) == "Calories too low") {
-       if (silent == FALSE) { message("Calories too low; adjusting portions sizes") }
+       if (verbose == TRUE) { message("Calories too low; adjusting portions sizes") }
       counter <- counter + 1
       
       menu <- menu %>% solve_it(nutrient_df, min_food_amount = min_food_amount) %>% 
@@ -52,6 +55,11 @@ solve_full <- function(menu, seed = 15, min_food_amount = 1, percent_to_swap = 0
   }
   
   message(paste0("Final compliance: ", test_all_compliance(menu)))
-  return(menu)
+  
+  if (return_menu == TRUE) {
+    return(menu)
+  }  else {
+    return(counter)
+  }
 }
 
