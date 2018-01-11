@@ -25,22 +25,36 @@ double_portions <- simulate_menus(n_sims = 100,
 
 
 
-simulate_spectrum <- function(n_sims = 10, min_food_amount = NULL,
-                              from = 0, to = 1) {
-  interval <- (to - from) / n_sims
+# Simulate some number of times for each interval between two boundaries
+simulate_spectrum <- function(n_intervals = 10, n_sims = 2, min_food_amount = NULL,
+                              from = -1, to = 1, verbose = FALSE) {
+  # browser()
+  interval <- (to - from) / n_intervals
+  spectrum <- seq(from = from, to = to, by = interval) %>% rep(n_sims) %>% sort()
   
-  spectrum <- seq(from = from, to = to, by = interval)
-  out <- vector(length = length(spectrum))
-  for (prop in seq_along(spectrum)) {
-    this_status <- get_status(min_food_amount = prop)
+  seeds <- sample(1:length(spectrum), size = length(spectrum), replace = FALSE)
+  
+  out_status <- vector(length = length(spectrum))
+  
+  for (i in seq_along(spectrum)) {
+    this_status <- get_status(seed = seeds[i], min_food_amount = spectrum[i], verbose = verbose)
+    out_status[i] <- this_status
   }
-  # out <- spectrum %>% map2_dbl(.y = min_food_amount, .f = simulate_menus
+  # out <- map2_dbl(.x = 5, .y = spectrum, .f = simulate_menus)
   
-  out <- c(out, this_status)
+  out <- list(min_amount = spectrum, status = out_status) %>% as_tibble()
+  
   return(out)
 }
 
-simulate_spectrum(n_sims = 20)
+status_spectrum <- simulate_spectrum(n_intervals = 100, n_sims = 10)
+
+
+ggplot(aes(min_amount, status)) +
+  geom_smooth() +
+  theme_minimal() +
+  ggtitle("Curve of portion size vs. solvability") +
+  labs(x = "Minimum portion size", y = "Proportion of solutions")
 
 
 # ------ 10 simulations w for loop ----
