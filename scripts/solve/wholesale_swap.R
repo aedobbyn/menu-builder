@@ -51,7 +51,4 @@ wholesale_swap <- function(menu, df = abbrev, percent_to_swap = 0.5) {
   
   return(out)
 }
-   
-wholesale_out <- wholesale_swap(out)
-setdiff(wholesale_out, out)
 

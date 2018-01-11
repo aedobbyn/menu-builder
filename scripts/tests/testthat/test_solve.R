@@ -13,3 +13,8 @@ test_that("The building and solving in full works correctly", {
   
           })
 
+wholesale_out <- wholesale_swap(out)
+setdiff(wholesale_out, out)
+
+
+suppressMessages(solve_full(solved_menu, silent = TRUE))

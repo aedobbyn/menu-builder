@@ -55,5 +55,3 @@ solve_full <- function(menu, seed = 15, min_food_amount = 1, percent_to_swap = 0
   return(menu)
 }
 
-suppressMessages(solve_full(solved_menu, silent = TRUE))
-

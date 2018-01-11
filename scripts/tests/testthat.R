@@ -17,7 +17,7 @@ path <- "./scripts/tests/testthat/"
 tests <- c("build", "scrape", "solve")
 test_files <- str_c(path, tests)
 
-for (f in list.files(test_files, pattern = "*.R", ignore.case = TRUE)) {
+for (t in list.files(test_files, pattern = "*.R", ignore.case = TRUE)) {
   source(str_c(test_files))
 }
 
