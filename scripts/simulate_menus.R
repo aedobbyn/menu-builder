@@ -49,6 +49,7 @@ simulate_spectrum <- function(n_intervals = 10, n_sims = 2, min_food_amount = NU
   return(out)
 }
 
+# Run it with the given spectrum
 status_spectrum <- simulate_spectrum(n_intervals = 100, n_sims = 10)
 
 # Plot the status spectrum
