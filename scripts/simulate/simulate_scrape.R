@@ -36,7 +36,8 @@ mixed_urls %>% count_bad(n_to_use = 2)
 
 
 
-simulate_scrape <- function(urls, n_intervals = 4, n_sims = 3, from = 0, to = 1, verbose = TRUE,
+simulate_scrape <- function(urls, n_intervals = 4, n_sims = 3, from = 0, to = 1, 
+                            verbose = TRUE, v_v_verbose = FALSE,
                             sleep = NULL) {
   
   # browser()
@@ -45,7 +46,7 @@ simulate_scrape <- function(urls, n_intervals = 4, n_sims = 3, from = 0, to = 1,
   percents_to_scrape <- seq(from = from, to = to, by = interval) %>% rep(n_intervals) %>% sort()
   percents_to_scrape <- percents_to_scrape[!percents_to_scrape == 0]  # Remove 0s
   
-  if (verbose == TRUE) {
+  if (v_v_verbose == TRUE) {
     message(paste0("Testing on: ", str_c(percents_to_scrape, collapse = ", ")))   
   }
   
@@ -53,7 +54,7 @@ simulate_scrape <- function(urls, n_intervals = 4, n_sims = 3, from = 0, to = 1,
   percents_bad <- vector("numeric", length = length(percents_to_scrape))
   
   for (i in seq_along(percents_to_scrape)) {
-    Sys.sleep(sleep)
+    if (!is.null(sleep)) { Sys.sleep(sleep) }
     
     this_bad <- mixed_urls %>% count_bad(percent_to_use = percents_to_scrape[i], seed = seeds[i])
     if (verbose == TRUE) {

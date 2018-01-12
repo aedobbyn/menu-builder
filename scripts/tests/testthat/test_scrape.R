@@ -28,7 +28,7 @@ expect_silent(get_recipes(c(urls[5], "bar"), verbose = FALSE))
 
 # Check that we're not pulling in duplicate recipes
 some_recipes <- get_recipes(urls[4:7]) 
-expect_equal(get_recipes(c(urls[4], urls[4:7])), some_recipes)
+expect_equal(get_recipes(c(urls[4], urls[4:7])), some_recipes)    # This only equal if not booted from allrecipes due to too many requests
 
 
 # Get a list of recipes and form them into a dataframe
