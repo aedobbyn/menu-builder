@@ -27,29 +27,42 @@ test_files <- str_c(path, str_c("test_", tests))
 # Run individual tests interactively or not
 run_tests <- function(line_by_line = TRUE, pattern = ".R") {
   files <- str_c(test_files, pattern)
+  # files <- "./scripts/tests/testthat/test_fake.R"
   
-  if (line_by_line == FALSE | interactive() == FALSE) {
+  if (line_by_line == FALSE ) {  # | interactive() == FALSE
     for (f in files) {
-      result <- try(source(f), silent = TRUE)
-      if (class(result) != "try-error") {
-        message("Passed")
-      } else {
-        message("Failed")
-      }
+      source(f)
     }
   } else {
-    for (f in files) {
-      answer <- readline(paste0("Should we test ", f, " ? \n y/n:       "))
-      if (answer == "y" | answer == "Y") {
-        result <- try(source(f))
-      } else {
-        message(paste0("Ok; not testing ", f, "."))
+    for (i in seq_along(files)) {
+      while (i <= 1:length(files)) {
+        answer <- readline(paste0("Should we test ", files[i], " ? \n y/n:       "))
+        if (answer == "y" | answer == "Y") {
+          i <- i + 1
+          result <- try(source(files[i]), silent = TRUE)
+          
+          if (inherits(result, "try-error")) {
+            message(" --- Failed --- ")
+          } else {
+            message(" --- Passed --- ")
+          }
+          
+        } else if (answer == "n" | answer == "N") {
+          i <- i + 1
+          message(paste0("Ok; not testing ", files[i], "."))
+          
+        } else {
+          i <- i - 1
+          message("Unrecognized choice submitted.")
+        }
       }
     }
   } 
 }
 
 run_tests()
+
+suppressMessages(suppressWarnings(run_tests())) 
 
 
 

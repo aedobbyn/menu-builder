@@ -9,3 +9,4 @@ accessdb.sql
 *rsconnect
 *./idea*
 .idea/
+./scripts/tests/testthat/test_fake.R
