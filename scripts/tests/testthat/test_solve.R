@@ -4,7 +4,7 @@ library(testthat)
 source("./scripts/solve.R")
 
 # Test equality
-are_equal(out %>% select(-cost),   # Cost is randomly assigned, for now
+expect_equal(out %>% select(-cost),   # Cost is randomly assigned, for now
           compliant_one_swap %>% select(-cost))
 
 # ---------- Transpose ----------
