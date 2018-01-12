@@ -11,7 +11,9 @@ dirs <- c("prep", "build", "score", "scrape", "solve")
 paths <- str_c("./scripts/", dirs)
 
 # Import all .R scripts from all the dirs above 
-dobtools::import_scripts(paths)
+for (p in paths) {
+  suppressPackageStartupMessages(dobtools::import_scripts(p))
+}
 
 
 #### Load tests ####
