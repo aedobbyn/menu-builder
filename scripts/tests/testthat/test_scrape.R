@@ -24,6 +24,7 @@ urls <- grab_urls(base_url, 244940:244950)
 
 # Test that our bad URL doesn't error out
 expect_equal(get_recipes("foo"), "Bad URL")
+expect_silent(get_recipes(c(urls[5], "bar"), verbose = FALSE))
 
 # Check that we're not pulling in duplicate recipes
 some_recipes <- get_recipes(urls[4:7]) 

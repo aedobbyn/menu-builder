@@ -5,7 +5,7 @@
 get_status <- function(seed = NULL, min_food_amount = 0.5, verbose = TRUE) {  
   this_menu <- build_menu(seed = seed) %>% do_menu_mutates() %>% 
     solve_it(min_food_amount = min_food_amount, verbose = verbose, only_full_servings = FALSE) %>% 
-    pluck("status")
+    purrr::pluck("status")
 }
 
 # For a given minimum portion size, what proportion of a random number of simulated menus can we solve?

@@ -7,7 +7,8 @@ library(testthat)
 # devtools::install_github("aedobbyn/dobtools")
 library(dobtools)
 
-source("./scripts/scrape/get_measurement_types.R")
+# Source in script for grabbing all the types of measurements (pound, ounce, etc. and their abbreviations in abbrev_dict())
+source("./scripts/scrape/get_measurement_types.R") 
 
 base_url <- "http://allrecipes.com/recipe/"
 
@@ -52,15 +53,15 @@ read_url <- function(url) {
 try_read <- possibly(read_url, otherwise = "Bad URL", quiet = TRUE)
 
 
-# Get recipe content and name it with the recipe title
-get_recipes <- function(urls, sleep = 5, trace = TRUE, append_bad_URLs = TRUE) {
+# Get recipe content and name it with the recipe title, returnign a list of dataframe recipes
+get_recipes <- function(urls, sleep = 5, verbose = TRUE, append_bad_URLs = TRUE) {
   out <- NULL
   
   for (url in urls) {
     Sys.sleep(sleep)    # Sleep in between requests to avoid 429 (too many requests)
     recipe_page <- try_read(url)
   
-    if(recipe_page == "Bad URL" | 
+    if (recipe_page == "Bad URL" || 
        (!class(recipe_page) %in% c("xml_document", "xml_node"))) { 
       recipe_list <- recipe_page    # If we've got a bad URL, recipe_df will be "Bad URL" because of the otherwise clause
       
@@ -71,7 +72,7 @@ get_recipes <- function(urls, sleep = 5, trace = TRUE, append_bad_URLs = TRUE) {
       
       if (!recipe_name %in% names(out)) {
         
-        if (trace == TRUE) { message(recipe_name) }
+        if (verbose == TRUE) { message(recipe_name) }
       
         recipe <- recipe_page %>% 
           get_recipe_content() %>% 
@@ -83,7 +84,7 @@ get_recipes <- function(urls, sleep = 5, trace = TRUE, append_bad_URLs = TRUE) {
         out <- append(out, recipe_list)
         
       } else {
-        if (trace == TRUE) {
+        if (verbose == TRUE) {
           message("Skipping recipe we already have")
         }
       }
@@ -94,10 +95,13 @@ get_recipes <- function(urls, sleep = 5, trace = TRUE, append_bad_URLs = TRUE) {
 
 
 # Take our list of recipes and make them into a dataframe with 
-dfize <- function(lst) {
-  # browser()
+dfize <- function(lst, remove_bad_urls = TRUE) {
+
   df <- NULL
-  lst <- lst[!lst == "Bad URL"]
+  if (remove_bad_urls == TRUE) {
+    lst <- lst[!lst == "Bad URL"]
+  }
+  # TODO: if it makes sense, write the else condition
   
   for (i in seq_along(lst)) {
     this_df <- lst[i] %>% as_tibble()
@@ -122,6 +126,7 @@ multiplier_reg <- "[[:digit:]]+ \\(+[[:digit:]]"
 multiplier_reg_looser <- "[0-9]+\ +[0-9]"
 multiplier_regs <- str_c(multiplier_reg, multiplier_reg_looser, collapse = "|")
 
+
 # Turn fractions into decimals but keep them as character so we can put this in pipeline before 
 # the as.numeric() call
 frac_to_dec <- function(e) {
@@ -133,6 +138,7 @@ frac_to_dec <- function(e) {
   return(out)
 }
 
+
 # We need this because eval() in frac_to_dec() only evaluates the last string in a vector, not both
 map_frac_to_dec <- function(e) {
   out <- NULL
@@ -141,6 +147,7 @@ map_frac_to_dec <- function(e) {
   }
   return(out)
 }
+
 
 # We only do calculations on the first two numbers that appear
 # Multiply all numbers by each other, unless they're a range or a complex fraction
@@ -158,6 +165,8 @@ multiply_or_add_portions <- function(e) {
   return(e)
 }
 
+
+# For use in get_ragng(): get the mean of the first two elements in a numeric vector
 get_portion_means <- function(e) {
   if (length(e) == 0) {
     e <- 0    # NA to 0
@@ -168,12 +177,17 @@ get_portion_means <- function(e) {
 }
 
 
-
 # Regex for " or ", "-", " - " appearing between two numbers
 to_reg <- "([0-9])(( to ))(([0-9]))"
 or_reg <- "([0-9])(( or ))(([0-9]))"
 dash_reg_1 <- "([0-9])((-))(([0-9]))"
 dash_reg_2 <- "([0-9])(( - ))(([0-9]))"
+
+# TODO: combine the above: lookaheads/behinds currently don't work
+# is_range_reg <- "(?<=[0-9])((-)*\n?)(( - )*\n?)(( to )*\n?)(?=([0-9]))" 
+# range_splitters <- c(" to ",  or ", "-", " - ") %>% 
+#   str_c(collapse = "|")
+
 
 # If two numbers are separated by an "or" or a "-" we know that this is a range,
 # e.g., 4-5 teaspoons of sugar. So we want to say that this
@@ -190,14 +204,10 @@ determine_if_range <- function(ingredients) {
 }
 
 
-# --- Attempt to combine these, but lookaheads/behinds don't work
-# is_range_reg <- "(?<=[0-9])((-)*\n?)(( - )*\n?)(( to )*\n?)(?=([0-9]))" 
-# range_splitters <- c(" to ",  or ", "-", " - ") %>% 
-#   str_c(collapse = "|")
-
 # Logical indicating whether the amount is exact or not
 approximate <- c("about", "around", "as desired", "as needed", "optional",  "or so", "to taste") %>% 
   str_c(collapse = "|")
+
 
 # Change NAs to 0s elementwise; this can also be done with coalesce(), apparenly emo::ji("sad")
 nix_nas <- function(x) {
@@ -207,6 +217,7 @@ nix_nas <- function(x) {
   x
 }
 
+
 # Take portion types and add a column for their abbreviations
 add_abbrevs <- function(df) {
 
@@ -214,10 +225,12 @@ add_abbrevs <- function(df) {
   for (i in seq_along(out)) {
     if (df$portion_name[i] %in% abbrev_dict$name) {
       out[i] <- abbrev_dict[which(abbrev_dict$name == df$portion_name[i]), ]$key
+      
     } else {
       out[i] <- df$portion_name[i]
     }
   }
+  
   out <- df %>% bind_cols(list(portion_abbrev = out) %>% as_tibble())
   return(out)
 }
@@ -235,17 +248,14 @@ get_portion_text <- function(df) {
         map(nix_nas) %>%
         str_extract_all("[a-z]+") %>% 
         map(nix_nas) %>% # Get rid of numbers
-        map_chr(last),       # If there are multiple arguments that match, grab the last one
+        map_chr(last),       # If there are multiple arguments that match, grab the last one (rather than solution below of comma-separating them)
         # map_chr(str_c, collapse = ", ", default = ""),   # If there are multiple arguments that match, separate them with a ,
-      
-      # portion_abbrev = ifelse(portion_name %in% abbrev_dict$name,
-      #                       abbrev_dict[which(abbrev_dict$name == portion_name), ]$key,
-      #                       portion_name),
-      
+
       approximate = str_detect(ingredients, approximate)
     )
   return(df)
 }
+
 
 # If we've got a range, (e.g., 3-4 cloves of garlic) take the average of the two, so 3.5                  
 get_ranges <- function(e) {
@@ -266,6 +276,7 @@ get_ranges <- function(e) {
   }
   return(out)
 }
+
 
 # If we've got something that needs to be multiplied, like "4 (12 oz) hams" or a fraction like "2/3 pound of butter",
 # then multiply or add those numbers as appropriate
@@ -291,31 +302,33 @@ get_mult_add_portion <- function(e, only_mult_after_paren = FALSE) {
   return(out)
 }
 
-# If we neither need to get a range nor multiply/add portions, we'll just take whatever number is in there
 
+# If we neither need to get a range nor multiply/add portions, we'll just take whatever the first number is in there
 get_final_portion <- function(e, range_portion, mult_add_portion, ...) {
   if (range_portion == 0 & mult_add_portion == 0) {
     out <- str_extract_all(e, portions_reg) %>% 
       map(map_frac_to_dec) %>%   
       map(as.numeric) %>% map_dbl(first)
-  # } else if (range_portion != 0 & mult_add_portion == 0) {
-  #   out <- range_portion
-  # } else if (range_portion == 0 & mult_add_portion != 0) {
-  #   out <- mult_add_portion
+
   } else {
-    out <- range_portion + mult_add_portion 
+    out <- range_portion + mult_add_portion   # One of these should be 0, so the sum should be just whichever one is non-zero
   }
   return(out)
 }
 
 
-
+# --- Take a recipe dataframe and append the values associated with each portion ---
+# range_portion: If we have a range, take the mean of the two numbers in the range; 0 otherwise
+# If we need to add complex fractions, add them; 0 otherwise
+# If we need to multiply two numbers to get the total portion size, do so
+# For the final portion value, if we have taken a range or added/multiplied, use that number; otherwise, the first number that appears
 get_portion_values <- function(df, only_mult_after_paren = FALSE) {
   df <- df %>% 
     mutate(
       range_portion = map_dbl(ingredients, get_ranges),
       mult_add_portion = map_dbl(ingredients, get_mult_add_portion, only_mult_after_paren = only_mult_after_paren),
-      # portion = pmap_dbl(.l = list(ingredients, range_portion, mult_add_portion), .f = get_final_portion)  # TODO: implement this instead of the below
+      # TODO: implement this instead of the below
+      # portion = pmap_dbl(.l = list(ingredients, range_portion, mult_add_portion), .f = get_final_portion)  
       portion = ifelse(range_portion == 0 & mult_add_portion == 0,
                        str_extract_all(ingredients, portions_reg) %>%
                          map(map_frac_to_dec) %>%
@@ -327,7 +340,8 @@ get_portion_values <- function(df, only_mult_after_paren = FALSE) {
 }
 
 
-# Get portion text, 
+# Get portion text and optionally add abbreviations
+# If pare_portion_info is TRUE, only keep the portion 
 get_portions <- function(df, add_abbrevs = FALSE, pare_portion_info = FALSE) {
   df %<>% get_portion_text() 
   if (add_abbrevs == TRUE) {
