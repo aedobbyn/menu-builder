@@ -13,8 +13,8 @@ library(dobtools)
 library(feather)
 library(assertthat)
 
-# --------- Build ---------
 
-# Build our original menu
+# --------- Build a menu ---------
+
 menu <- build_menu(abbrev, seed = 9)
 

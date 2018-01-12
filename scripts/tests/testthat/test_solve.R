@@ -61,8 +61,8 @@ singly_swapped <- do_single_swap(solved_menu)
 
 
 #  ------------  Score  ------------ 
-score_menu(solved_menu)
-score_menu(singly_swapped)
+expect_is(score_menu(solved_menu), "numeric")
+expect_is(score_menu(singly_swapped), "numeric")
 
 
 #  ------------ wholesale_swap()  ------------ 
@@ -72,18 +72,9 @@ test_that("Wholesale swap works", {
 })
 
 
-#  ------------ From the top  ------------ 
-build_menu(abbrev, seed = 11) %>% 
-  do_menu_mutates() %>% 
-  solve_it(nutrient_df, min_food_amount = -1) %>% 
-  solve_menu() %>% 
-  do_single_swap(verbose = FALSE)
-
-
-
-
 #  ------------ solve_full()  ------------ 
 test_that("The building and solving in full works correctly", {
+  
   # Test that our min solution amount gets carried through 
   x <- suppressMessages(build_menu(abbrev, seed = 9) %>% 
                           do_menu_mutates() %>% 
@@ -97,8 +88,6 @@ test_that("The building and solving in full works correctly", {
   # Test silence
   expect_silent(suppressMessages(solve_full(out, verbose = FALSE)))
 })
-
-
 
 
 
