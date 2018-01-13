@@ -57,14 +57,17 @@ try_read <- possibly(read_url, otherwise = "Bad URL", quiet = TRUE)
 # Get recipe content and name it with the recipe title, returnign a list of dataframe recipes
 get_recipes <- function(urls, sleep = 5, verbose = TRUE, append_bad_URLs = TRUE) {
   out <- NULL
+  bad_url_counter <- 0
+  duped_recipe_counter <- 0
   
   for (url in urls) {
     Sys.sleep(sleep)    # Sleep in between requests to avoid 429 (too many requests)
     recipe_page <- try_read(url)
   
-    if (recipe_page == "Bad URL" || 
+    if (recipe_page == "Bad URL" ||
        (!class(recipe_page) %in% c("xml_document", "xml_node"))) { 
       recipe_list <- recipe_page    # If we've got a bad URL, recipe_df will be "Bad URL" because of the otherwise clause
+      bad_url_counter <- bad_url_counter + 1
       
       if (append_bad_URLs == TRUE) { out <- append(out, recipe_list) }
 
@@ -86,11 +89,13 @@ get_recipes <- function(urls, sleep = 5, verbose = TRUE, append_bad_URLs = TRUE)
         
       } else {
         if (verbose == TRUE) {
+          duped_recipe_counter <- duped_recipe_counter + 1
           message("Skipping recipe we already have")
         }
       }
     }
   }
+  out <- list(out, bad_url_counter, duped_recipe_counter)
   return(out)
 }
 
