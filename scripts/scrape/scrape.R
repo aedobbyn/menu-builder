@@ -95,7 +95,9 @@ get_recipes <- function(urls, sleep = 5, verbose = TRUE, append_bad_URLs = TRUE)
       }
     }
   }
-  out <- list(out, bad_url_counter, duped_recipe_counter)
+  message(paste0("Number bad URLs: ", bad_url_counter))
+  message(paste0("Number duped recipes: ", duped_recipe_counter))
+  
   return(out)
 }
 

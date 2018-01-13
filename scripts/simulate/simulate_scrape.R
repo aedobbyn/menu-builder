@@ -40,7 +40,6 @@ simulate_scrape <- function(urls, n_intervals = 4, n_sims = 3, from = 0, to = 1,
                             verbose = TRUE, v_v_verbose = FALSE,
                             sleep = 3) {
   
-  # browser()
   interval <- (to - from) / n_intervals
   
   percents_to_scrape <- seq(from = from, to = to, by = interval) %>% rep(n_sims) %>% sort()
@@ -77,11 +76,61 @@ ggplot(data = scrape_sim, aes(percents_scraped, percents_bad)) +
   ylim(0, 1)
   
 
+
 some_urls <- grab_urls(base_url, sample(100000:200000, size = 100))
 some_scrape_sim <- some_urls %>% simulate_scrape(n_intervals = 50, n_sims = 2, sleep = 3)
 
-more_urls <- grab_urls(base_url, sample(100000:200000, size = 1000))
 more_scrape_sim <- more_urls %>% simulate_scrape(n_intervals = 500, n_sims = 2, sleep = 3)
+
+
+
+
+
+
+
+
+# Take an existing list of scraped menus with "Bad URL"s included and simulate on that
+simulate_scrape_on_lst <- function(lst, n_intervals = 4, n_sims = 3, from = 0, to = 1, 
+                            verbose = TRUE, v_v_verbose = FALSE,
+                            sleep = 3) {
+  interval <- (to - from) / n_intervals
+  
+  percents_to_scrape <- seq(from = from, to = to, by = interval) %>% rep(n_sims) %>% sort()
+  percents_to_scrape <- percents_to_scrape[!percents_to_scrape == 0]  # Remove 0s
+  
+  if (v_v_verbose == TRUE) {
+    message(paste0("Testing on: ", str_c(percents_to_scrape, collapse = ", ")))   
+  }
+  
+  seeds <- sample(1:length(percents_to_scrape), size = length(percents_to_scrape), replace = FALSE)
+  percents_bad <- vector("numeric", length = length(percents_to_scrape))
+
+  for (i in seq_along(percents_to_scrape)) {
+    set.seed(i)
+    this_samp <- sample(lst, size = round(percents_to_scrape[i]*length(lst), digits = 0))
+    this_bad <- length(this_samp[this_samp == "Bad URL"]) / length(this_samp)
+    # this_bad <- ifelse(length(this_bad) == 0, 0, this_bad)
+    
+    if (verbose == TRUE) {
+      message(paste0((this_bad*100), "% of URLs were bad out of a pool of ", round((percents_to_scrape[i]*100), digits = 1), "% of all URLs."))
+    }
+    percents_bad[i] <- this_bad
+  }
+  
+  out <- list(percents_scraped = percents_to_scrape, percents_bad = percents_bad) %>% as_tibble()
+  return(out)
+}
+
+
+rec_spectrum <- more_recipes_raw[1:50] %>% simulate_scrape_on_lst()
+
+ggplot(data = rec_spectrum, aes(percents_scraped, percents_bad)) +
+  geom_smooth(se = FALSE) +
+  # geom_line() +
+  theme_minimal() +
+  ggtitle("Curve of percent of URLs tried vs. percent that were bad") +
+  labs(x = "Percent Tried", y = "Percent Bad") 
+
 
 
 
