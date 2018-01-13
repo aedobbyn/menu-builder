@@ -57,7 +57,7 @@ simulate_scrape <- function(urls, n_intervals = 4, n_sims = 3, from = 0, to = 1,
     
     this_bad <- urls %>% count_bad(percent_to_use = percents_to_scrape[i], seed = seeds[i])
     if (verbose == TRUE) {
-      message(paste0((this_bad*100), "% of URLs were bad out of a pool of ", round((percents_to_scrape[i]*100), digits = 1), "% of all URLs."))
+      message(paste0((this_bad*100) %>% round(digits = 2), "% of URLs were bad out of a pool of ", round((percents_to_scrape[i]*100), digits = 1), "% of all URLs."))
     }
     percents_bad[i] <- this_bad
   }
@@ -109,10 +109,9 @@ simulate_scrape_on_lst <- function(lst, n_intervals = 4, n_sims = 3, from = 0, t
     set.seed(i)
     this_samp <- sample(lst, size = round(percents_to_scrape[i]*length(lst), digits = 0))
     this_bad <- length(this_samp[this_samp == "Bad URL"]) / length(this_samp)
-    # this_bad <- ifelse(length(this_bad) == 0, 0, this_bad)
     
     if (verbose == TRUE) {
-      message(paste0((this_bad*100), "% of URLs were bad out of a pool of ", round((percents_to_scrape[i]*100), digits = 1), "% of all URLs."))
+      message(paste0((this_bad*100) %>% round(digits = 2), "% of URLs were bad out of a pool of ", round((percents_to_scrape[i]*100), digits = 1), "% of all URLs."))
     }
     percents_bad[i] <- this_bad
   }
@@ -122,10 +121,12 @@ simulate_scrape_on_lst <- function(lst, n_intervals = 4, n_sims = 3, from = 0, t
 }
 
 
-rec_spectrum <- more_recipes_raw[1:50] %>% simulate_scrape_on_lst()
+rec_spectrum <- more_recipes_raw %>% simulate_scrape_on_lst(n_intervals = 100, n_sims = 4)
 
+# Plot percent tried vs. percent bad
 ggplot(data = rec_spectrum, aes(percents_scraped, percents_bad)) +
   geom_smooth(se = FALSE) +
+  geom_point() +
   # geom_line() +
   theme_minimal() +
   ggtitle("Curve of percent of URLs tried vs. percent that were bad") +

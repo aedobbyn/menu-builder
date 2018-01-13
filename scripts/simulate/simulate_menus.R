@@ -59,10 +59,20 @@ simulate_spectrum <- function(n_intervals = 10, n_sims = 2, from = -1, to = 1,
 # Run it with the given spectrum
 status_spectrum <- simulate_spectrum(n_intervals = 100, n_sims = 10)
 # write_feather(status_spectrum, "./scripts/simulate/status_spectrum.feather")
+# status_spectrum <- read_feather("./scripts/simulate/status_spectrum.feather")
+
+# Get a summary by group
+status_spectrum_summary <- status_spectrum %>% 
+  group_by(min_amount) %>% 
+  summarise(
+    sol_prop = mean(status)
+  )
 
 # Plot the status spectrum
-ggplot(data = status_spectrum, aes(min_amount, 1 - status)) +
-  geom_smooth(se = FALSE, span = 0.01) +
+ggplot() +
+  geom_smooth(data = status_spectrum, aes(min_amount, 1 - status),
+              se = FALSE, span = 0.01) +
+  geom_point(data = status_spectrum_summary, aes(min_amount, 1 - sol_prop)) +
   theme_minimal() +
   ggtitle("Curve of portion size vs. solvability") +
   labs(x = "Minimum portion size", y = "Proportion of solutions") +
