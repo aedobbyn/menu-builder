@@ -35,8 +35,7 @@ ggplot() +
   theme_minimal() +
   ggtitle("Curve of portion size vs. solvability") +
   labs(x = "Minimum portion size", y = "Proportion of solutions") +
-  ylim(0, 1)
-
+  ylim(0, 1) 
 
 
 # ------ 10 simulations w for loop ----
