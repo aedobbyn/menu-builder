@@ -31,13 +31,14 @@ units <- c(
   "bottles", "bottle"
 )
 
-remove_plurals <- function(vec) {
-  plurals <- seq(1, length(vec), by = 2)
-  vec <- vec[-plurals]
-  return(vec)
-}
-
-units <- remove_plurals(units)
+## This actually doesn't remove plurals with "es"
+# remove_plurals <- function(vec) {
+#   plurals <- seq(1, length(vec), by = 2)
+#   vec <- vec[-plurals]
+#   return(vec)
+# }
+# 
+# units <- remove_plurals(units)
 
 
 add_other_measurement_types <- function() {

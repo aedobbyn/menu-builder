@@ -1,10 +1,10 @@
-
-# Test increase in bad URLs as we grab more and more pages
+### Test increase in bad URLs as we grab more and more pages ###
 # We try to grab recipe names; if we've got a bad URL, the name is "Bad URL"
 
 source("./scripts/scrape/scrape.R")
 source("./scripts/tests/testthat/test_scrape.R")
 
+# --- Count the number of bad URLs (404s) we've got in a sample ---
 # percent_to_use is the percent of our URLs we want to sample from
 # If return_percent_bad is FALSE, return the whole list of recipe names. Otherwise, just return the percent of URLs that were bad.
 count_bad <- function(urls, n_to_use = NULL, percent_to_use = 1, return_percent_bad = TRUE, seed = NULL) {
@@ -30,12 +30,12 @@ count_bad <- function(urls, n_to_use = NULL, percent_to_use = 1, return_percent_
   
 }
 
-mixed_urls <- c("foo", urls[10:12], "bar")
-mixed_urls %>% count_bad(percent_to_use = 0.75, seed = NULL)
-mixed_urls %>% count_bad(n_to_use = 2)
-
-
-
+# --- For some URLs, if we scrape some percent of them from 0 to 100%, what percent will tend to be bad? ---
+# Note: this function never actually run to completion because we got kicked out of allrecipes.com for too many requests
+# because each iteration we are actually scraping a random sample of URLs and seeing how many of them were bad
+# Take a vector of URLs and a sequence of what percent of those URLs we want to scrape
+# Request that percent of URLs and count how many are bad
+# Return a df of the percent of total URLs we chose to scrape compared to the percent of that pool that were bad
 simulate_scrape <- function(urls, n_intervals = 4, n_sims = 3, from = 0, to = 1, 
                             verbose = TRUE, v_v_verbose = FALSE,
                             sleep = 3) {
@@ -66,30 +66,11 @@ simulate_scrape <- function(urls, n_intervals = 4, n_sims = 3, from = 0, to = 1,
   return(out)
 }
 
-scrape_sim <- mixed_urls %>% simulate_scrape()
 
-ggplot(data = scrape_sim, aes(percents_scraped, percents_bad)) +
-  geom_smooth(se = FALSE) +
-  theme_minimal() +
-  ggtitle("Curve of percent of URLs tried vs. percent that were bad") +
-  labs(x = "Percent Tried", y = "Percent Bad") +
-  ylim(0, 1)
-  
-
-
-some_urls <- grab_urls(base_url, sample(100000:200000, size = 100))
-some_scrape_sim <- some_urls %>% simulate_scrape(n_intervals = 50, n_sims = 2, sleep = 3)
-
-more_scrape_sim <- more_urls %>% simulate_scrape(n_intervals = 500, n_sims = 2, sleep = 3)
-
-
-
-
-
-
-
-
-# Take an existing list of scraped menus with "Bad URL"s included and simulate on that
+# --- For some menus, had scraped some percent of them from 0 to 100%, what percent would have been bad? ---
+# Take an existing list of scraped menus (the product of get_recipes() before it has gone through dfize()) with "Bad URL"s included 
+# and simulate what percent of Bad URLs we get in different sample sizes of that list
+# This way we are not requestion new data on every sample; we're using existing data
 simulate_scrape_on_lst <- function(lst, n_intervals = 4, n_sims = 3, from = 0, to = 1, 
                             verbose = TRUE, v_v_verbose = FALSE,
                             sleep = 3) {
@@ -119,19 +100,6 @@ simulate_scrape_on_lst <- function(lst, n_intervals = 4, n_sims = 3, from = 0, t
   out <- list(percents_scraped = percents_to_scrape, percents_bad = percents_bad) %>% as_tibble()
   return(out)
 }
-
-
-rec_spectrum <- more_recipes_raw %>% simulate_scrape_on_lst(n_intervals = 100, n_sims = 4)
-
-# Plot percent tried vs. percent bad
-ggplot(data = rec_spectrum, aes(percents_scraped, percents_bad)) +
-  geom_smooth(se = FALSE) +
-  geom_point() +
-  # geom_line() +
-  theme_minimal() +
-  ggtitle("Curve of percent of URLs tried vs. percent that were bad") +
-  labs(x = "Percent Tried", y = "Percent Bad") 
-
 
 
 
