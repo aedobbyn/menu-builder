@@ -7,7 +7,7 @@ library(feather)
 library(tidyverse)
 
 #### Load all scripts ####
-dirs <- c("prep", "build", "score", "scrape", "solve")
+dirs <- c("prep", "build", "score", "scrape", "solve", "simulate")
 paths <- str_c("./scripts/", dirs)
 
 # Import all .R scripts from all the dirs above 
@@ -18,7 +18,7 @@ for (p in paths) {
 
 #### Load tests ####
 path <- "./scripts/tests/testthat/"  # Base directory
-test_types <- c("build", "scrape", "solve")   # Patterns of file names that come after test_
+test_types <- c("build", "scrape", "solve", "simulate")   # Patterns of file names that come after test_
 test_files <- str_c(path, str_c("test_", test_types), ".R")   # Put together to get the file names of our tests
 # Add a fake file for testing purposes
 fake_test <- "./scripts/tests/testthat/test_fake.R"

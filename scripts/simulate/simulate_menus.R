@@ -12,7 +12,7 @@ get_status <- function(seed = NULL, min_food_amount = 0.5, verbose = TRUE) {
 
 
 # --- For a given minimum portion size, what proportion of a random number of simulated menus can we solve? ---
-# 0 means that an optimal solution was found
+# 0 means that an optimal solution was found (because canonicalize_status is false)
 simulate_menus <- function(n_sims = 10, min_food_amount = 0.5, verbose = FALSE) {
   
   # Choose as many random seeds as we have simulations
@@ -49,6 +49,20 @@ simulate_spectrum <- function(n_intervals = 10, n_sims = 2, from = -1, to = 1,
   out <- list(min_amount = spectrum, status = out_status) %>% as_tibble()
   
   return(out)
+}
+
+
+
+# --- Summarise a spectrum ---
+summarise_status_spectrum <- function(spec) {
+  
+  spec_summary <- spec %>% 
+    group_by(min_amount) %>% 
+    summarise(
+      sol_prop = mean(status)
+    )
+  
+  return(spec_summary)
 }
 
 

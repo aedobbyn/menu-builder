@@ -1,33 +1,38 @@
 
 import_scripts(path = "./scripts/simulate")
+some_urls <- grab_urls(base_url, sample(100000:200000, size = 100))
 
 
 # ----------------------------------- Simulate solving -----------------------------------
+# If we build menus randomly and try to solve them given a certain minimum portion size, 
+# what percent of them will be solvable?
 
-# Build a menu, solve it, and get its status back
-expect_type(get_status(), "integer")
+# --- Build a menu, solve it with some specifications, and get its status back ---
+get_status()
 
-# simulate_menus()
-# half_portions <- simulate_menus(n_sims = 1000)
-# full_portions <- simulate_menus(n_sims = 1000, 
-#                                 min_food_amount = 1)
-# double_portions <- simulate_menus(n_sims = 100,
-#                                   min_food_amount = 1)
+# --- Do the above for some number of simulations  ---
+simulate_menus()
+
+half_portions <- simulate_menus(n_sims = 1000, min_food_amount = 0.5)
+full_portions <- simulate_menus(n_sims = 1000,
+                                min_food_amount = 1)
+double_portions <- simulate_menus(n_sims = 100,
+                                  min_food_amount = 1)
 
 
-# Run it with the given spectrum
+# --- Do the above for a spectrum of portion sizes ---
+# Simulate solving 1000 menus (100 * 10)
+
 status_spectrum <- simulate_spectrum(n_intervals = 100, n_sims = 10)
 # write_feather(status_spectrum, "./scripts/simulate/status_spectrum.feather")
 # status_spectrum <- read_feather("./scripts/simulate/status_spectrum.feather")
 
-# Get a summary by group
-status_spectrum_summary <- status_spectrum %>% 
-  group_by(min_amount) %>% 
-  summarise(
-    sol_prop = mean(status)
-  )
 
-# Plot the status spectrum
+# Get a summary grouped by minimum amount
+status_spectrum_summary <- summarise_status_spectrum(status_spectrum)
+
+
+# Plot the status spectrum curve: as we increase the minimum portion size, what percent of our menus are solvable?
 ggplot() +
   geom_smooth(data = status_spectrum, aes(min_amount, 1 - status),
               se = FALSE, span = 0.01) +
@@ -50,25 +55,31 @@ ggplot() +
 
 
 # ----------------------------------- Simulate scraping -----------------------------------
+# For all the recipes in a given recipe list that includes bad URLs, if we take samples of those,
+# what percent will be bad URLs?
 
+# The simulate_scrape() function we couldn't actually use this due to being booted
+# Instead, we simulate multiple rounds of scraping on the same
+# set of 400+ observations using simulate_scrape_on_lst()
+
+# This includes an NA 
 mixed_urls <- c("foo", urls[10:12], "bar")
-mixed_urls %>% count_bad(percent_to_use = 0.75, seed = NULL)
-mixed_urls %>% count_bad(n_to_use = 2)
+expect_type(mixed_urls %>% count_bad(percent_to_use = 0.75, seed = NULL), 
+            "numeric")
+expect_type(mixed_urls %>% count_bad(n_to_use = 2), 
+            "numeric")
 
 
 
-# We couldn't actually use this due to being booted...so we simulate multiple rounds of scraping on the same
-# set of 400+ observations below using simulate_scrape_on_lst
-some_urls <- grab_urls(base_url, sample(100000:200000, size = 100))
+
 some_scrape_sim <- some_urls %>% simulate_scrape(n_intervals = 50, n_sims = 2, sleep = 3)
-
 more_scrape_sim <- more_urls %>% simulate_scrape(n_intervals = 500, n_sims = 2, sleep = 3)
 
 
 
 
-# For all the recipes in a given recipe list that includes bad URLs, if we take samples of those,
-# what percent will be bad URLs?
+
+
 rec_spectrum <- more_recipes_raw %>% simulate_scrape_on_lst(n_intervals = 100, n_sims = 4)
 # write_feather(rec_spectrum, "./data/rec_spectrum.feather")
 
