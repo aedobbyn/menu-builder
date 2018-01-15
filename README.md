@@ -51,12 +51,28 @@ Daily menu planning and optimization using foods from the [USDA food database](h
         * Give a given menu a score on must-restricts, positive nutrients, and a combined measure
         * Also `rank_foods()` by their score
             * This allows us to build a `naive_supermenu.R` using `build_best_menu()`
+
+   * `simulate`
+       * Two types of simulations here: simulating building and solving random menus given a minimum portion size for all ingredients and simulating scraping some menus and determining what proportion of them are bad URLs (404s)
+       * Solving:
+           * In `simulate_spectrum()`, which calls `get_status()`, we take a range of minimum portion sizes (say from -1 to 1), a number of intervals we want to break that range into, and the number of simulations we want to do at each interval
+           * We get back a dataframe with the minimum portion size at each interval and corresponding proportion of menus that could be solved at that min portion size
+           * This allows us to graph a curve of how the percent of menus that are solvable changes as we increase the minimum portion size
+
+		* Scraping: 
+		    * In `simulate_scrape()` we scrape a random percent of a vector of URLs and determine what proportion of them are Bad URLs
+		    * In `simulate_scrape_on_lst()` we take a list of scraped menus (the product of `get_recipes()` before it has gone through `dfize()`) and, for a spectrum of percents of those menus, deterimine what porportion of them are bad
+		    * Then we can graph how the variance of the proportion of bad URLs decreases as we increase our sample size
+	* `test`
+	    * `dobtools::run_tests()` provides a user-directed way to run all or some of the tests in the `testthat` directory, interactively or non-interactively 
+	    * There is a test script for each of the main script directories: prep, build, score, scrape, simulate, solve
+     
     * Helper functions
         * `get_raw_vals()` and `get_per_g_vals()`, which both take dataframes and a dataframe of nutrients, allow us to go back and forth between nutrients per 100g and raw weight of nutrients using the helper functions 
         * `transpose_menu()` makes foods into columns and nutrients into rows, leaving us with something that looks more like our constraint matrix and can be read left to right
      * `full_scripts` are the legacy scripts containing all building and solving functions; will likely be deprecated soon 
-        
-            
+
+                 
 ***
 
 * Potential future improvements

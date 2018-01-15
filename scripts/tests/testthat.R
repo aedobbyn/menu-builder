@@ -14,7 +14,7 @@ paths <- str_c("./scripts/", dirs)
 for (p in paths) {
   suppressPackageStartupMessages(dobtools::import_scripts(p))
 }
-# import_scripts(paths[4])
+import_scripts(paths[4])
 
 #### Load tests ####
 path <- "./scripts/tests/testthat/"  # Base directory

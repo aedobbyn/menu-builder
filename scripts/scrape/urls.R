@@ -1,4 +1,6 @@
 
+# Most IDs seem to start with 1 or 2 and be either 5 or 6 digits long
+
 base_url <- "http://allrecipes.com/recipe/"
 
 grab_urls <- function(base_url, id) {
