@@ -16,17 +16,13 @@ some_recipes_tester[9, ] <- "about 17 fluid ounces of wine"
 some_recipes_tester[10, ] <- "4-5 cans of 1/2 caf coffee"
 some_recipes_tester[11, ] <- "3 7oz figs with 1/3 rind"
 
-
-# Take a few real URLS
-base_url <- "http://allrecipes.com/recipe/"
-
 # Test that our bad URL doesn't error out
 expect_equal(get_recipes("foo"), "Bad URL")
 expect_silent(get_recipes(c(urls[5], "bar"), verbose = FALSE))
 
 # Check that we're not pulling in duplicate recipes
 some_recipes <- get_recipes(urls[4:7]) 
-expect_equal(get_recipes(c(urls[4], urls[4:7])), some_recipes)    # This only equal if not booted from allrecipes due to too many requests
+# expect_equal(get_recipes(c(urls[4], urls[4:7])), some_recipes)    # This only equal if not booted from allrecipes due to too many requests
 
 
 # Get a list of recipes and form them into a dataframe
@@ -47,14 +43,11 @@ expect_equal(get_mult_add_portion("3 5 ounce cans)"), 15)
 tester_w_portions <- get_portions(some_recipes_tester) 
 expect_equal(tester_w_portions[1, ]$portion_name, "pound")    # We only grab the last word
 
-# Add abbreviations
-some_recipes_tester %>% get_portions() %>% add_abbrevs()
-
-
 
 
 # ---------- Portion text and values ---------
-
-some_recipes_tester %>% get_portion_text() %>% add_abbrevs %>% get_portion_values()
-some_recipes_tester %>% get_portions(add_abbrevs = TRUE)
+# Add abbreviations
+expect_silent(some_recipes_tester %>% get_portions() %>% add_abbrevs())
+expect_silent(some_recipes_tester %>% get_portion_text() %>% add_abbrevs %>% get_portion_values())
+expect_silent(some_recipes_tester %>% get_portions(add_abbrevs = TRUE))
 

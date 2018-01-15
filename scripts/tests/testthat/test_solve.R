@@ -61,9 +61,10 @@ singly_swapped <- do_single_swap(solved_menu)
 
 
 #  ------------  Score  ------------ 
-expect_is(score_menu(solved_menu), "numeric")
-expect_is(score_menu(singly_swapped), "numeric")
-
+test_that("Scoreing of menus results in numeric", {
+  expect_is(score_menu(solved_menu), "numeric")
+  expect_is(score_menu(singly_swapped), "numeric")
+})
 
 #  ------------ wholesale_swap()  ------------ 
 test_that("Wholesale swap works", {

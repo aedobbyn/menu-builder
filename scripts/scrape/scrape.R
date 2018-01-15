@@ -8,14 +8,8 @@ library(testthat)
 library(dobtools)
 
 # Source in script for grabbing all the types of measurements (pound, ounce, etc. and their abbreviations in abbrev_dict())
-source("./scripts/scrape/get_measurement_types.R") 
-source("./scripts/scrape/urls.R") 
-
-grab_urls <- function(base_url, id) {
-  id <- as.character(id)
-    recipe_url <- str_c(base_url, id)
-  return(recipe_url)
-}
+source("./scripts/scrape/urls.R")
+source("./scripts/scrape/get_measurement_types.R")
 
 remove_whitespace <- function(str) {
   str <- str %>% str_split(" ") %>% as_vector()
@@ -94,8 +88,10 @@ get_recipes <- function(urls, sleep = 5, verbose = TRUE, append_bad_URLs = TRUE)
       }
     }
   }
-  message(paste0("Number bad URLs: ", bad_url_counter))
-  message(paste0("Number duped recipes: ", duped_recipe_counter))
+  if (verbose == TRUE) { 
+    message(paste0("Number bad URLs: ", bad_url_counter))
+    message(paste0("Number duped recipes: ", duped_recipe_counter))
+  }
   
   return(out)
 }

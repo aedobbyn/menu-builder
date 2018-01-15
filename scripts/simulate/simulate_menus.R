@@ -1,7 +1,7 @@
 ### Run some simulations to see how often we're able to solve random menus without 
 # doing any swapping at a certain minimum portion size ###
 
-source("./scripts/solve.R")
+# source("./scripts/solve.R")
 
 # --- Helper for getting the solve_it() status from a menu that has just been solved ---
 get_status <- function(seed = NULL, min_food_amount = 0.5, verbose = TRUE) {  

@@ -1,8 +1,8 @@
 ### Test increase in bad URLs as we grab more and more pages ###
 # We try to grab recipe names; if we've got a bad URL, the name is "Bad URL"
 
-source("./scripts/scrape/scrape.R")
-source("./scripts/tests/testthat/test_scrape.R")
+# source("./scripts/scrape/scrape.R")
+# source("./scripts/tests/testthat/test_scrape.R")
 
 # --- Count the number of bad URLs (404s) we've got in a sample ---
 # percent_to_use is the percent of our URLs we want to sample from
