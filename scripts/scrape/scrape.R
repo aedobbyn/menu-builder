@@ -9,8 +9,7 @@ library(dobtools)
 
 # Source in script for grabbing all the types of measurements (pound, ounce, etc. and their abbreviations in abbrev_dict())
 source("./scripts/scrape/get_measurement_types.R") 
-
-base_url <- "http://allrecipes.com/recipe/"
+source("./scripts/scrape/urls.R") 
 
 grab_urls <- function(base_url, id) {
   id <- as.character(id)

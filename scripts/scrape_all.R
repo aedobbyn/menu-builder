@@ -1,9 +1,8 @@
 
 # # ---------- Get a lot of recipes ---------
+# source("./scripts/scrape/urls.R")
 # 
 # Most IDs seem to start with 1 or 2 and be either 5 or 6 digits long
-
-# more_urls <- grab_urls(base_url, sample(100000:250000, size = 1000))
 # 
 # more_recipes_raw <- more_urls %>% get_recipes(sleep = 3)
 # more_recipes <- more_recipes_raw[!more_recipes_raw == "Bad URL"]

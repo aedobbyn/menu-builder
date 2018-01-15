@@ -1,6 +1,7 @@
 
+more_recipes_raw <- readRDS(file = "./data/more_recipes_raw.rds")
+import_scripts(path = "./scripts/scrape")
 import_scripts(path = "./scripts/simulate")
-some_urls <- grab_urls(base_url, sample(100000:200000, size = 100))
 
 
 # ----------------------------------- Simulate solving -----------------------------------
@@ -13,22 +14,17 @@ get_status()
 # --- Do the above for some number of simulations  ---
 simulate_menus()
 
-half_portions <- simulate_menus(n_sims = 1000, min_food_amount = 0.5)
-full_portions <- simulate_menus(n_sims = 1000,
-                                min_food_amount = 1)
-double_portions <- simulate_menus(n_sims = 100,
-                                  min_food_amount = 1)
+half_portions <- simulate_menus(n_sims = 10, min_food_amount = 0.5)
+full_portions <- simulate_menus(n_sims = 10, min_food_amount = 1)
+double_portions <- simulate_menus(n_sims = 10, min_food_amount = 2)
 
 
 # --- Do the above for a spectrum of portion sizes ---
-# Simulate solving 1000 menus (100 * 10)
-
+# Simulate solving 1000 menus (10 each at 100 intervals between minimum portion sizes of -1 to 1)
 status_spectrum <- simulate_spectrum(n_intervals = 100, n_sims = 10)
-# write_feather(status_spectrum, "./scripts/simulate/status_spectrum.feather")
-# status_spectrum <- read_feather("./scripts/simulate/status_spectrum.feather")
+# write_feather(status_spectrum, "./data/status_spectrum.feather")
 
-
-# Get a summary grouped by minimum amount
+# Get a summary of the specturm grouped by minimum amount
 status_spectrum_summary <- summarise_status_spectrum(status_spectrum)
 
 
@@ -57,29 +53,14 @@ ggplot() +
 # ----------------------------------- Simulate scraping -----------------------------------
 # For all the recipes in a given recipe list that includes bad URLs, if we take samples of those,
 # what percent will be bad URLs?
+some_scrape_sim <- some_urls %>% simulate_scrape(n_intervals = 50, n_sims = 2, sleep = 3)
+more_scrape_sim <- more_urls %>% simulate_scrape(n_intervals = 500, n_sims = 2, sleep = 3)
 
 # The simulate_scrape() function we couldn't actually use this due to being booted
 # Instead, we simulate multiple rounds of scraping on the same
 # set of 400+ observations using simulate_scrape_on_lst()
 
-# This includes an NA 
-mixed_urls <- c("foo", urls[10:12], "bar")
-expect_type(mixed_urls %>% count_bad(percent_to_use = 0.75, seed = NULL), 
-            "numeric")
-expect_type(mixed_urls %>% count_bad(n_to_use = 2), 
-            "numeric")
-
-
-
-
-some_scrape_sim <- some_urls %>% simulate_scrape(n_intervals = 50, n_sims = 2, sleep = 3)
-more_scrape_sim <- more_urls %>% simulate_scrape(n_intervals = 500, n_sims = 2, sleep = 3)
-
-
-
-
-
-
+# --- Simulate percent that are bad on an existing list of recipes ---
 rec_spectrum <- more_recipes_raw %>% simulate_scrape_on_lst(n_intervals = 100, n_sims = 4)
 # write_feather(rec_spectrum, "./data/rec_spectrum.feather")
 

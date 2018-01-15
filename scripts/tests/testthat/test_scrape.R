@@ -19,8 +19,6 @@ some_recipes_tester[11, ] <- "3 7oz figs with 1/3 rind"
 
 # Take a few real URLS
 base_url <- "http://allrecipes.com/recipe/"
-urls <- grab_urls(base_url, 244940:244950)
-
 
 # Test that our bad URL doesn't error out
 expect_equal(get_recipes("foo"), "Bad URL")
