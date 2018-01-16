@@ -20,7 +20,7 @@ some_recipes_tester[11, ] <- "3 7oz figs with 1/3 rind"
 expect_equal(get_recipes("foo"), "Bad URL")
 expect_silent(get_recipes(c(urls[5], "bar"), verbose = FALSE))
 
-
+# Get a short list of recipes
 some_recipes <- get_recipes(urls[4:7]) 
 
 

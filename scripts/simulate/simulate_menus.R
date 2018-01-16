@@ -10,6 +10,33 @@ get_status <- function(seed = NULL, min_food_amount = 0.5, verbose = TRUE) {
     purrr::pluck("status")
 }
 
+simulate_swaps <- function(seed = NULL, min_food_amount = 0.5, n_swaps = 3, verbose = TRUE) {  
+  counter <- 0
+  this_solution <- build_menu(seed = seed) %>% do_menu_mutates() %>% 
+    solve_it(min_food_amount = min_food_amount, verbose = verbose, only_full_servings = FALSE) 
+
+  this_status <- this_solution %>% purrr::pluck("status")
+  
+  this_menu <- this_solution %>% solve_menu()
+  
+  while (counter < n_swaps & this_status == 1) {
+    this_solution <- this_menu %>% do_single_swap() %>% 
+      solve_it(min_food_amount = min_food_amount, verbose = verbose, only_full_servings = FALSE)
+    this_status <- this_solution %>% purrr::pluck("status")
+    
+    if (this_status == 0) {
+      message(paste0("Solution found in ", counter, " steps"))
+      this_menu <- this_solution %>% solve_menu()
+      return(this_menu)
+    }
+    counter <- counter + 1
+  }
+  message(paste0("No solution found in ", counter, " steps :/"))
+  # this_menu
+}
+
+simulate_swaps(min_food_amount = 1)
+
 
 # --- For a given minimum portion size, what proportion of a random number of simulated menus can we solve? ---
 # 0 means that an optimal solution was found (because canonicalize_status is false)

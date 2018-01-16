@@ -42,7 +42,7 @@ get_recipe_content <- function(page) {
 # Safe reading -- don't error if we've got a bad URL, just tell us, don't exit the loop
 read_url <- function(url) {
   page <- read_html(url)
-  on.exit(close(url))
+  # on.exit(close(page))
 }
 try_read <- possibly(read_url, otherwise = "Bad URL", quiet = TRUE)
 
