@@ -31,7 +31,7 @@ if (length(some_recipes[which(some_recipes == "Bad URL")]) != length(some_recipe
   expect_equal(get_recipes(c(urls[4], urls[4:7])), some_recipes)  
 # If they're all bad, read in some_recipes_df instead of dfizing our bad URLs
 } else {
-  some_recipes_df <- read_feather("./data/some_recipes_df.feather")
+  some_recipes_df <- read_feather("./data/derived/some_recipes_df.feather")
   expect_equal(length(get_recipes(c(urls[4], urls[4:7]))), length(some_recipes) + 1)  
 }
 

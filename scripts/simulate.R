@@ -1,5 +1,5 @@
 
-more_recipes_raw <- readRDS(file = "./data/more_recipes_raw.rds")
+more_recipes_raw <- readRDS(file = "./data/derived/more_recipes_raw.rds")
 import_scripts(path = "./scripts/scrape")
 import_scripts(path = "./scripts/simulate")
 
@@ -22,7 +22,7 @@ double_portions <- simulate_menus(n_sims = 10, min_food_amount = 2)
 # --- Do the above for a spectrum of portion sizes ---
 # Simulate solving 1000 menus (10 each at 100 intervals between minimum portion sizes of -1 to 1)
 status_spectrum <- simulate_spectrum(n_intervals = 100, n_sims = 10)
-# write_feather(status_spectrum, "./data/status_spectrum.feather")
+# write_feather(status_spectrum, "./data/derived/status_spectrum.feather")
 
 # Get a summary of the specturm grouped by minimum amount
 status_spectrum_summary <- summarise_status_spectrum(status_spectrum)
@@ -62,7 +62,7 @@ more_scrape_sim <- more_urls %>% simulate_scrape(n_intervals = 500, n_sims = 2, 
 
 # --- Simulate percent that are bad on an existing list of recipes ---
 rec_spectrum <- more_recipes_raw %>% simulate_scrape_on_lst(n_intervals = 100, n_sims = 4)
-# write_feather(rec_spectrum, "./data/rec_spectrum.feather")
+# write_feather(rec_spectrum, "./data/derived/rec_spectrum.feather")
 
 
 # Plot percent tried vs. percent bad

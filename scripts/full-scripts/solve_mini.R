@@ -20,7 +20,7 @@ nut_df_small <- bind_rows(mr_df_small, pos_df_small)
 get_menu_small <- function(from_file = FALSE) {
   
   if (from_file == TRUE) {
-    menu_small <- read_feather("./data/menu_small.feather")
+    menu_small <- read_feather("./data/derived/menu_small.feather")
     
   } else {
     # Simplify our menu space
@@ -40,7 +40,7 @@ get_menu_small <- function(from_file = FALSE) {
 
 # Assign
 menu_small <- get_menu_small()
-# write_feather(menu_small, "./data/menu_small.feather")
+# write_feather(menu_small, "./data/derived/menu_small.feather")
 
 
 # Get names in correct order

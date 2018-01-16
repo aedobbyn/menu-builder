@@ -131,8 +131,8 @@ get_measurement_types_from_source_collapsed <- function() {
 
 get_measurement_types <- function(from_file = TRUE) {
   if (from_file == TRUE) {
-    measures_collapsed <<- read_rds("./data/measurement_types.rds")
-    abbrev_dict <<- read_feather("./data/abbrev_dict.feather")
+    measures_collapsed <<- read_rds("./data/derived/measurement_types.rds")
+    abbrev_dict <<- read_feather("./data/derived/abbrev_dict.feather")
   } else {
     measures_collapsed <<- get_measurement_types_from_source_collapsed()
   }

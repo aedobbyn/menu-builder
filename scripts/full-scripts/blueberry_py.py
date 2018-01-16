@@ -8,11 +8,11 @@ os.chdir("/Users/amanda/Desktop/Earlybird/food-progress/scripts")
 
 # Read in the USDA data
 # abbrev = pd.read_csv("./Desktop/Earlybird/food-progress/ABBREV.csv")  # for outside RProj
-abbrev = pd.read_csv("../data/ABBREV.csv")  # for inside RProj
+abbrev = pd.read_csv("../data/raw/ABBREV.csv")  # for inside RProj
 abbrev.index = range(len(abbrev))   # but we do want to keep ndbno around
 
 # Read in scaled version of USDA data
-scaled = pd.read_csv("../data/scaled.csv")
+scaled = pd.read_csv("../data/raw/scaled.csv")
 
 # Bit of cleaning
 abbrev.rename(columns = {'\xef\xbb\xbfNDB_No':"NDB_No"}, inplace = True)
@@ -22,7 +22,7 @@ abbrev.columns = abbrev.columns.str.replace("[() ]", "")
 ab = abbrev[["NDB_No", "Shrt_Desc", "Energ_Kcal", "Protein_g", "Sugar_Tot_g", "GmWt_1"]]
 
 # Read in nutrients and must restricts
-all_nut_and_mr_df = pd.read_csv("../data/all_nut_and_mr_df.csv")
+all_nut_and_mr_df = pd.read_csv("../data/derived/all_nut_and_mr_df.csv")
 must_restricts = ['Lipid_Tot_g', 'Sodium_mg', 'Cholestrl_mg', 'FA_Sat_g']
 mr_df = all_nut_and_mr_df[all_nut_and_mr_df.nutrient.isin(must_restricts)]
 pos_df = all_nut_and_mr_df[~all_nut_and_mr_df.nutrient.isin(must_restricts)]

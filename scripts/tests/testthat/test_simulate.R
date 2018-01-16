@@ -3,9 +3,9 @@
 
 import_scripts(path = "./scripts/simulate")
 # Import a dataframe of statuses as compared to the minimum portion sizes we assigned
-status_spectrum <- read_feather("./data/status_spectrum.feather")
+status_spectrum <- read_feather("./data/derived/status_spectrum.feather")
 # List of scraped recipes that have not yet been dfize'd
-more_recipes_raw <- readRDS(file = "./data/more_recipes_raw.rds")
+more_recipes_raw <- readRDS(file = "./data/derived/more_recipes_raw.rds")
 
 
 # ----------------- Solving -------------

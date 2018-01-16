@@ -3,7 +3,7 @@ library(tidyverse)
 library(stringr)
 library(hash)
 
-abbrev <- readxl::read_excel("./data/ABBREV.xlsx")
+abbrev <- readxl::read_excel("./data/raw/ABBREV.xlsx")
 abbrev <- as_tibble(abbrev)
 
 # remove parens and spaces from names

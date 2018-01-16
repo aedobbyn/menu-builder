@@ -4,40 +4,48 @@ library(igraph)
 library(ggraph)
 import_scripts(path = "./scripts/scrape")
 
-more_recipes_df <- read_feather("./data/more_recipes_df.feather")
+more_recipes_df <- read_feather("./data/derived/more_recipes_df.feather")
 # Load in stopwords to remove
 data(stop_words)
 
-more_recipes_df_samp <- more_recipes_df[1:100, ] %>% 
-  # sample_frac(0.1) %>% 
-  select(ingredients, recipe_name) %>% 
-  group_by(recipe_name) %>% 
-  mutate(ingredient_num = row_number()) %>% 
-  ungroup()
+
+# Get a sample (can't be random because we need foods that come from the same menus) and 
+# unnest ngrams
+grab_ngrams <- function(df, row_start = 1, row_stop = 100, n_grams = 1) {
+  df <- df %>% 
+    slice(row_start:row_stop) %>% 
+    group_by(recipe_name) %>% 
+    mutate(ingredient_num = row_number()) %>% 
+    ungroup() %>% 
+    unnest_tokens(ngram, ingredients, token = "ngrams", n = n_grams) %>% 
+    select(recipe_name, ngram, everything())
+  
+  return(df)
+}
+
+unigrams <- grab_ngrams(more_recipes_df)
+bigrams <- grab_ngrams(more_recipes_df, n_grams = 2)
 
 
-unnested_bigram <- more_recipes_df[1:100, ] %>% 
-  # sample_frac(0.1) %>% 
-  select(ingredients, recipe_name) %>% 
-  group_by(recipe_name) %>% 
-  mutate(ingredient_num = row_number()) %>% 
-  ungroup() %>% 
-  unnest_tokens(bigram, ingredients, token = "ngrams", n = 2)
-
-
-
-unnested <- more_recipes_df_samp %>% 
-  unnest_tokens(word, ingredients) %>% 
-  mutate(
-    num = as.numeric(word),    # we could have as easily done this w a regex
+# Logical for whether an ngram is a number or not
+# we could have as easily done this w a regex
+find_nums <- function(df) {
+  df <- df %>% mutate(
+    num = as.numeric(ngram),    # we could have as easily done this w a regex
     is_num = case_when(
       !is.na(num) ~ TRUE,
       is.na(num) ~ FALSE
     )
   ) %>% select(-num)
+  
+  return(df)
+}
 
-unnested %>% count(word, sort = TRUE) %>% 
+unigrams <- unigrams %>%
+  find_nums() %>%
+  add_count(ngram, sort = TRUE) %>%
   filter(is_num == FALSE)
+
 
 # Get a dataframe of all units (need plurals for abbrev_dict ones)
 all_units <- c(units, abbrev_dict$name, abbrev_dict$key, "inch")
@@ -45,7 +53,7 @@ all_units_df <- list(word = all_units) %>% as_tibble()
 
 # Looking at pairs of words within a recipe (not neccessarily bigrams), which paris tend to co-occur?
 # i.e., higher frequency within the same recipe
-per_rec_freq <- unnested[unnested$is_num==FALSE,] %>% 
+per_rec_freq <- unigrams %>% 
   select(-is_num) %>% 
   ungroup() %>% group_by(recipe_name) %>% 
   anti_join(stop_words) %>% 

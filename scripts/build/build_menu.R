@@ -1,7 +1,7 @@
 
 source("./scripts/score/score_menu.R")
 source("./scripts/build/add_calories.R")
-# ranked_foods <- read_feather("./data/ranked_foods.feather")
+# ranked_foods <- read_feather("./data/derivedranked_foods.feather")
 
 # ------------- Initial Builder ---------------
 

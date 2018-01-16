@@ -41,5 +41,5 @@ add_ranked_foods <- function(df, verbose = TRUE) {
 }
 
 # ranked_foods <- add_ranked_foods(abbrev_sans_na)
-# write_feather(ranked_foods, "./data/ranked_foods.feather")
+# write_feather(ranked_foods, "./data/derived/ranked_foods.feather")
 
