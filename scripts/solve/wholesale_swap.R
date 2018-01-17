@@ -45,7 +45,7 @@ wholesale_swap <- function(menu, df = abbrev, percent_to_swap = 0.5) {
   message(paste0("Replacing with: ", 
                  str_c(newly_swapped_in$shorter_desc, collapse = ", ")))
   
-  out <- out %>% 
+  out <- menu %>% 
     filter(!NDB_No %in% worst_foods) %>% 
     bind_rows(newly_swapped_in)
   

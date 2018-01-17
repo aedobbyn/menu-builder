@@ -68,8 +68,8 @@ test_that("Scoreing of menus results in numeric", {
 
 #  ------------ wholesale_swap()  ------------ 
 test_that("Wholesale swap works", {
-  wholesale_out <- wholesale_swap(out)
-  setdiff(wholesale_out, out)
+  wholesale_out <- wholesale_swap(solved_menu)
+  setdiff(wholesale_out, solved_menu)
 })
 
 
@@ -84,10 +84,10 @@ test_that("The building and solving in full works correctly", {
   expect_equal(min(x$solution_amounts), 0.5)
   
   # Test that we're not touching menus that are already compliant
-  expect_equal(solve_full(out), out)
+  expect_equal(solve_full(compliant_solved), compliant_solved)
   
   # Test silence
-  expect_silent(suppressMessages(solve_full(out, verbose = FALSE)))
+  expect_silent(suppressMessages(solve_full(solved_menu, verbose = FALSE)))
 })
 
 

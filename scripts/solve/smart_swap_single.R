@@ -1,10 +1,12 @@
 
+source("./scripts/solve/square_names.R")
+
 # ---- Smart swap a single food for each nutrient
 # Same as smart_swap() without the while loops
 
 smart_swap_single <- function(orig_menu, df = abbrev, cutoff = 0.5, verbose = FALSE) {
   
-  if ("shorter_desc" %in% names(orig_menu)) {
+  if (!"shorter_desc" %in% names(orig_menu)) {
     df <- df %>% do_menu_mutates()
   }
   
@@ -40,19 +42,13 @@ smart_swap_single <- function(orig_menu, df = abbrev, cutoff = 0.5, verbose = FA
   return(orig_menu)
 }
 
-
-quo_solved_names <- names(solved_menu)
-name_overlap <- intersect(names(menu), names(solved_menu))
-no_overlap <- setdiff(names(solved_menu), names(menu))
-
-
 # Originally this was meant to only be passed a solved menu. We're getting old names from menu
 # Make old and new dataframes play nicely when swapping
 do_single_swap <- function(menu, solve_if_unsolved = TRUE, verbose = FALSE,
                         new_solution_amount = 1){  # What should the solution amount of the newly swapped in foods be?
   
-  if (solve_if_unsolved == TRUE) {
-    menu <- menu %>% do_menu_mutates() %>% solve_it() %>% solve_menu()
+  if (!"shorter_desc" %in% names(menu)) {
+    menu <- menu %>% do_menu_mutates()
   }
   
   if (verbose == FALSE) {
