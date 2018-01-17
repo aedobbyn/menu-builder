@@ -94,7 +94,8 @@ simulate_swaps <- function(seed = NULL, min_food_amount = 0.5, n_swaps = 3, retu
     if (this_status == 0) {
       message(paste0("Solution found in ", counter, " steps"))
       if (return_status == TRUE) {
-        return(this_status)
+        out <- list(status = this_status, n_swaps_done = counter) %>% as_tibble()
+        return(out)
       } else {
         this_menu <- this_solution %>% solve_menu()
         return(this_menu)
@@ -103,7 +104,8 @@ simulate_swaps <- function(seed = NULL, min_food_amount = 0.5, n_swaps = 3, retu
     counter <- counter + 1
   }
   message(paste0("No solution found in ", counter, " steps :/"))
-  return(this_status)
+  out <- list(status = this_status, n_swaps_done = counter) %>% as_tibble()
+  return(out)
 }
 
 simulate_swaps(min_food_amount = 1)
@@ -111,35 +113,43 @@ simulate_swaps(min_food_amount = 1)
 
 
 
-simulate_swap_spectrum <- function(n_intervals = 10, n_swaps = 3, n_sims = 2, from = -1, to = 1,
-                              min_food_amount = NULL, verbose = FALSE) {
+simulate_swap_spectrum <- function(n_intervals = 10, n_sims = 2, n_swaps = 3, from = -1, to = 1,
+                              min_food_amount = NULL, seed = NULL, verbose = FALSE) {
   
   interval <- (to - from) / n_intervals
   spectrum <- seq(from = from, to = to, by = interval) %>% rep(n_sims) %>% sort()
   
+  if (!is.null(seed)) { set.seed(seed) }
   seeds <- sample(1:length(spectrum), size = length(spectrum), replace = FALSE)
   
-  out_status <- vector(length = length(spectrum))
+  out_spectrum <- tibble(min_amount = spectrum)
+  out_status <- tibble(status = vector(length = length(spectrum)), 
+                       n_swaps_done = vector(length = length(spectrum)))
   
   for (i in seq_along(spectrum)) {
-    this_status <- simulate_swaps(seed = seeds[i], min_food_amount = spectrum[i], n_swaps = n_swaps, verbose = verbose)
-    if (!is.integer(this_status)) {
-      this_status <- integer(0)     # If we don't get an integer value back, make it NA
+    this_status_df <- simulate_swaps(seed = seeds[i], min_food_amount = spectrum[i], n_swaps = n_swaps, verbose = verbose)
+    if (!is.integer(this_status_df$status)) {
+      this_status_df$status <- integer(0)     # If we don't get an integer value back, make it NA
     }
-    out_status[i] <- this_status
+    out_status[i, ] <- this_status_df
   }
   
-  out <- list(min_amount = spectrum, status = out_status) %>% as_tibble()
+  out <- bind_cols(out_spectrum, out_status)
   
   return(out)
 }
 
-half_sims <- simulate_swap_spectrum(min_food_amount = 0.5)
+simulate_swap_spectrum(n_intervals = 5, n_sims = 2, n_swaps = 3)
+
+half_sims <- simulate_swap_spectrum(n_intervals = 20, n_sims = 1, n_swaps = 3, seed = 9)
+
+summarise_status_spectrum(half_sims)
 
 ggplot() +
-  geom_smooth(data = half_sims, aes(min_amount, 1 - status),
+  geom_smooth(data = half_sims, aes(min_amount, 1 - status, colour = factor(n_swaps_done)),
               se = FALSE) +
-  # geom_point(data = status_spectrum_summary, aes(min_amount, 1 - sol_prop)) +
+  geom_point(data = half_sims, aes(min_amount, 1 - status)) +
+  # facet_wrap( ~ n_swaps_done) +
   theme_minimal() +
   ggtitle("Curve of portion size vs. solvability") +
   labs(x = "Minimum portion size", y = "Proportion of solutions") +
