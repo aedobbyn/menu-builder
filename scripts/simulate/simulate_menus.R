@@ -154,8 +154,6 @@ simulate_swap_spectrum <- function(n_intervals = 10, n_sims = 2, max_n_swaps = 3
   return(out)
 }
 
-simulate_swap_spectrum(n_intervals = 5, n_sims = 2, n_swaps = 3)
-
 simmed_swaps <- simulate_swap_spectrum(n_intervals = 20, n_sims = 5, n_swaps = 4, seed = 9)
 
 simmed_swaps_summary <- summarise_status_spectrum(simmed_swaps)

@@ -1,7 +1,7 @@
 
 
 # -------- Solve and swap if needed --------
-# Test compliance; if we're above on some must_restricts, do a single swap
+# Test compliance; if we're above on some must_restricts, do a single swap and then solve
 # If we're below on nutrients or calories, run the solver
 # Every tenth iteraiton, run a wholesale swap
 # If we can't get to compliance after 50 iterations, give up and return what we've got
@@ -36,7 +36,8 @@ solve_full <- function(menu, seed = 15, min_food_amount = 1, percent_to_swap = 0
       counter <- counter + 1
       
       menu <- menu %>% 
-        do_single_swap(verbose = verbose)
+        do_single_swap(verbose = verbose) %>% 
+        solve_it(nutrient_df, min_food_amount = min_food_amount) %>% solve_menu()
       
     } else if (nrow(test_pos_compliance(menu)) > 0) {
       if (verbose == TRUE) { message("Nutrients uncompliant; adjusting portions sizes") }

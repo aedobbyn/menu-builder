@@ -18,21 +18,21 @@ some_recipes_tester[11, ] <- "3 7oz figs with 1/3 rind"
 
 # Test that our bad URL doesn't error out
 expect_equal(get_recipes("foo"), "Bad URL")
-expect_silent(get_recipes(c(urls[5], "bar"), verbose = FALSE))
+expect_silent(get_recipes(c(urls[7], "bar"), verbose = FALSE))
 
 # Get a short list of recipes
-some_recipes <- get_recipes(urls[4:7]) 
+some_recipes <- get_recipes(urls[4:5]) 
 
 
 # -- Check that we're not pulling in duplicate recipes
 # If not all URLs are bad
 if (length(some_recipes[which(some_recipes == "Bad URL")]) != length(some_recipes)) {    
   some_recipes_df <- dfize(some_recipes)   # Use dfize() to get a list of recipes and form them into a dataframe
-  expect_equal(get_recipes(c(urls[4], urls[4:7])), some_recipes)  
+  expect_equal(get_recipes(c(urls[4], urls[4:5])), some_recipes)  
 # If they're all bad, read in some_recipes_df instead of dfizing our bad URLs
 } else {
   some_recipes_df <- read_feather("./data/derived/some_recipes_df.feather")
-  expect_equal(length(get_recipes(c(urls[4], urls[4:7]))), length(some_recipes) + 1)  
+  expect_equal(length(get_recipes(c(urls[4], urls[4:5]))), length(some_recipes) + 1)  
 }
 
 get_portions(some_recipes_df) %>% add_abbrevs()

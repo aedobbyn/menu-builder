@@ -18,6 +18,11 @@ expect_silent(default_spectrum <- simulate_spectrum())
 # Summarise the simulated menu
 expect_silent(default_spectrum %>% summarise_status_spectrum())
 
+# Simulate some swaps
+expect_is(swap_sims <- simulate_swap_spectrum(n_intervals = 3, n_sims = 2, n_swaps = 3), "tbl_df")
+# And summarise them
+expect_is(swap_sims %>% summarise_status_spectrum(), "tbl_df")
+
 
 # ------------- Scraping ----------
 # This includes an NA because urls (defined in scrape.R) does not include a 12th
