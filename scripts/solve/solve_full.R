@@ -9,13 +9,19 @@
 solve_full <- function(menu, seed = 15, min_food_amount = 1, percent_to_swap = 0.5,
                            verbose = TRUE, time_out_count = 50, return_menu = TRUE) {
   counter <- 0
+  # browser()
   
   while (test_all_compliance(menu) == "Not Compliant") {
     if (verbose == TRUE) { 
       message("No solution found -- menu not currently compliant") 
-      message(test_all_compliance_verbose(menu)) }
+      message(paste0("Uncomplinat here: ", test_all_compliance_verbose(menu))) }
     
-    if (counter == time_out_count) {
+    if (counter == 0) {
+      menu <- menu %>% do_menu_mutates() %>% solve_it(nutrient_df, min_food_amount = min_food_amount) %>% solve_menu()
+      
+      counter <- counter + 1
+      
+    } else if (counter == time_out_count) {
       if (verbose == TRUE) { message("Time out; returning menu as is") }
       if (return_menu == TRUE) {
         return(menu)
@@ -29,7 +35,8 @@ solve_full <- function(menu, seed = 15, min_food_amount = 1, percent_to_swap = 0
       
       menu <- menu %>% solve_it(nutrient_df, min_food_amount = min_food_amount) %>% 
         solve_menu() %>% 
-        wholesale_swap(df = abbrev, percent_to_swap = percent_to_swap)
+        wholesale_swap(df = abbrev, percent_to_swap = percent_to_swap) %>% 
+        solve_it(nutrient_df, min_food_amount = min_food_amount) %>% solve_menu()
       
     } else if (nrow(test_mr_compliance(menu)) > 0) {
       if (verbose == TRUE) { message("Doing a single swap on all must restricts") }

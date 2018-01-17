@@ -6,7 +6,7 @@
 solve_it <- function(df, nut_df = nutrient_df, df_is_per_100g = TRUE, only_full_servings = FALSE, 
                      min_food_amount = 1, max_food_amount = 100, 
                      verbose = TRUE, v_v_verbose = FALSE, maximize = FALSE) {
-  # browser()
+  
   # If our nutrient values are per 100g (i.e., straight from menu_builder)
   if (df_is_per_100g == TRUE) {
     df_per_100g <- df        # Save our original df in df_per_100g

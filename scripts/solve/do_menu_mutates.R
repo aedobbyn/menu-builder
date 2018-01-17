@@ -1,3 +1,4 @@
+
 do_menu_mutates <- function(menu) {
   
   menu_unsolved_per_g <- menu[, which(names(menu) %in% cols_to_keep)] %>% 

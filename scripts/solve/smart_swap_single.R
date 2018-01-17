@@ -2,7 +2,11 @@
 # ---- Smart swap a single food for each nutrient
 # Same as smart_swap() without the while loops
 
-smart_swap_single <- function(orig_menu, cutoff = 0.5, verbose = FALSE) {
+smart_swap_single <- function(orig_menu, df = abbrev, cutoff = 0.5, verbose = FALSE) {
+  
+  if ("shorter_desc" %in% names(orig_menu)) {
+    df <- df %>% do_menu_mutates()
+  }
   
   swap_count <- 0
 
@@ -20,7 +24,7 @@ smart_swap_single <- function(orig_menu, cutoff = 0.5, verbose = FALSE) {
         message(paste0("The worst offender in this respect is ", orig_menu[max_offender, ]$Shrt_Desc))
         
         # ------- smart swap or randomly swap in a food here --------
-        orig_menu[max_offender, ] <- replace_food_w_better(orig_menu, max_offender, nut_to_restrict, cutoff = cutoff)
+        orig_menu[max_offender, ] <- replace_food_w_better(orig_menu, df, max_offender, nut_to_restrict, cutoff = cutoff)
         
         to_restrict <- (sum(orig_menu[[nut_to_restrict]] * orig_menu$GmWt_1, na.rm = TRUE))/100   # recalculate the must restrict nutrient content
         message(paste0("Our new value of this must restrict is ", to_restrict)) 
@@ -37,31 +41,39 @@ smart_swap_single <- function(orig_menu, cutoff = 0.5, verbose = FALSE) {
 }
 
 
+quo_solved_names <- names(solved_menu)
+name_overlap <- intersect(names(menu), names(solved_menu))
+no_overlap <- setdiff(names(solved_menu), names(menu))
+
+
+# Originally this was meant to only be passed a solved menu. We're getting old names from menu
 # Make old and new dataframes play nicely when swapping
-do_single_swap <- function(solved_menu, orig_menu = menu, verbose = FALSE,
+do_single_swap <- function(menu, solve_if_unsolved = TRUE, verbose = FALSE,
                         new_solution_amount = 1){  # What should the solution amount of the newly swapped in foods be?
-  quo_solved_names <- names(solved_menu)
-  name_overlap <- intersect(names(orig_menu), names(solved_menu))
-  no_overlap <- setdiff(names(solved_menu), names(orig_menu))
+  
+  if (solve_if_unsolved == TRUE) {
+    menu <- menu %>% do_menu_mutates() %>% solve_it() %>% solve_menu()
+  }
   
   if (verbose == FALSE) {
-    out <- suppressWarnings(suppressMessages(solved_menu[, c(name_overlap)] %>% 
+    out <- suppressWarnings(suppressMessages(menu[, c(name_overlap)] %>% 
       smart_swap_single())) 
   } else {
-    out <- solved_menu[, c(name_overlap)] %>% 
+    out <- menu[, c(name_overlap)] %>% 
       smart_swap_single() 
   }
   
-  out <- out %>% 
-    mutate(
-      serving_gmwt = solved_menu$serving_gmwt,
-      shorter_desc = map_chr(Shrt_Desc, grab_first_word, splitter = ","), # Recreate shorter_desc
-      cost = runif(nrow(.), min = 1, max = 10) %>% round(digits = 2),    # Add in some costs
-      solution_amounts = ifelse(Shrt_Desc %in% solved_menu$Shrt_Desc, 
-                                solved_menu$solution_amounts, new_solution_amount)
-    ) %>%
-    select(!!quo_solved_names) 
-  
+  if (all(no_overlap %in% names(menu))) {
+    out <- out %>% 
+      mutate(
+        serving_gmwt = menu$serving_gmwt,
+        shorter_desc = map_chr(Shrt_Desc, grab_first_word, splitter = ","), # Recreate shorter_desc
+        cost = runif(nrow(.), min = 1, max = 10) %>% round(digits = 2),    # Add in some costs
+        solution_amounts = ifelse(Shrt_Desc %in% menu$Shrt_Desc, 
+                                  menu$solution_amounts, new_solution_amount)
+      ) %>%
+      select(!!quo_solved_names) 
+  }
   return(out)
 }
   
