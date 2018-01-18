@@ -1,14 +1,10 @@
-
-source("./scripts/solve/square_names.R")
+# 
+# source("./scripts/solve/square_names.R")
 
 # ---- Smart swap a single food for each nutrient
 # Same as smart_swap() without the while loops
 
-smart_swap_single <- function(orig_menu, df = abbrev, cutoff = 0.5, verbose = FALSE) {
-  
-  if (!"shorter_desc" %in% names(orig_menu)) {
-    df <- df %>% do_menu_mutates()
-  }
+smart_swap_single <- function(orig_menu, max_offender, cutoff = 0.5, verbose = FALSE) {
   
   swap_count <- 0
 
@@ -26,7 +22,7 @@ smart_swap_single <- function(orig_menu, df = abbrev, cutoff = 0.5, verbose = FA
         message(paste0("The worst offender in this respect is ", orig_menu[max_offender, ]$Shrt_Desc))
         
         # ------- smart swap or randomly swap in a food here --------
-        orig_menu[max_offender, ] <- replace_food_w_better(orig_menu, df, max_offender, nut_to_restrict, cutoff = cutoff)
+        orig_menu[max_offender, ] <- replace_food_w_better(orig_menu, max_offender, nut_to_restrict, cutoff = cutoff)
         
         to_restrict <- (sum(orig_menu[[nut_to_restrict]] * orig_menu$GmWt_1, na.rm = TRUE))/100   # recalculate the must restrict nutrient content
         message(paste0("Our new value of this must restrict is ", to_restrict)) 
@@ -42,10 +38,12 @@ smart_swap_single <- function(orig_menu, df = abbrev, cutoff = 0.5, verbose = FA
   return(orig_menu)
 }
 
-# Originally this was meant to only be passed a solved menu. We're getting old names from menu
+# Originally this was meant to only be passed a solved menu. We're getting names from "./data/derived/square_names.R"
 # Make old and new dataframes play nicely when swapping
 do_single_swap <- function(menu, solve_if_unsolved = TRUE, verbose = FALSE,
                         new_solution_amount = 1){  # What should the solution amount of the newly swapped in foods be?
+  
+  quo_solved_names <- quo(name_overlap)
   
   if (!"shorter_desc" %in% names(menu)) {
     menu <- menu %>% do_menu_mutates()
@@ -69,6 +67,8 @@ do_single_swap <- function(menu, solve_if_unsolved = TRUE, verbose = FALSE,
                                   menu$solution_amounts, new_solution_amount)
       ) %>%
       select(!!quo_solved_names) 
+  } else {
+    menu <- menu %>% do_menu_mutates()
   }
   return(out)
 }

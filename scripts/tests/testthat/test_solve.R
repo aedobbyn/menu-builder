@@ -4,8 +4,8 @@ library(testthat)
 source("./scripts/solve.R")
 
 # Test equality
-expect_equal(out %>% select(-cost),   # Cost is randomly assigned, for now
-          compliant_one_swap %>% select(-cost))
+expect_equal(compliant_menu %>% select(-cost),   # Cost is randomly assigned, for now
+             compliant_one_swap %>% select(-cost))
 
 # ---------- Transpose ----------
 # Take a look at what the constraing matrix will look like 

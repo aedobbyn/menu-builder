@@ -1,7 +1,7 @@
 
 # Get raw nutrient values per food by multiplying the per 100g amounts by GmWt_1 and dividing by 100
 get_raw_vals <- function(df, nut_df = nutrient_df){
-  nutrient_names <- c(nut_df$nutrient, "Energ_Kcal")
+  nutrient_names <- c(nut_df$nutrient)
   quo_nutrient_names <- quo(nutrient_names)
   
   at_cols <- which(names(df) %in% nutrient_names)

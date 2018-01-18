@@ -18,12 +18,12 @@
 # reduce our full corpus of foods, abbrev, to foods that are below some threshold on that must_restrict, as per the scaled dataframe
 # then pick a random food from that reduced dataframe and replace the max offender with it
 
-replace_food_w_better <- function(orig_menu, df = abbrev, max_offender, nutrient_to_restrict, cutoff = 0.5,
+replace_food_w_better <- function(orig_menu, max_offender, nutrient_to_restrict, cutoff = 0.5,
                                   verbose = TRUE) {
   scaled <- scaled %>% 
     drop_na_(all_nut_and_mr_df$nutrient) %>% filter(!(is.na(Energ_Kcal)) & !(is.na(GmWt_1)))
   
-  replacment_food_pool <- df %>% 
+  replacment_food_pool <- abbrev %>% 
     drop_na_(all_nut_and_mr_df$nutrient) %>% filter(!(is.na(Energ_Kcal)) & !(is.na(GmWt_1))) %>% 
     filter(! NDB_No %in% orig_menu$NDB_No) %>%    # This has to be a new food
     filter(NDB_No %in% scaled[scaled[[nutrient_to_restrict]] < (-1 * cutoff), ][["NDB_No"]]) 
@@ -33,7 +33,7 @@ replace_food_w_better <- function(orig_menu, df = abbrev, max_offender, nutrient
   }
   
   if(nrow(replacment_food_pool) == 0) {    # Rather than subbing in replace_food_w_rand() for replace_food_w_better() if we get an exception, just build it in
-    replacment_food_pool <- df
+    replacment_food_pool <- abbrev
     if (verbose == TRUE) { message("No better foods at this cutoff; choosing a food randomly.") }
   }
   
