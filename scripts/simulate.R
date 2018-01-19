@@ -30,9 +30,9 @@ status_spectrum_summary <- summarise_status_spectrum(status_spectrum)
 
 # Plot the status spectrum curve: as we increase the minimum portion size, what percent of our menus are solvable?
 ggplot() +
-  geom_smooth(data = status_spectrum, aes(min_amount, 1 - status),
+  geom_smooth(data = status_spectrum, aes(min_food_amount, 1 - status),
               se = FALSE, span = 0.01) +
-  geom_point(data = status_spectrum_summary, aes(min_amount, 1 - sol_prop)) +
+  geom_point(data = status_spectrum_summary, aes(min_food_amount, 1 - sol_prop)) +
   theme_minimal() +
   ggtitle("Curve of portion size vs. solvability") +
   labs(x = "Minimum portion size", y = "Proportion of solutions") +
@@ -48,6 +48,8 @@ ggplot() +
 
 
 # ----------------------------------- Simulate swapping and solving -----------------------------------
+# If we build menus randomly and try to solve them given a certain minimum portion size, 
+# what percent of them will be solvable in under a given number of swaps?
 
 # Build a single menu, and swap + solve until we either solve it or reach max_n_swaps
 # Return the status and the number of swaps we used
@@ -57,14 +59,14 @@ get_swap_status(min_food_amount = 1, max_n_swaps = 5)
 simmed_swaps <- simulate_swap_spectrum(n_intervals = 20, n_sims = 5, max_n_swaps = 4, seed = 9,
                                        from = -1, to = 2)
 
-# Summarise that spectrum grouped by min_amount
+# Summarise that spectrum grouped by min_food_amount
 simmed_swaps_summary <- summarise_status_spectrum(simmed_swaps)
 
 # Plot min portion size vs. whether we solved it or not
 ggplot() +
-  geom_smooth(data = simmed_swaps, aes(min_amount, 1 - status),
+  geom_smooth(data = simmed_swaps, aes(min_food_amount, 1 - status),
               se = FALSE) +
-  geom_point(data = simmed_swaps_summary, aes(min_amount, 1 - sol_prop, colour = factor(mean_n_swaps_done))) +
+  geom_point(data = simmed_swaps_summary, aes(min_food_amount, 1 - sol_prop, colour = factor(mean_n_swaps_done))) +
   # facet_wrap( ~ n_swaps_done) +
   theme_minimal() +
   ggtitle("Curve of portion size vs. solvability") +
@@ -73,9 +75,9 @@ ggplot() +
 
 # Plot min portion size vs. number of swaps we did
 ggplot() +
-  geom_smooth(data = simmed_swaps, aes(min_amount, n_swaps_done),
+  geom_smooth(data = simmed_swaps, aes(min_food_amount, n_swaps_done),
               se = FALSE) +
-  # geom_point(data = simmed_swaps_summary, aes(min_amount, 1 - sol_prop, colour = factor(mean_n_swaps_done))) +
+  # geom_point(data = simmed_swaps_summary, aes(min_food_amount, 1 - sol_prop, colour = factor(mean_n_swaps_done))) +
   # facet_wrap( ~ status) +
   theme_minimal() +
   ggtitle("Curve of portion size vs. solvability") +
@@ -83,14 +85,17 @@ ggplot() +
 
 # Same but coloured by whether we solved it or not
 ggplot() +
-  geom_point(data = simmed_swaps, aes(min_amount, n_swaps_done, colour = factor(1 - status)),
-              se = FALSE) +
-  # geom_point(data = simmed_swaps_summary, aes(min_amount, 1 - sol_prop, colour = factor(mean_n_swaps_done))) +
+  # geom_point(data = simmed_swaps, aes(min_food_amount, n_swaps_done, colour = factor(1 - status)),
+  #             se = FALSE) +
+  geom_smooth(data = simmed_swaps_summary, aes(min_food_amount, 1 - sol_prop, colour = factor(mean_n_swaps_done))) +
   # facet_wrap( ~ status) +
   theme_minimal() +
   ggtitle("Curve of portion size vs. solvability") +
   labs(x = "Minimum portion size", y = "Number Swaps Done")
 
+# 3D plot
+# library(plotly)
+# qplot(min_amount, status, data=simmed_swaps, geom="tile", fill=n_swaps_done)
 
 
 # ----------------------------------- Simulate scraping -----------------------------------

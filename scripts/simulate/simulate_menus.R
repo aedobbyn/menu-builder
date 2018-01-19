@@ -51,7 +51,7 @@ simulate_spectrum <- function(n_intervals = 10, n_sims = 2, from = -1, to = 1,
     out_status[i] <- this_status
   }
   
-  out <- list(min_amount = spectrum, status = out_status) %>% as_tibble()
+  out <- tibble(min_amount = spectrum, status = out_status)
   
   return(out)
 }
@@ -92,6 +92,7 @@ get_swap_status <- function(seed = NULL, min_food_amount = 0.5, max_n_swaps = 3,
     }
     counter <- counter + 1
   }
+  
   message(paste0("No solution found in ", counter, " steps :/"))
   out <- tibble(status = this_status, n_swaps_done = counter)
   return(out)
@@ -157,9 +158,6 @@ summarise_status_spectrum <- function(spec) {
   
   return(spec_summary)
 }
-
-
-
 
 
 

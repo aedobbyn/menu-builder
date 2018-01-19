@@ -35,10 +35,6 @@ build_menu <- function(df = abbrev, menu = NULL, seed = NULL, from_better_cutoff
   # Add one serving of food until we hit 2300
   menu <- add_calories(menu = menu, df = df)
   
-  if (do_mutates == TRUE) {
-    menu <- menu %>% do_menu_mutates()
-  }
-  
   return(menu)
 }
 

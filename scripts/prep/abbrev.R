@@ -55,6 +55,9 @@ scaled <- abbrev %>%
     vars(nutrient_names, "Energ_Kcal"), dobtools::z_score   # <-- equivalent to scale(), but simpler
   )
 
+# Add scaled values to abbrev
+abbrev <- abbrev %>% add_ranked_foods()
+
 # Ge our abbreviated dataframe without any NAs
 abbrev_sans_na <- abbrev %>% 
   drop_na_(all_nut_and_mr_df$nutrient) %>% filter(!(is.na(Energ_Kcal)) & !(is.na(GmWt_1)))

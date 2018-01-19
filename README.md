@@ -17,6 +17,7 @@ The latest phase is intended to optimize the tastiness of menus. Menus were scra
 * `menu-builder`
     * Code for the [Shiny app](https://amandadobbyn.shinyapps.io/menu-builder/) for building a random menu and tweaking it into compliance
 * `scripts`
+    * All scripts are stored in sub-directories here. These are pure scripts and do not contain any assignment of data to variables so that they can easily be loaded
     * `prep`
         * Read in, clean, and standardize data
         * Define daily guidelines for

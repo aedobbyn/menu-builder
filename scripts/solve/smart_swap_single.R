@@ -62,7 +62,7 @@ do_single_swap <- function(menu, solve_if_unsolved = TRUE, verbose = FALSE,
       solution_amounts = ifelse(Shrt_Desc %in% menu$Shrt_Desc, 
                                 menu$solution_amounts, new_solution_amount)
     ) %>%
-    select(!!quo_solved_names) 
+    select(!!quo_solved_names, everything()) 
   
   return(out)
 }
