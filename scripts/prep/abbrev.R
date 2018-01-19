@@ -56,7 +56,7 @@ scaled <- abbrev %>%
   )
 
 # Add scaled values to abbrev
-abbrev <- abbrev %>% add_ranked_foods()
+abbrev <- abbrev %>% add_ranked_foods() %>% do_menu_mutates()
 
 # Ge our abbreviated dataframe without any NAs
 abbrev_sans_na <- abbrev %>% 
