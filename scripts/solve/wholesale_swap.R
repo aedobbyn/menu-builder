@@ -23,21 +23,21 @@ wholesale_swap <- function(menu, df = abbrev, percent_to_swap = 0.5) {
   }
   
   get_swap_candidates <- function(df, to_swap_out) {
-    swap_candidate <- df %>% 
+    candidate <- df %>% 
       filter(! (NDB_No %in% menu)) %>%    # We can't swap in a food that already exists in our menu
       sample_n(., size = nrow(to_swap_out)) %>% 
-      do_menu_mutates() %>% 
       mutate(solution_amounts = 1)    # Give us one serving of each of these new foods
+    return(candidate)
+  }
+  swap_candidate <- get_swap_candidates(df = df, to_swap_out = to_swap_out)
+  
+  if (score_menu(swap_candidate) < score_menu(to_swap_out)) {
+    message("Swap candidate not good enough; reswapping.")
+    swap_candidate <- get_swap_candidates(df = df, to_swap_out = to_swap_out)
     
-    if (score_menu(swap_candidate) < score_menu(to_swap_out)) {
-      message("Swap candidate not good enough; reswapping.")
-      swap_candidate <- sample_n(df, size = nrow(to_swap_out)) %>% 
-        do_menu_mutates() %>% 
-        mutate(solution_amounts = 1)
-    } else {
-        message("Swap candidate is good enough. Doing the wholesale swap.")
-        return(swap_candidate)
-    }
+  } else {
+      message("Swap candidate is good enough. Doing the wholesale swap.")
+      return(swap_candidate)
   }
   
   newly_swapped_in <- get_swap_candidates(df, to_swap_out)

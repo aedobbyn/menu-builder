@@ -1,7 +1,6 @@
 
 # load in the abbreviated data from the USDA database
 source("./scripts/prep/abbrev.R")
-source("./scripts/prep/stats.R")
 # devtools::install_github("aedobbyn/dobtools", force = TRUE)
 library(dobtools)
 

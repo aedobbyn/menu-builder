@@ -1,7 +1,6 @@
 
 # Source in all scripts
 source("./scripts/prep/abbrev.R")
-source("./scripts/prep/stats.R")
 
 # Building and tweaking scripts in /build_menu
 path <- "./scripts/build"
@@ -15,6 +14,5 @@ library(assertthat)
 
 
 # --------- Build a menu ---------
-
 menu <- build_menu(abbrev, seed = 9)
 

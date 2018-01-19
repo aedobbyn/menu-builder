@@ -15,6 +15,9 @@ source("./scripts/score/score_menu.R")
 # Load solving scripts in /solve
 import_scripts(path = "./scripts/solve")
 
+# Give abbrev menu mutates
+abbrev <- abbrev %>% do_menu_mutates()
+
 # Get menu into formats we can use
 menu_unsolved_per_g <- do_menu_mutates(menu)   # Nutrients per 100g
 

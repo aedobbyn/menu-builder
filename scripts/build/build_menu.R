@@ -9,7 +9,7 @@ source("./scripts/build/add_calories.R")
 # until we're at or over 2300 calories
 # If we want to start building from a base of higher-scored foods, we can set from_better_cutoff to a z-score > 0
 
-build_menu <- function(df = abbrev, menu = NULL, seed = NULL, from_better_cutoff = NULL) {
+build_menu <- function(df = abbrev, menu = NULL, seed = NULL, from_better_cutoff = NULL, do_mutates = TRUE) {
   if (!is.null(seed)) {
     set.seed(seed)
   }
@@ -34,6 +34,10 @@ build_menu <- function(df = abbrev, menu = NULL, seed = NULL, from_better_cutoff
   
   # Add one serving of food until we hit 2300
   menu <- add_calories(menu = menu, df = df)
+  
+  if (do_mutates == TRUE) {
+    menu <- menu %>% do_menu_mutates()
+  }
   
   return(menu)
 }

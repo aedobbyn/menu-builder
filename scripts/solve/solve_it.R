@@ -37,10 +37,17 @@ solve_it <- function(df, nut_df = nutrient_df, df_is_per_100g = TRUE, only_full_
     return(mat)
   }
   
+  const_mat_names <- str_c(df$shorter_desc,  # Use combo of shorter_desc and NDB_No
+        df$NDB_No, sep = ", ")  # so that names are interpretable but also unique
+  
+  # TODO: find a better fix than this to the non-uniqueness problem that probably comes from smart swapping
+  rand_letters <- letters[sample(length(const_mat_names))]
+  const_mat_names <- str_c(const_mat_names, rand_letters, sep = " - ")
+  
   mat <- construct_matrix(df, nut_df)
   constraint_matrix <- mat %>% dplyr::as_data_frame() 
-  names(constraint_matrix) <- str_c(df$shorter_desc,  # Use combo of shorter_desc and NDB_No
-                                    df$NDB_No, sep = ", ")  # so that names are interpretable but also unique
+  names(constraint_matrix) <- const_mat_names
+  
   constraint_matrix <- constraint_matrix %>% 
     mutate(
       dir = dir,

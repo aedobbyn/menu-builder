@@ -47,6 +47,49 @@ ggplot() +
 # 2.654   0.165   2.845
 
 
+# ----------------------------------- Simulate swapping and solving -----------------------------------
+
+# Build a single menu, and swap + solve until we either solve it or reach max_n_swaps
+# Return the status and the number of swaps we used
+get_swap_status(min_food_amount = 1, max_n_swaps = 5)
+
+# Do the above for some number of menus
+simmed_swaps <- simulate_swap_spectrum(n_intervals = 20, n_sims = 5, max_n_swaps = 4, seed = 9,
+                                       from = -1, to = 2)
+
+# Summarise that spectrum grouped by min_amount
+simmed_swaps_summary <- summarise_status_spectrum(simmed_swaps)
+
+# Plot min portion size vs. whether we solved it or not
+ggplot() +
+  geom_smooth(data = simmed_swaps, aes(min_amount, 1 - status),
+              se = FALSE) +
+  geom_point(data = simmed_swaps_summary, aes(min_amount, 1 - sol_prop, colour = factor(mean_n_swaps_done))) +
+  # facet_wrap( ~ n_swaps_done) +
+  theme_minimal() +
+  ggtitle("Curve of portion size vs. solvability") +
+  labs(x = "Minimum portion size", y = "Proportion of solutions") +
+  ylim(0, 1) 
+
+# Plot min portion size vs. number of swaps we did
+ggplot() +
+  geom_smooth(data = simmed_swaps, aes(min_amount, n_swaps_done),
+              se = FALSE) +
+  # geom_point(data = simmed_swaps_summary, aes(min_amount, 1 - sol_prop, colour = factor(mean_n_swaps_done))) +
+  # facet_wrap( ~ status) +
+  theme_minimal() +
+  ggtitle("Curve of portion size vs. solvability") +
+  labs(x = "Minimum portion size", y = "Number Swaps Done")
+
+# Same but coloured by whether we solved it or not
+ggplot() +
+  geom_point(data = simmed_swaps, aes(min_amount, n_swaps_done, colour = factor(1 - status)),
+              se = FALSE) +
+  # geom_point(data = simmed_swaps_summary, aes(min_amount, 1 - sol_prop, colour = factor(mean_n_swaps_done))) +
+  # facet_wrap( ~ status) +
+  theme_minimal() +
+  ggtitle("Curve of portion size vs. solvability") +
+  labs(x = "Minimum portion size", y = "Number Swaps Done")
 
 
 

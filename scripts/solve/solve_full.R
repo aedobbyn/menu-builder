@@ -17,7 +17,7 @@ solve_full <- function(menu, seed = 15, min_food_amount = 1, percent_to_swap = 0
       message(paste0("Uncomplinat here: ", test_all_compliance_verbose(menu))) }
     
     if (counter == 0) {
-      menu <- menu %>% do_menu_mutates() %>% solve_it(nutrient_df, min_food_amount = min_food_amount) %>% solve_menu()
+      menu <- menu %>% solve_it(nutrient_df, min_food_amount = min_food_amount) %>% solve_menu()
       
       counter <- counter + 1
       
@@ -43,7 +43,7 @@ solve_full <- function(menu, seed = 15, min_food_amount = 1, percent_to_swap = 0
       counter <- counter + 1
       
       menu <- menu %>% 
-        do_single_swap(verbose = verbose) %>% do_menu_mutates() %>% 
+        do_single_swap(verbose = verbose) %>% 
         solve_it(nutrient_df, min_food_amount = min_food_amount) %>% solve_menu()
       
     } else if (nrow(test_pos_compliance(menu)) > 0) {
