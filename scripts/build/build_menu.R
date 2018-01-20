@@ -1,7 +1,6 @@
 
 source("./scripts/score/score_menu.R")
 source("./scripts/build/add_calories.R")
-# ranked_foods <- read_feather("./data/derivedranked_foods.feather")
 
 # ------------- Initial Builder ---------------
 
@@ -14,8 +13,8 @@ build_menu <- function(df = abbrev, menu = NULL, seed = NULL, from_better_cutoff
     set.seed(seed)
   }
   
-  df <- df %>% drop_na_(all_nut_and_mr_df$nutrient) %>% 
-    filter(!(is.na(Energ_Kcal)) & !(is.na(GmWt_1)))    # filter out rows that have NAs in columns that we need 
+  df <- df %>% drop_na_(all_nut_and_mr_df$nutrient) %>%
+    filter(!(is.na(Energ_Kcal)) & !(is.na(GmWt_1)))    # Filter out rows that have NAs in columns that we need
   
   # Optionally choose a floor for what the z-score of each food to build from should be
   if (!is.null(from_better_cutoff)) {
@@ -25,7 +24,7 @@ build_menu <- function(df = abbrev, menu = NULL, seed = NULL, from_better_cutoff
         add_ranked_foods()
     }
     df <- df %>% 
-      filter(scaled_score > from_better_cutoff) # filter(NDB_No %in% ranked_foods[which(ranked_foods$scaled_score >= from_better_cutoff), ]$NDB_No)
+      filter(scaled_score > from_better_cutoff)
   }
   
   if (nrow(df) == 0) {

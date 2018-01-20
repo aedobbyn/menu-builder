@@ -18,7 +18,6 @@ half_portions <- simulate_menus(n_sims = 10, min_food_amount = 0.5)
 full_portions <- simulate_menus(n_sims = 10, min_food_amount = 1)
 double_portions <- simulate_menus(n_sims = 10, min_food_amount = 2)
 
-
 # --- Do the above for a spectrum of portion sizes ---
 # Simulate solving 1000 menus (10 each at 100 intervals between minimum portion sizes of -1 to 1)
 status_spectrum <- simulate_spectrum(n_intervals = 100, n_sims = 10)

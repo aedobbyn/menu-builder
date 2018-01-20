@@ -1,6 +1,9 @@
 library(readxl)
 library(tidyverse)
 library(stringr)
+library(dobtools)
+
+import_scripts("./scripts/score")
 
 # Read in the abbreviated dataframe
 abbrev <- readxl::read_excel("./data/raw/ABBREV.xlsx")

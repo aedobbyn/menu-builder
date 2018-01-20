@@ -2,8 +2,6 @@
 
 wholesale_swap <- function(menu, df = abbrev, percent_to_swap = 0.5) {
   
-  # browser()
-  
   # Get foods with the lowest solution amounts -- might think about using lowest scores instead
   min_solution_amount <- min(menu$solution_amounts)
   worst_foods <- menu %>% 

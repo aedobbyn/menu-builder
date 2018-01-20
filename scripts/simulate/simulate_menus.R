@@ -10,7 +10,7 @@
 
 # --- Helper for getting the solve_it() status from a menu that has just been solved ---
 get_status <- function(seed = NULL, min_food_amount = 0.5, verbose = TRUE) {  
-  this_menu <- build_menu(seed = seed) %>% do_menu_mutates() %>% 
+  this_menu <- build_menu(seed = seed) %>% 
     solve_it(min_food_amount = min_food_amount, verbose = verbose, only_full_servings = FALSE) %>% 
     purrr::pluck("status")
 }
@@ -68,7 +68,7 @@ simulate_spectrum <- function(n_intervals = 10, n_sims = 2, from = -1, to = 1,
 get_swap_status <- function(seed = NULL, min_food_amount = 0.5, max_n_swaps = 3, return_status = TRUE,
                            verbose = TRUE, ...) {  
   counter <- 0
-  this_solution <- build_menu(seed = seed) %>% do_menu_mutates() %>% 
+  this_solution <- build_menu(seed = seed) %>% 
     solve_it(min_food_amount = min_food_amount, verbose = verbose, only_full_servings = FALSE) 
   
   this_status <- this_solution %>% purrr::pluck("status")

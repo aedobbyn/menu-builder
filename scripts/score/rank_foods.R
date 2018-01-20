@@ -34,7 +34,7 @@ add_ranked_foods <- function(df, verbose = TRUE) {
   
   df <- df %>% 
     mutate(
-      scaled_score = z_score(score)
+      scaled_score = dobtools::z_score(score)
     )
   
   return(df)

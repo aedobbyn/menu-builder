@@ -14,11 +14,7 @@ source("./scripts/score/score_menu.R")
 # Load solving scripts in /solve
 import_scripts(path = "./scripts/solve")
 
-# Give abbrev menu mutates
-# abbrev <- abbrev %>% do_menu_mutates()
-
-# Get menu into formats we can use
-# menu_unsolved_per_g <- do_menu_mutates(menu)   # Nutrients per 100g
+# Label menu as per 100g
 menu_unsolved_per_g <- menu
 
 # Get raw weight of nutrients
@@ -54,7 +50,6 @@ score_menu(compliant_one_swap)
 
 # Full thing from beginning to end
 out <- build_menu(abbrev, seed = 9) %>% 
-  # do_menu_mutates() %>% 
   solve_it(nutrient_df, min_food_amount = -1) %>% 
   solve_menu() %>% 
   do_single_swap(verbose = FALSE)

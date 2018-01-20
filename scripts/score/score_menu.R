@@ -1,18 +1,18 @@
 
-# ------------ Score menus on how nutritional they are
-# - - - more positive scores are always better - - -
-# 1) on positive nutrients, you can't get a better score than 0
-# 2) on must_restricts, a positive score means you're below the daily maximum on some must_restricts, which is good. 
+# ------------ Score menus on how nutritional they are ----------------
+# - - - More positive scores are always better - - -
+# 1) On positive nutrients, you can't get a better score than 0
+# 2) On must_restricts, a positive score means you're below the daily maximum on some must_restricts, which is good. 
     # a negative score means you're above the maximum on some must_restricts, which is bad.
-# 3) the overall score adds these two together
+# 3) The overall score adds these two together
 
 
 # -------------------- Positive Nutrients ----------------
-# no extra credit for going above the daily min. best score is 0, worst score is negative infinity.
+# No extra credit for going above the daily min. best score is 0, worst score is negative infinity.
 
-# a positive score on any nutrient would mean you're above the min daily amount. no extra brownie points for that,
+# A positive score on any nutrient would mean you're above the min daily amount. no extra brownie points for that,
     # so we give you a 0
-# a negative score on any nutrient means you're below the min daily amount
+# A negative score on any nutrient means you're below the min daily amount
 pos_score <- function(orig_menu) {
   total_nut_score <- 0
   
@@ -32,16 +32,16 @@ pos_score <- function(orig_menu) {
     }
     total_nut_score <- total_nut_score + nut_score
   }
-  total_nut_score
+  return(total_nut_score)
 }
 
 
 # -------------------- Must Restricts ----------------
-# we both penalize for going over the max daily limit and give you brownie points for getting below the max
-# more positive score is better (same directionality of goodness as pos_score)
+# We both penalize for going over the max daily limit and give you brownie points for getting below the max
+# More positive score is better (same directionality of goodness as pos_score)
 
-# a negative score on any one nutrient means you're over the max value you should be: bad
-# a negative score means you're below the max: good job
+# A negative score on any one nutrient means you're over the max value you should be: bad
+# A negative score means you're below the max: good job
 mr_score <- function(orig_menu) {
   total_mr_score <- 0
   
@@ -56,15 +56,15 @@ mr_score <- function(orig_menu) {
     total_mr_score
     
   }
-  total_mr_score
+  return(total_mr_score)
 }
 
 
 # -------------------- Combined Score ----------------
-# sum the two scores
+# Sum the two scores
 score_menu <- function(orig_menu) {
   healthiness_score <- pos_score(orig_menu) + mr_score(orig_menu)
-  healthiness_score
+  return(healthiness_score)
 }
 
 

@@ -9,7 +9,6 @@
 solve_full <- function(menu, seed = 15, min_food_amount = 1, percent_to_swap = 0.5,
                            verbose = TRUE, time_out_count = 50, return_menu = TRUE) {
   counter <- 0
-  # browser()
   
   while (test_all_compliance(menu) == "Not Compliant") {
     if (verbose == TRUE) { 
