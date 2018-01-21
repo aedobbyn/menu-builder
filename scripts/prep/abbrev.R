@@ -3,6 +3,7 @@ library(tidyverse)
 library(stringr)
 library(dobtools)
 
+source("./scripts/prep/do_menu_mutates.R")
 import_scripts("./scripts/score")
 
 # Read in the abbreviated dataframe
@@ -14,6 +15,8 @@ names(abbrev) <- str_replace_all(names(abbrev), "\\(", "") %>%
   str_replace_all("\\)", "") %>% 
   str_replace_all(" ", "")
 
+
+# -------------- Wrangle Nutrients -------------
 
 # Get vector of must_restricts
 must_restrict <- c("Lipid_Tot_g", "Carbohydrt_g", "Sugar_Tot_g", 
@@ -50,6 +53,17 @@ all_nut_and_mr_df <- rbind(mr_df %>%
                              rename(nutrient = positive_nut))
 
 
+# Quosure the nutrient and must restrict names
+nutrient_names <- c(all_nut_and_mr_df$nutrient, "Energ_Kcal")
+quo_nutrient_names <- quo(nutrient_names)
+
+# Add calorie restriction
+nutrient_df <- all_nut_and_mr_df %>% 
+  bind_rows(list(nutrient = "Energ_Kcal",     # Add calorie restriction in
+                 value = 2300) %>% as_tibble()) %>%
+  mutate(
+    is_must_restrict = ifelse(nutrient %in% mr_df$must_restrict, TRUE, FALSE)
+  )
 
 # z-score all must_restricts and nutrients
 scaled <- abbrev %>% 
@@ -58,8 +72,13 @@ scaled <- abbrev %>%
     vars(nutrient_names, "Energ_Kcal"), dobtools::z_score   # <-- equivalent to scale(), but simpler
   )
 
-# Add scaled values to abbrev
-abbrev <- abbrev %>% add_ranked_foods() %>% do_menu_mutates()
+# -------------------------------------------------------
+
+# Which columns to keep
+cols_to_keep <- c(nutrient_names, "Shrt_Desc", "GmWt_1", "NDB_No")
+
+# Do mutates and add scaled values to abbrev
+abbrev <- abbrev %>% do_menu_mutates() %>% add_ranked_foods() 
 
 # Ge our abbreviated dataframe without any NAs
 abbrev_sans_na <- abbrev %>% 

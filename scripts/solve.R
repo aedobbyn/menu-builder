@@ -9,7 +9,6 @@ library(dobtools)
 source("./helpers/helpers.R")
 source("./scripts/build.R")   # Load all original menu building and tweaking functions but 
                               # only create the original menu (with seed = 9)
-source("./scripts/score/score_menu.R")
 
 # Load solving scripts in /solve
 import_scripts(path = "./scripts/solve")

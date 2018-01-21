@@ -26,7 +26,7 @@ fake_test <- "./scripts/tests/testthat/test_fake.R"
 test_files <- c(fake_test, test_files)
 
 # Run a test on just our small fake file
-fake_test %>% dobtools::run_tests()
+# fake_test %>% dobtools::run_tests()
 
 # Run all interactively
 test_files %>% run_tests()
