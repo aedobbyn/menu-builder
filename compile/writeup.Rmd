@@ -1,0 +1,180 @@
+---
+title: All things Menus
+author:
+  name: Amanda Dobbyn
+  email: amanda.e.dobbyn@gmail.com
+  twitter: dobbleobble
+# output:
+#   html_notebook:
+#     toc: false
+#     theme: yeti
+#   pdf_document:
+#     keep_tex: true
+#     toc: false
+#   github_document:
+#     toc: false
+output:
+  html_document:
+    keep_md: true
+    toc: false
+    theme: yeti
+  github_document:
+    toc: true
+  pdf_document:
+    keep_tex: true
+    toc: false
+editor_options: 
+  chunk_output_type: inline
+---
+
+```{r setup, include=FALSE}
+library(knitr)
+knitr::opts_chunk$set(cache = TRUE)
+
+# Set the working directory path to one directory up so this .Rmd file's working directory is the same as the R Project directory. This way we don't have to change the file paths when sourcing in.
+knitr::opts_chunk$set(root.dir=normalizePath('../'))
+knitr::opts_knit$set(root.dir=normalizePath('../'))
+```
+
+```{r source_in, echo=FALSE, message=FALSE, warning=FALSE}
+# devtools::install_github("aedobbyn/dobtools")
+library(dobtools)
+library(testthat)
+library(stringr)
+library(feather)
+library(tidyverse)
+library(Rglpk)
+library(tidytext)
+library(widyr)
+library(igraph)
+library(ggraph)
+library(assertthat)
+
+#### Load all scripts ####
+dirs <- c("prep", "build", "score", "scrape", "solve", "simulate")
+paths <- str_c("./scripts/", dirs)
+
+# Import all .R scripts from all the dirs above 
+for (p in paths) {
+  suppressPackageStartupMessages(dobtools::import_scripts(p))
+}
+```
+
+```{r}
+# some_recipes_df <- read_feather("./data/derived/some_recipes_df.feather")
+status_spectrum <- read_feather("./data/derived/status_spectrum.feather")
+rec_spectrum <- read_feather("./data/derived/rec_spectrum.feather")
+more_recipes_df <- read_feather("./data/derived/more_recipes_df.feather")
+```
+
+
+## Creating and Solving Menus
+
+#### Building
+
+Build random menu
+```{r}
+our_random_menu <- build_menu()
+```
+
+
+#### Scoring
+
+```{r}
+our_random_menu %>% score_menu()
+```
+
+
+#### Solving
+
+Get Solution
+```{r}
+our_menu_solution <- our_random_menu %>% solve_it()
+```
+
+
+Solve menu
+```{r}
+our_solved_menu <- our_menu_solution %>% solve_menu()
+```
+
+
+Solve nutrients
+```{r}
+our_solved_nutrients <- our_menu_solution %>% solve_nutrients()
+```
+
+
+
+#### Swapping
+
+Single swap
+```{r}
+our_random_menu %>% smart_swap_single()
+```
+
+
+Wholesale swap
+```{r}
+our_random_menu %>% wholesale_swap()
+```
+
+
+#### Full Solving
+
+```{r}
+build_menu() %>% solve_full()
+```
+
+
+#### Simulating Solving
+
+```{r}
+simulate_menus()
+```
+
+```{r}
+simulate_spectrum()
+```
+
+
+
+## Scraping
+
+```{r}
+urls
+```
+
+```{r}
+some_recipes <- get_recipes(urls[4:5]) 
+```
+
+
+```{r}
+some_recipes %>% get_recipes(sleep = 3)
+```
+
+Fake recipe to illustrate some cases
+```{r}
+some_recipes_tester
+```
+
+
+```{r}
+some_recipes <- some_recipes[!some_recipes == "Bad URL"]
+some_recipes_df <- dfize(some_recipes)
+```
+
+```{r}
+some_recipes_df %>% get_portions() 
+```
+
+```{r}
+some_recipes_df %>% get_portions() %>% add_abbrevs()
+```
+
+
+## NLP
+
+
+
