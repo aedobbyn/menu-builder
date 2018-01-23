@@ -10,3 +10,4 @@ accessdb.sql
 *./idea*
 .idea/
 ./scripts/tests/testthat/test_fake.R
+compile/writeup_cache
