@@ -68,11 +68,79 @@ more_recipes_df <- read_feather("./data/derived/more_recipes_df.feather")
 ```
 
 
-## Creating and Solving Menus
+# Creating and Solving Menus
 
-#### Building
+### Building
 
 Build random menu
+
+```{r}
+add_calories <- function(menu = NULL, df = abbrev, seed = NULL, ...) {
+
+  # If we're starting from an existing menu
+  if (! is.null(menu)) {
+    menu <- menu %>% drop_na_(all_nut_and_mr_df$nutrient) %>%  filter(!(is.na(Energ_Kcal)) & !(is.na(GmWt_1)))
+    cals <- sum((menu$Energ_Kcal * menu$GmWt_1), na.rm = TRUE)/100   # Set calories to our current number of calories
+  # If we're starting from scratch
+  } else {
+    cals <- 0   
+    menu <- NULL
+  }
+
+  while (cals < 2300) {
+    df <- df %>% filter(!NDB_No %in% menu$NDB_No)   # Only add foods we don't already have
+
+    if (nrow(df) == 0) {
+      message("No more elligible foods to sample from. Returning menu too low in calories.")
+      return(menu)
+    } else {
+      food_i <- df %>%
+        sample_n(1)   # Sample a new index from a food that doesn't already exist in our menu
+    }
+
+    this_food_cal <- (food_i$Energ_Kcal * food_i$GmWt_1)/100    # get the number of calories in 1 serving of this food (see N = (V*W)/100 formula)
+    cals <- cals + this_food_cal    # add the calories in row of index i to the calorie sum variable
+
+    menu <- bind_rows(menu, food_i)   # add that row to our menu
+  }
+  return(menu)    # return the full menu
+}
+
+```
+
+
+```{r}
+build_menu <- function(df = abbrev, menu = NULL, seed = NULL, from_better_cutoff = NULL, do_mutates = TRUE) {
+  if (!is.null(seed)) {
+    set.seed(seed)
+  }
+  
+  df <- df %>% drop_na_(all_nut_and_mr_df$nutrient) %>%
+    filter(!(is.na(Energ_Kcal)) & !(is.na(GmWt_1)))    # Filter out rows that have NAs in columns that we need
+  
+  # Optionally choose a floor for what the z-score of each food to build from should be
+  if (!is.null(from_better_cutoff)) {
+    assert_that(is.numeric(from_better_cutoff), msg = "from_better_cutoff must be numeric or NULL")
+    if (! "scaled_score" %in% names(df)) {
+      df <- df %>% 
+        add_ranked_foods()
+    }
+    df <- df %>% 
+      filter(scaled_score > from_better_cutoff)
+  }
+  
+  if (nrow(df) == 0) {
+    stop("No foods to speak of; you might try a lower cutoff.")
+  }
+  
+  # Add one serving of food until we hit 2300
+  menu <- add_calories(menu = menu, df = df)
+  
+  return(menu)
+}
+```
+
+
 ```{r}
 our_random_menu <- build_menu()
 ```
@@ -85,32 +153,214 @@ our_random_menu %>% score_menu()
 ```
 
 
-#### Solving
+### Solving
 
-Get Solution
-```{r}
+#### Getting a Solution
+
+
+GNU solver
+https://cran.r-project.org/web/packages/Rglpk/Rglpk.pdf
+
+Our goal is to return a solution that is a list of a few things we're intersted in: the cost of our final menu, the original menu, and the multiplier on each food's portion size.
+
+```{r solve_it}
+solve_it <- function(df, nut_df = nutrient_df, df_is_per_100g = TRUE, only_full_servings = FALSE, 
+                     min_food_amount = 1, max_food_amount = 100, 
+                     verbose = TRUE, v_v_verbose = FALSE, maximize = FALSE) {
+  
+  # If our nutrient values are per 100g (i.e., straight from menu_builder)
+  if (df_is_per_100g == TRUE) {
+    df_per_100g <- df        # Save our original df in df_per_100g
+    df <- get_raw_vals(df)   # Get the raw values
+  } else {
+    df_per_100g <- get_per_g_vals(df)
+    df <- df
+  }
+  
+  n_foods <- length(df$shorter_desc)
+  nut_quo <- quo(nut_df$nutrient)
+  
+  dir_mr <- rep("<", nut_df %>% filter(is_must_restrict == TRUE) %>% ungroup() %>% count() %>% as_vector())       # And less than on all the must_restricts
+  dir_pos <- rep(">", nut_df %>% filter(is_must_restrict == FALSE) %>% ungroup() %>% count() %>% as_vector())     # Final menu must be greater than on all the positives
+  
+  dir <- c(dir_mr, dir_pos)
+  rhs <- nut_df[["value"]]      # The right-hand side of the equation is all of the min or max nutrient values
+  obj_fn <- df[["cost"]]             # Objective function will be to minimize total cost
+  
+  bounds <- list(lower = list(ind = seq(n_foods), 
+                              val = rep(min_food_amount, n_foods)),
+                 upper = list(ind = seq(n_foods), 
+                              val = rep(max_food_amount, n_foods)))
+  
+  construct_matrix <- function(df, nut_df) {       # Set up matrix constraints
+    mat_base <- df %>% select(!!nut_quo) %>% as_vector()    # Get a vector of all our nutrients
+    mat <- matrix(mat_base, nrow = nrow(nut_df), byrow = TRUE)       # One row per constraint, one column per food (variable)
+    return(mat)
+  }
+  
+  const_mat_names <- str_c(df$shorter_desc,  # Use combo of shorter_desc and NDB_No
+        df$NDB_No, sep = ", ")  # so that names are interpretable but also unique
+  
+  mat <- construct_matrix(df, nut_df)
+  constraint_matrix <- mat %>% dplyr::as_data_frame() 
+  names(constraint_matrix) <- const_mat_names
+  
+  constraint_matrix <- constraint_matrix %>% 
+    mutate(
+      dir = dir,
+      rhs = rhs
+    ) %>% left_join(nut_df, by = c("rhs" = "value")) %>% 
+    select(nutrient, everything())
+  
+  if(only_full_servings == TRUE) {    # Integer values of coefficients if only full servings
+    types <- rep("I", n_foods)
+  } else {
+    types <- rep("C", n_foods)
+  }
+  
+  if(v_v_verbose == TRUE) {
+    v_v_verbose <- TRUE
+    message("Constraint matrix below:")
+    print(constraint_matrix)
+  } else {
+    v_v_verbose <- FALSE
+  }
+  
+  out <- Rglpk_solve_LP(obj_fn, mat, dir, rhs,                    # Do the solving; we get a list back
+                        bounds = bounds, types = types, 
+                        max = maximize, verbose = v_v_verbose)   
+  
+  out <- append(append(append(                                           # Append the dataframe of all min/max nutrient values
+    out, list(necessary_nutrients = nut_df)),
+    list(constraint_matrix = constraint_matrix)),                        # our constraint matrix
+    list(original_menu_raw = df))                                            # and our original menu
+  
+  if (!is.null(df_per_100g)) {
+    out <- append(out, list(original_menu_per_g = df_per_100g))
+  }
+  
+  if (verbose == TRUE) {
+    message(paste0("Cost is $", round(out$optimum, digits = 2), ".")) 
+    if (out$status == 0) {
+      message("Optimal solution found :)")
+    } else {
+      message("No optimal solution found :'(")
+    }
+  }
+  
+  return(out)
+}
+
+
+```
+
+
+```{r time_solve_it}
+system.time(our_random_menu %>% solve_it())
+```
+
+
+```{r our_menu_solution}
 our_menu_solution <- our_random_menu %>% solve_it()
 ```
 
 
-Solve menu
+### Solve menu
+
+`solve_menu` takes one main argument: the result of a call to `solve_it()`. Since the return value of solve it contains the original menu and a vector of solution amounts -- that is, the amount we're multiplying each portion size by in order to arrive at our solution -- we can combine these to get our solved menu.
+
+We also return a message, if `verbose` is TRUE, telling us which food we've got the most servings of, as this might be something we'd want to decrease. (Now that I'm thining about it, maybe a more helpful message would take a threshold portion size and only alert us if we've exceeded that threshold.)
+
+```{r solve_menu}
+solve_menu <- function(sol, verbose = TRUE) {
+  
+  solved_col <-  tibble(solution_amounts = sol$solution)    # Grab the vector of solution amounts
+  
+  if (! "solution_amounts" %in% names(sol$original_menu_per_g)) {   # If we don't yet have a solution amounts column add it
+    df_solved <- sol$original_menu_per_g %>% 
+      bind_cols(solved_col)            # cbind that to the original menu
+  } else {
+    df_solved <- sol$original_menu_per_g %>% 
+      mutate(
+        solution_amounts = solved_col %>% as_vector()    # If we've already got a solution amounts column, replace the old one with the new
+      ) 
+  }
+  
+  df_solved <- df_solved %>% 
+    mutate(
+      GmWt_1 = GmWt_1 * solution_amounts,
+      cost = cost * solution_amounts
+    ) %>% 
+    select(shorter_desc, solution_amounts, GmWt_1, serving_gmwt, everything()) 
+  
+  max_food <- df_solved %>%                                   # Find what the most of any one food we've got is
+    filter(solution_amounts == max(df_solved$solution_amounts)) %>% 
+    slice(1:1)                                           # If we've got multiple maxes, take only the first
+  
+  if (verbose == TRUE) {
+    message(paste0("We've got a lot of ", max_food$shorter_desc %>% as_vector()), ". ",
+            max_food$solution_amounts %>% round(digits = 2), " servings of ",
+            max_food$shorter_desc %>% as_vector() %>% is_plural(return_bool = FALSE), ".")  
+  }
+  
+  return(df_solved)
+}
+
+```
+
 ```{r}
 our_solved_menu <- our_menu_solution %>% solve_menu()
 ```
 
 
-Solve nutrients
+#### Solve nutrients
+
+This function will let us find what the raw nutrient amounts in our solved menu are, and let us know which nutrient we've overshot the lower bound on the most. Like `solve_menu()`, a result from `solve_it()` can be piped nicely in here.
+
+```{r solve_nutrients}
+solve_nutrients <- function(sol, verbose = TRUE) {
+  
+  solved_nutrient_value <- list(solution_nutrient_value =         # Grab the vector of nutrient values in the solution
+                                  sol$auxiliary$primal) %>% as_tibble()
+  
+  nut_df_small_solved <- sol$necessary_nutrients %>%       # cbind it to the nutrient requirements
+    bind_cols(solved_nutrient_value)  %>% 
+    rename(
+      required_value = value
+    ) %>% 
+    select(nutrient, is_must_restrict, required_value, solution_nutrient_value)
+  
+  ratios <- nut_df_small_solved %>%                # Find the solution:required ratios for each nutrient
+    mutate(
+      ratio = solution_nutrient_value/required_value
+    )
+  
+  max_pos_overshot <- ratios %>%             # Find where we've overshot our positives the most
+    filter(is_must_restrict == FALSE) %>% 
+    filter(ratio == max(.$ratio))
+  
+  if (verbose == TRUE) {
+    message(paste0("We've overshot the most on ", max_pos_overshot$nutrient %>% as_vector()), 
+            ". It's ", 
+        max_pos_overshot$ratio %>% round(digits = 2), " times what is needed.")
+  }
+  
+  return(nut_df_small_solved)
+}
+
+```
+
 ```{r}
 our_solved_nutrients <- our_menu_solution %>% solve_nutrients()
 ```
 
 
 
-#### Swapping
+### Swapping
 
 Single swap
 ```{r}
-our_random_menu %>% smart_swap_single()
+our_random_menu %>% do_single_swap()
 ```
 
 
@@ -120,18 +370,83 @@ our_random_menu %>% wholesale_swap()
 ```
 
 
-#### Full Solving
+### Full Solving
 
 ```{r}
 build_menu() %>% solve_full()
 ```
 
 
-#### Simulating Solving
+### Simulating Solving
+
+Cool, so we've got a mechanism for creating and solving menus. But what portion of our menus are even solvable at a minimum portion size of 1 without doing any swapping? To answer that, I set about making a way to run a some simulations.
+
+First, a helper funciton for just `pluck`ing the status portion of our `solve_it()` response telling us whether we solved the menu or not. The result of `get_status()` should always be either a 1 for unsolvable or 0 for solved. 
+
+```{r get_status}
+get_status <- function(seed = NULL, min_food_amount = 0.5, verbose = TRUE) {  
+  this_menu <- build_menu(seed = seed) %>% 
+    solve_it(min_food_amount = min_food_amount, verbose = verbose, only_full_servings = FALSE) %>% 
+    purrr::pluck("status")
+}
+```
+
+
+Now to the simulations: or a given minimum portion size, what proportion of a random number of simulated menus can we solve?
+
+We'll use `map_dbl` to get the status of each solution in our simulation. Then all we need to do is specify a minimum portion size for all menus to have and the number of simulations to run. We'll shuffle the seed at which random menus are built for each simulation and then return a vector of whether each was solved or not.
+
+```{r simulate_menus}
+simulate_menus <- function(n_sims = 10, min_food_amount = 0.5, verbose = FALSE) {
+  
+  # Choose as many random seeds as we have simulations
+  seeds <- sample(1:n_sims, size = n_sims, replace = FALSE)
+  
+  out <- seeds %>% map2_dbl(.y = min_food_amount, .f = get_status)
+  return(out)
+}
+```
+
 
 ```{r}
 simulate_menus()
 ```
+
+
+Alright so that's kinda useful for a single portion size, but what if we wanted to see how solvability varies as we change up portion size? Presumably as we decrease the lower bound for each food's portion size we'll give ourselves more flexibility and be able to solve a higher proportion of menus. But will the percent of menus that are solvable increase linearly as we decrease portion size? 
+
+I named this next function `simulate_spectrum()` because it allows us to take a lower and an upper bound of minimum portion sizes and see what happens at each point between those two intervals. 
+
+We specify the lower bound for the min portion size spectrum with `from` and the upper bound with `to`. How spaced out those points are and how many of them there are are set with `n_intervals` and `n_sims`; in other words, `n_intervals` is the number of chunks we want to split the spectrum of `from` to `to` into and `n_sims` is the number of times we want to repeat the simulation at each point. 
+
+Instead of a vector, this time we'll return a dataframe in order to be able to match up the minimim portion size (`min_amount`, which we're varying) with whether or not the menu was solvable.
+
+```{r simulate_spectrum}
+simulate_spectrum <- function(n_intervals = 10, n_sims = 2, from = -1, to = 1,
+                              min_food_amount = NULL, verbose = FALSE, ...) {
+
+  interval <- (to - from) / n_intervals
+  spectrum <- seq(from = from, to = to, by = interval) %>% rep(n_sims) %>% sort()
+  
+  seeds <- sample(1:length(spectrum), size = length(spectrum), replace = FALSE)
+  
+  out_status <- vector(length = length(spectrum))
+  
+  for (i in seq_along(spectrum)) {
+    this_status <- get_status(seed = seeds[i], min_food_amount = spectrum[i], verbose = verbose)
+    if (!is.integer(this_status)) {
+      this_status <- integer(0)     # If we don't get an integer value back, make it NA
+    }
+    out_status[i] <- this_status
+  }
+  
+  out <- tibble(min_amount = spectrum, status = out_status)
+  
+  return(out)
+}
+```
+
+
 
 ```{r}
 simulate_spectrum()
@@ -139,7 +454,7 @@ simulate_spectrum()
 
 
 
-## Scraping
+# Scraping
 
 ```{r}
 urls

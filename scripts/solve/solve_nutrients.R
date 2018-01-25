@@ -1,7 +1,7 @@
 
 # Take solution (a list resulting from solve_it()) and get the raw values of each of the nutrients in the
 # solved menu
-solve_nutrients <- function(sol) {
+solve_nutrients <- function(sol, verbose = TRUE) {
   
   solved_nutrient_value <- list(solution_nutrient_value =         # Grab the vector of nutrient values in the solution
                                   sol$auxiliary$primal) %>% as_tibble()
@@ -22,9 +22,11 @@ solve_nutrients <- function(sol) {
     filter(is_must_restrict == FALSE) %>% 
     filter(ratio == max(.$ratio))
   
-  message(paste0("We've overshot the most on ", max_pos_overshot$nutrient %>% as_vector()), 
-          ". It's ", 
-          max_pos_overshot$ratio %>% round(digits = 2), " times what is needed.")
+  if (verbose == TRUE) {
+    message(paste0("We've overshot the most on ", max_pos_overshot$nutrient %>% as_vector()), 
+            ". It's ", 
+        max_pos_overshot$ratio %>% round(digits = 2), " times what is needed.")
+  }
   
   return(nut_df_small_solved)
 }
