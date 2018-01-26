@@ -50,11 +50,10 @@ mr_score <- function(orig_menu) {
     val_mr_considering <- (sum((orig_menu[[mr_considering]] * orig_menu$GmWt_1), 
                                 na.rm = TRUE))/100   # get the total amount of that nutrient in our original menu
     
-    mr_score <- pos_df$value[m] - val_mr_considering  # max amount it's supposed to be - amount it is
+    mr_score <- mr_df$value[m] - val_mr_considering  # max amount it's supposed to be - amount it is
 
     total_mr_score <- total_mr_score + mr_score
-    total_mr_score
-    
+
   }
   return(total_mr_score)
 }

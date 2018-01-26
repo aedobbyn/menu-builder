@@ -1,5 +1,5 @@
 ---
-title: All things Menus
+title: Food for Thought
 author:
   name: Amanda Dobbyn
   email: amanda.e.dobbyn@gmail.com
@@ -60,7 +60,7 @@ for (p in paths) {
 }
 ```
 
-```{r}
+```{r read_in}
 # some_recipes_df <- read_feather("./data/derived/some_recipes_df.feather")
 status_spectrum <- read_feather("./data/derived/status_spectrum.feather")
 rec_spectrum <- read_feather("./data/derived/rec_spectrum.feather")
@@ -72,9 +72,11 @@ more_recipes_df <- read_feather("./data/derived/more_recipes_df.feather")
 
 ### Building
 
-Build random menu
+Now to build a menu. The only constraint we have to worry about here is that menus have to contain at least 2300 calories. Our strategy is simple; pick one serving of a food at random from our dataset and, if it doesn't yet exist in our menu, add it. We do this until we're no longer under 2300 calories. 
 
-```{r}
+That's implemented in `add_calories()` below, which we'll as a helper inside `build_menu()`. The reason I've spun `add_calories()` out into its own function is so that we can easily add more foods to existing menus. It takes `menu` as its first argument, unlike `build_menu()` which takes a dataframe of all possible foods to choose from.
+
+```{r add_calories}
 add_calories <- function(menu = NULL, df = abbrev, seed = NULL, ...) {
 
   # If we're starting from an existing menu
@@ -98,18 +100,22 @@ add_calories <- function(menu = NULL, df = abbrev, seed = NULL, ...) {
         sample_n(1)   # Sample a new index from a food that doesn't already exist in our menu
     }
 
-    this_food_cal <- (food_i$Energ_Kcal * food_i$GmWt_1)/100    # get the number of calories in 1 serving of this food (see N = (V*W)/100 formula)
-    cals <- cals + this_food_cal    # add the calories in row of index i to the calorie sum variable
+    this_food_cal <- (food_i$Energ_Kcal * food_i$GmWt_1)/100   
+    cals <- cals + this_food_cal    
 
-    menu <- bind_rows(menu, food_i)   # add that row to our menu
+    menu <- bind_rows(menu, food_i)   
   }
-  return(menu)    # return the full menu
+  return(menu)   
 }
 
 ```
 
 
-```{r}
+Okay now for `build_menu()`. We'll make sure we don't have missing values in any of our nutrient columns, calories, or the food weight. The `from_better_cutoff` argument allows us to specify that we only want to pull foods that have at least a certain z-score on our `scaled_score` dimension. More on scoring in a bit. 
+
+The default, though, will just be to pull foods from our main `abbrev` dataframe.
+
+```{r build_menu}
 build_menu <- function(df = abbrev, menu = NULL, seed = NULL, from_better_cutoff = NULL, do_mutates = TRUE) {
   if (!is.null(seed)) {
     set.seed(seed)
@@ -141,14 +147,151 @@ build_menu <- function(df = abbrev, menu = NULL, seed = NULL, from_better_cutoff
 ```
 
 
-```{r}
+
+```{r do_build_menu}
 our_random_menu <- build_menu()
 ```
+
+Alright nice -- we've got random menu that's at least compliant on calories. Is it compliant on nutrients and must restricts?
+
+
+#### Testing Compliance
+
+A few quick functions for testing whether we're compliant on the other dimensions. Nothing fancy here; all we're doing is going through positives and must restricts and figuring out how much of a given nutrient we've got and comparing that to the requirement. If we're below the minimum on any positives, above the maximum on any must restricts, or we're below 2300 calories we're out of compliance. To make it easier to see where we're out of compliance, we'll return a dataframe of the nutrients we're uncompliant on.
+
+For must restricts:
+
+```{r test_mr_compliance}
+test_mr_compliance <- function(orig_menu, capitalize_colname = TRUE) {
+  
+  compliance_df <- list(must_restricts_uncompliant_on = vector(), 
+                        `difference_(g)` = vector()) %>% as_tibble()
+  
+  for (m in seq_along(mr_df$must_restrict)) {    
+    nut_to_restrict <- mr_df$must_restrict[m]    # Grab the name of the nutrient we're restricting
+    to_restrict <- (sum(orig_menu[[nut_to_restrict]] * orig_menu$GmWt_1, na.rm = TRUE))/100   # Get the amount of that must restrict nutrient in our original menu
+    
+    if ((to_restrict - mr_df$value[m]) > 0.01) {    # Account for rounding error
+      this_compliance <- list(must_restricts_uncompliant_on = nut_to_restrict,
+                              `difference_(g)` = (to_restrict - mr_df$value[m]) %>% round(digits = 2)) %>% as_tibble()
+      compliance_df <- bind_rows(compliance_df, this_compliance)
+    }
+  }
+  if (capitalize_colname == TRUE) {
+    compliance_df <- compliance_df %>% cap_df()
+  }
+  return(compliance_df)
+}
+```
+
+Same idea for positives. Then to test whether we're compliant overall, we'll see whether we pass all of these tsts. If not, we're not compliant.
+
+```{r test_all_compliance}
+test_all_compliance <- function(orig_menu) {
+  combined_compliance <- "Undetermined"
+  
+  if (nrow(test_mr_compliance(orig_menu)) + nrow(test_pos_compliance(orig_menu)) > 0 |
+      test_calories(orig_menu) == "Calories too low") {
+    combined_compliance <- "Not Compliant"
+    
+  } else if (nrow(test_mr_compliance(orig_menu)) + nrow(test_pos_compliance(orig_menu)) == 0 &
+             test_calories(orig_menu) == "Calorie compliant") {
+    combined_compliance <- "Compliant"
+    
+  } else {
+    combined_compliance <- "Undetermined"
+  }
+  return(combined_compliance)
+}
+
+```
+
+
+```{r do_test_compliance}
+
+```
+
 
 
 #### Scoring
 
-```{r}
+Now I want an objective and preferably single scalar metric by which to judge menus. We want a metric that takes into account the following things:
+* You don't get extra credit for going above the daily minimum on positive nutrients
+    * This reflects the fact that your body can only absorb up to a certain amount of a vitamin
+* You do, however, keep getting penalized for going farther and farther above the minimum on `must_restricts`
+    * There's no cap on how bad an increase in bad stuff will keep 
+    
+For simplicity and because I'm not a doctor, we'll assume a linear relationship between increasing and decreasing nutrients and their effect on our score. Though they're really two different dimensions, I want to be able to combine a must restrict score with a postiive score to get a single number out. The directionality of the scores will also have to be the same if we want to combine them; so in both cases, *more positive scores mean worse*.
+
+Similar to how we tested compliance, I'll do is go through a given menu and multiply the nutrient value per 100g by `GmWt_1`, the amount of the food we have. That will give us the raw amount of this nutrient. Then I'll see how much that raw amount differs from the minimum or maximum daily value of that nutrient we're supposed to have and give it a score accordingly. Then I'll add it up.
+
+First, the must restricts. For each must restrict, we find the difference between our maximum allowed value and the value of that must restrict and add those all up. (Perhaps percent above the maximum would be a better metric.)
+
+$\sum_{i=1}^{k} MaxAllowedAmount_{i} - AmountWeHave_{i}$ 
+
+So the farther above our max we are on must restricts, the higher our score will be.
+
+```{r mr_score}
+mr_score <- function(orig_menu) {
+  total_mr_score <- 0
+  
+  for (m in seq_along(mr_df$must_restrict)) {    # for each row in the df of positives
+    mr_considering <- mr_df$must_restrict[m]    # grab the name of the nutrient we're examining
+    val_mr_considering <- (sum((orig_menu[[mr_considering]] * orig_menu$GmWt_1), 
+                                na.rm = TRUE))/100   # get the total amount of that nutrient in our original menu
+    
+    mr_score <- mr_df$value[m] - val_mr_considering  # max amount it's supposed to be - amount it is
+
+    total_mr_score <- total_mr_score + mr_score
+  }
+  return(total_mr_score)
+}
+```
+
+
+
+Similar story for the positives: we'll take the difference between our minimum required amount and the amount of the nutrient we've got in our menu and multiply that by -1. 
+
+$\sum_{i=1}^{k} (-1) * (MaxAllowedAmount_{i} - AmountWeHave_{i})$ 
+
+That means that if we've got less than the amount we need, this value will be negative; if we've got more than we need it'll be positive. Next, to make the best score 0 I'll turn everything greater than 0 into 0. This takes away the extra brownie points for going above and beyond. Same as with must restricts, lower scores mean "better." 
+
+
+```{r pos_score}
+pos_score <- function(orig_menu) {
+  total_nut_score <- 0
+  
+  for (p in seq_along(pos_df$positive_nut)) {    
+    nut_considering <- pos_df$positive_nut[p]    
+    val_nut_considering <- (sum((orig_menu[[nut_considering]] * orig_menu$GmWt_1), 
+                                na.rm = TRUE))/100   
+    
+    nut_score <- (-1)*(pos_df$value[p] - val_nut_considering)    # (-1)*(min amount it's supposed to be - amount it is here)
+    
+    if (nut_score > 0) {
+      nut_score <- 0
+    } else if (is.na(nut_score)) {
+      message("Nutrient has no score")
+      break
+    }
+    total_nut_score <- total_nut_score + nut_score
+  }
+  return(total_nut_score)
+}
+```
+
+
+Last step is just a simple sum:
+
+```{r score_menu}
+score_menu <- function(orig_menu) {
+  healthiness_score <- pos_score(orig_menu) + mr_score(orig_menu)
+  return(healthiness_score)
+}
+```
+
+
+```{r do_score_menu}
 our_random_menu %>% score_menu()
 ```
 
@@ -157,9 +300,7 @@ our_random_menu %>% score_menu()
 
 #### Getting a Solution
 
-
-GNU solver
-https://cran.r-project.org/web/packages/Rglpk/Rglpk.pdf
+The algorithm we use for solving is the [GNU linear program solver](https://cran.r-project.org/web/packages/Rglpk/Rglpk.pdf).
 
 Our goal is to return a solution that is a list of a few things we're intersted in: the cost of our final menu, the original menu, and the multiplier on each food's portion size.
 
@@ -359,6 +500,7 @@ our_solved_nutrients <- our_menu_solution %>% solve_nutrients()
 ### Swapping
 
 Single swap
+
 ```{r}
 our_random_menu %>% do_single_swap()
 ```
@@ -490,6 +632,10 @@ some_recipes_df %>% get_portions() %>% add_abbrevs()
 
 
 ## NLP
+
+
+
+
 
 
 
