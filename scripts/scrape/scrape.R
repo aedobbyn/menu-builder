@@ -49,9 +49,14 @@ try_read <- possibly(read_url, otherwise = "Bad URL", quiet = TRUE)
 
 # Get recipe content and name it with the recipe title, returning a list of dataframe recipes
 get_recipes <- function(urls, sleep = 5, verbose = TRUE, append_bad_URLs = TRUE) {
-  out <- NULL
   bad_url_counter <- 0
   duped_recipe_counter <- 0
+  
+  if (append_bad_URLs == TRUE) {
+    out <- vector(length = length(urls))    
+  } else {
+    out <- NULL       # In this case we don't know how long our list will be 
+  }
   
   for (url in urls) {
     Sys.sleep(sleep)    # Sleep in between requests to avoid 429 (too many requests)
@@ -81,8 +86,8 @@ get_recipes <- function(urls, sleep = 5, verbose = TRUE, append_bad_URLs = TRUE)
         out <- append(out, recipe_list)
         
       } else {
+        duped_recipe_counter <- duped_recipe_counter + 1
         if (verbose == TRUE) {
-          duped_recipe_counter <- duped_recipe_counter + 1
           message("Skipping recipe we already have")
         }
       }
@@ -146,7 +151,7 @@ frac_to_dec <- function(e) {
 map_frac_to_dec <- function(e) {
   out <- NULL
   for (i in e) {
-      out <- e %>% map_chr(frac_to_dec)
+    out <- e %>% map_chr(frac_to_dec)
   }
   return(out)
 }

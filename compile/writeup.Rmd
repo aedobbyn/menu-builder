@@ -641,10 +641,20 @@ read_url <- function(url) {
 try_read <- possibly(read_url, otherwise = "Bad URL", quiet = TRUE)
 ```
 
-`read_html()` from the `xml2` package will return us the raw HTML for a given page. We're only interested in the recipe portion of that, so using the Chrome inspector or the [SelectorGadget Chrome extension](http://selectorgadget.com/) we can figure out what the CSS tag is of the content itself. That happens to be the class `.checkList__line`. So, we'll pluck everything tagged with `.checkList__line` using `html_nodes()` and return text we can use with `html_text()`.
+`read_html()` from the `xml2` package will return us the raw HTML for a given page. We're only interested in the recipe portion of that, so using the Chrome inspector or the [SelectorGadget Chrome extension](http://selectorgadget.com/) we can figure out what the CSS tag is of the content itself. 
 
-Next step is to pare out all the stray garbage left over like `\n` new lines etc., and return our recipe.
+The recipe's name gets the CSS class `.recipe-summary__h1` and the content gets `.checkList__line`. So, we'll pluck everything tagged with those two classes using `html_nodes()` and return text we can use with `html_text()`.
 
+```{r get_recipe_name}
+get_recipe_name <- function(page) {
+  recipe_name <- page %>% 
+    html_nodes(".recipe-summary__h1") %>% 
+    html_text() 
+  return(recipe_name)
+}
+```
+
+We'll need an extra couple steps when it comes to recipe content to pare out all the stray garbage left over like `\n` new lines etc.
 
 ```{r get_recipe_content}
 get_recipe_content <- function(page) {
@@ -660,14 +670,22 @@ get_recipe_content <- function(page) {
 ```
 
 
-Cool, so we've got two functions now, one for reading the content from a URL and one for grabbing the part of it that we want and cleaning it up.
+Cool, so we've got three functions now, one for reading the content from a URL and turning it into a `page` and two for taking that `page` and grabbing the parts of it that we want We'll use those functions in `get_recipes()` which will take a vector of URLs and return us a list of recipes. We also include parameters for how long to wait in between requests (`sleep`) so as to avoid getting booted from allrecipes.com and whether we want the "Bad URL"s included in our results list or not. If `verbose` is TRUE we'll get a message of count of the number of 404s we had and the number of duped recipes. 
+
+**Note on dupes**
+Dupes come up because multiple IDs can point to the same recipe, that is, two different URLs could resolve to the same page. I figured there were two routes we could go to see whether a recipe is a dupe or not; one, just go off of the recipe name or two, go off of the recipe name and content. By going off of the name, we don't go through the trouble of pulling in duped recipe content if we think we've got a dupe; we just skip it. Going off of content and checking whether the recipe content exists in our list so far would be safer (we'd only skip the recipes that we definitely already have), but slower because we have to both `get_recipe_name()` and `get_recipe_content()`. I went with the faster way; in `get_recipes()` we just check the recipe name we're on against all the recipe names in our list with `if (!recipe_name %in% names(out))`.
 
 
 ```{r get_recipes}
 get_recipes <- function(urls, sleep = 5, verbose = TRUE, append_bad_URLs = TRUE) {
-  out <- NULL
   bad_url_counter <- 0
   duped_recipe_counter <- 0
+  
+  if (append_bad_URLs == TRUE) {
+    out <- vector(length = length(urls))    
+  } else {
+    out <- NULL       # In this case we don't know how long our list will be 
+  }
   
   for (url in urls) {
     Sys.sleep(sleep)    # Sleep in between requests to avoid 429 (too many requests)
@@ -691,14 +709,14 @@ get_recipes <- function(urls, sleep = 5, verbose = TRUE, append_bad_URLs = TRUE)
           get_recipe_content() %>% 
           map(remove_whitespace) %>% as_vector()
         
-        recipe_list <- list(tmp_name = recipe) %>% as_tibble()   # could do with deparse(recipe_name)?
+        recipe_list <- list(tmp_name = recipe) %>% as_tibble()  
         names(recipe_list) <- recipe_name
         
         out <- append(out, recipe_list)
         
       } else {
+        duped_recipe_counter <- duped_recipe_counter + 1
         if (verbose == TRUE) {
-          duped_recipe_counter <- duped_recipe_counter + 1
           message("Skipping recipe we already have")
         }
       }
@@ -715,27 +733,127 @@ get_recipes <- function(urls, sleep = 5, verbose = TRUE, append_bad_URLs = TRUE)
 ```
 
 
+Let's give it a shot with a couple URLs.
+
+```{r some_recipes}
+a_couple_recipes <- get_recipes(urls[4:5]) 
+```
+
+
+Next step is tidying. We want to put this list of recipes into dataframe format with one observation per row and one variable per column. Our rows will contain items in the recipe content, each of which we'll associate with the recipe's name.
+
+```{r dfize}
+dfize <- function(lst, remove_bad_urls = TRUE) {
+
+  df <- NULL
+  if (remove_bad_urls == TRUE) {
+    lst <- lst[!lst == "Bad URL"]
+  }
+
+  for (i in seq_along(lst)) {
+    this_df <- lst[i] %>% as_tibble()
+    recipe_name <- names(lst[i])
+    names(this_df) <- "ingredients"
+    this_df <- this_df %>% 
+      mutate(recipe_name = recipe_name)
+    df <- df %>% bind_rows(this_df)
+  }
+  return(df)
+}
+```
 
 
 ```{r some_recipes}
-some_recipes <- get_recipes(urls[4:5]) 
+a_couple_recipes_df <- dfize(a_couple_recipes)
 ```
 
 
-```{r}
-some_recipes %>% get_recipes(sleep = 3)
-```
+Great, so we've got a tidy dataframe that we can start to get some useful data out of.
 
-Fake recipe to illustrate some cases
-```{r}
+One of the goals here is to see what portion of a menu tends to be devoted to, say, meat or spices or a word that appears in the receipe name etc. In order to answer that, we'll need to extract portion names and portion sizes from the text. That wouldn't be pretty simple with a fixed list of portion names ("gram", "lb") if portion sizes were always just a single number.
+
+But, as it happens, protion sizes don't usually consist of just one number. There are a few hurdles: 1) complex fractions, 2) multiple items of the same item, and 3) ranges. A complex fraction would be something a recipe item like "2 1/3 cups of flour." A multiple of an item is, e.g., "4 12oz bottles of beer." A range would be "6-7 tomatoes." 
+
+
+Here is a fake recipe to illustrate some of those cases:
+```{r some_recipes_tester}
 some_recipes_tester
 ```
 
 
-```{r}
-some_recipes <- some_recipes[!some_recipes == "Bad URL"]
-some_recipes_df <- dfize(some_recipes)
+Rather than start doing conditional random field-level smart to get around these problems, to start off I started writing a few rules of thumb.
+
+**Complex fractions**
+
+First, a way to turn a single fraction into a decimal form. We keep them `as.character`
+
+```{r frac_to_dec}
+frac_to_dec <- function(e) {
+  if (length(e) == 0) {    # If NA, make the portion 0
+    out <- 0
+  } else {
+    out <- parse(text = e) %>% eval() %>% as.character()
+  }
+  return(out)
+}
 ```
+
+
+**Multiplying Sizes**
+
+
+If we've got something that needs to be multiplied, like "4 (12 oz) hams" or a fraction like "2/3 pound of butter",
+then multiply or add those numbers as appropriate
+
+```{r}
+get_mult_add_portion <- function(e, only_mult_after_paren = FALSE) {
+  if ((str_detect(e, multiplier_reg) == TRUE | str_detect(e, multiplier_reg_looser) == TRUE)
+      & only_mult_after_paren == FALSE) {  # If either matches and we don't care about where there's a parenthesis there or not
+      if (str_detect(e, multiplier_reg) == TRUE) {
+        out <- e %>% str_extract_all(portions_reg) %>% 
+          map(map_frac_to_dec) %>%   
+          map(as.numeric) %>% 
+          map_dbl(multiply_or_add_portions) %>%   
+          round(digits = 2)
+    } else {    # If we do care, and we have a parenthesis
+      out <- e %>% str_extract_all(portions_reg) %>% 
+        map(map_frac_to_dec) %>%   
+        map(as.numeric) %>% 
+        map_dbl(multiply_or_add_portions) %>%   
+        round(digits = 2)
+    }
+  } else {
+    out <- 0
+  }
+  return(out)
+}
+```
+
+
+**Ranges**
+
+
+
+
+And finally, if we neither need to get a range nor multiply/add portions, we'll just take whatever the first number is in there.
+
+```{r get_final_portion}
+get_final_portion <- function(e, range_portion, mult_add_portion, ...) {
+  if (range_portion == 0 & mult_add_portion == 0) {
+    out <- str_extract_all(e, portions_reg) %>% 
+      map(map_frac_to_dec) %>%   
+      map(as.numeric) %>% map_dbl(first)
+
+  } else {
+    out <- range_portion + mult_add_portion   # One of these should be 0, so the sum should be just whichever one is non-zero
+  }
+  return(out)
+}
+
+```
+
+
+
 
 ```{r}
 some_recipes_df %>% get_portions() 
