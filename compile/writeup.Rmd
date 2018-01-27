@@ -207,8 +207,10 @@ test_all_compliance <- function(orig_menu) {
 ```
 
 
-```{r do_test_compliance}
+Let's see where we are with our random menu.
 
+```{r do_test_compliance}
+our_random_menu %>% test_all_compliance
 ```
 
 
@@ -598,11 +600,124 @@ simulate_spectrum()
 
 # Scraping
 
-```{r}
+I joked with my co-data scientist at Earlybird, Boaz Reisman, that this project so far could fairly be called "Eat, Pray, Barf." The menus we generate start off random and that's bad enough -- then, once we change up portion sizes, the menus only get less appetizing.
+
+I figured the best way to decrease the barf factor was to look through how real menus are structured and try to suss out general patterns or rules in them. For instance, maybe we could learn that usually more than 1/3 of a dish should be dairy, or pork and apples tend to go well together.
+
+I thought allrecipes.com would be likely to live up to its name and provide a good amount of data to work with. After a bit of poking a few recipes to try to discern if there was a pattern in how Allrecipes structures its URLs, I found that that all the recipe URLs followed this basic structure: `http://allrecipes.com/recipe/<ID>/<NAME-OF-RECIPE>/`. Omitting the `<NAME-OF-RECIPE>` parameter seemed to be fine in all cases; `http://allrecipes.com/recipe/<ID>` would redirect you to `http://allrecipes.com/recipe/<ID>/<NAME-OF-RECIPE>/`.
+
+I couldn't figure out much of a pattern behind `ID`s save that they were always all digits and appeared to usually be between 10000 and 200000. (There's probably some pattern I'm missing here but this was good enough to start off with.)
+
+So we know our base URL is going to be `"http://allrecipes.com/recipe/"`.
+
+```{r base_url}
+base_url <- "http://allrecipes.com/recipe/"
+```
+
+
+Then we need to attach IDs to it, so for instance
+
+```{r grab_urls}
+grab_urls <- function(base_url, id) {
+  id <- as.character(id)
+  recipe_url <- str_c(base_url, id)
+  return(recipe_url)
+}
+
+urls <- grab_urls(base_url, 244940:244950)
 urls
 ```
 
-```{r}
+
+Now that we've got URLs to scrape, we'll need to do the actual scraping.
+
+Since we're appending some random numbers to the end of our base URL, there's a good chance some of those pages won't exist. We want a helper function that can try to read HTML on a page if it exists, and if the page doesn't exist, tell us without erroring out and exiting our loop. `purrr::possibly()` will let us do that. It provides a sort of try-catch set up where we try to `read_url()` but if we can't, return "Bad URL" and go on to the next URL.
+
+
+```{r try_read}
+read_url <- function(url) {
+  page <- read_html(url)
+}
+try_read <- possibly(read_url, otherwise = "Bad URL", quiet = TRUE)
+```
+
+`read_html()` from the `xml2` package will return us the raw HTML for a given page. We're only interested in the recipe portion of that, so using the Chrome inspector or the [SelectorGadget Chrome extension](http://selectorgadget.com/) we can figure out what the CSS tag is of the content itself. That happens to be the class `.checkList__line`. So, we'll pluck everything tagged with `.checkList__line` using `html_nodes()` and return text we can use with `html_text()`.
+
+Next step is to pare out all the stray garbage left over like `\n` new lines etc., and return our recipe.
+
+
+```{r get_recipe_content}
+get_recipe_content <- function(page) {
+  recipe <- page %>% 
+    html_nodes(".checkList__line") %>% 
+    html_text() %>% 
+    str_replace_all("ADVERTISEMENT", "") %>% 
+    str_replace_all("\n", "") %>% 
+    str_replace_all("\r", "") %>% 
+    str_replace_all("Add all ingredients to list", "")
+  return(recipe)
+}
+```
+
+
+Cool, so we've got two functions now, one for reading the content from a URL and one for grabbing the part of it that we want and cleaning it up.
+
+
+```{r get_recipes}
+get_recipes <- function(urls, sleep = 5, verbose = TRUE, append_bad_URLs = TRUE) {
+  out <- NULL
+  bad_url_counter <- 0
+  duped_recipe_counter <- 0
+  
+  for (url in urls) {
+    Sys.sleep(sleep)    # Sleep in between requests to avoid 429 (too many requests)
+    recipe_page <- try_read(url)
+  
+    if (recipe_page == "Bad URL" ||
+       (!class(recipe_page) %in% c("xml_document", "xml_node"))) { 
+      recipe_list <- recipe_page    # If we've got a bad URL, recipe_df will be "Bad URL" because of the otherwise clause
+      bad_url_counter <- bad_url_counter + 1
+      
+      if (append_bad_URLs == TRUE) { out <- append(out, recipe_list) }
+
+    } else {
+      recipe_name <- get_recipe_name(recipe_page)
+      
+      if (!recipe_name %in% names(out)) {
+        
+        if (verbose == TRUE) { message(recipe_name) }
+      
+        recipe <- recipe_page %>% 
+          get_recipe_content() %>% 
+          map(remove_whitespace) %>% as_vector()
+        
+        recipe_list <- list(tmp_name = recipe) %>% as_tibble()   # could do with deparse(recipe_name)?
+        names(recipe_list) <- recipe_name
+        
+        out <- append(out, recipe_list)
+        
+      } else {
+        if (verbose == TRUE) {
+          duped_recipe_counter <- duped_recipe_counter + 1
+          message("Skipping recipe we already have")
+        }
+      }
+    }
+  }
+  if (verbose == TRUE) { 
+    message(paste0("Number bad URLs: ", bad_url_counter))
+    message(paste0("Number duped recipes: ", duped_recipe_counter))
+  }
+  
+  return(out)
+}
+
+```
+
+
+
+
+```{r some_recipes}
 some_recipes <- get_recipes(urls[4:5]) 
 ```
 

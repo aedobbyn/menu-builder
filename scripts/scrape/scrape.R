@@ -47,7 +47,7 @@ read_url <- function(url) {
 try_read <- possibly(read_url, otherwise = "Bad URL", quiet = TRUE)
 
 
-# Get recipe content and name it with the recipe title, returnign a list of dataframe recipes
+# Get recipe content and name it with the recipe title, returning a list of dataframe recipes
 get_recipes <- function(urls, sleep = 5, verbose = TRUE, append_bad_URLs = TRUE) {
   out <- NULL
   bad_url_counter <- 0
