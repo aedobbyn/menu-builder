@@ -7,7 +7,7 @@ source("./scripts/prep/do_menu_mutates.R")
 import_scripts("./scripts/score")
 
 # Read in the abbreviated dataframe
-abbrev <- readxl::read_excel("./data/raw/ABBREV.xlsx")
+abbrev_raw <- readxl::read_excel("./data/raw/ABBREV.xlsx")
 abbrev <- as_tibble(abbrev)
 
 # Remove parens and spaces from nutrient names

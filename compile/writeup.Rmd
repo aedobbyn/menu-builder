@@ -4,25 +4,25 @@ author:
   name: Amanda Dobbyn
   email: amanda.e.dobbyn@gmail.com
   twitter: dobbleobble
-# output:
-#   html_notebook:
-#     toc: false
-#     theme: yeti
-#   pdf_document:
-#     keep_tex: true
-#     toc: false
-#   github_document:
-#     toc: false
 output:
-  html_document:
-    keep_md: true
+  html_notebook:
     toc: false
     theme: yeti
-  github_document:
-    toc: true
   pdf_document:
     keep_tex: true
     toc: false
+  github_document:
+    toc: false
+# output:
+#   html_document:
+#     keep_md: true
+#     toc: false
+#     theme: yeti
+#   github_document:
+#     toc: true
+#   pdf_document:
+#     keep_tex: true
+#     toc: false
 editor_options: 
   chunk_output_type: inline
 ---
@@ -71,11 +71,18 @@ more_recipes_df <- read_feather("./data/derived/more_recipes_df.feather")
 ```
 
 
-The data we'll be using here is conveniently located in an Excel file called ABBREV.xlsx on the USDA website. As the name suggests, this is an abbreviated version of all the foods in their database. 
+### About
 
-If you do want the full list, they provide an AccessDB SQL dump as well. The USDA also does have an open API so you can create an API key and grab foods from them with requests along the lines of a quick example I'll go through. The [API documentation](https://ndb.nal.usda.gov/ndb/doc/apilist/API-FOOD-REPORTV2.md) walks through the format for requesting data in more detail. 
+This is an ongoing project on food. A few data science techniques come into play in various proportions here: along the way I query an API, generate menus, solve them algorithmically, simulate solving them, scrape the web for real menus, and touch on some natural language processing techniques.
+
+The meat of it surrounds building menus and changing them until they are in compliance with daily nutritional guidelines. We'll simulate the curve of the proportion of these that are solvable as we increase the minimum portion size that each item must meet, and start about trying to improve the quality of the menus by taking a cue from actual recipes scraped from Allrecipes.com.
+
 
 ### Getting from A to Beef
+
+The data we'll be using here is conveniently located in an Excel file called ABBREV.xlsx on the USDA website. As the name suggests, this is an abbreviated version of all the foods in their database. 
+
+If you do want the full list, they provide a Microsoft Access SQL dump as well (which requires that you have Access). The USDA also does have an open API so you can create an API key and grab foods from them with requests along the lines of a quick example I'll go through. The [API documentation](https://ndb.nal.usda.gov/ndb/doc/apilist/API-FOOD-REPORTV2.md) walks through the format for requesting data in more detail. 
 
 The base URL you'll want is `http://api.nal.usda.gov/ndb/`.
 
@@ -114,7 +121,7 @@ Since a single column in a dataframe can only have values of one type, before un
 
 I'm sure there's a more elegant `purrr` solution or a better way to set types when we're taking our list to tibble, but a quick and dirty fix here is to go through and make sure these values are all character.
 
-```{r make_character}
+```{r make_character, warning=FALSE, message=FALSE}
 for (i in 1:length(foods$nutrients)) {
   for (j in 1:nrow(foods$nutrients[[1]])) {
     foods$nutrients[[i]]$gm[j] <- as.character(foods$nutrients[[i]]$gm[j])
@@ -130,7 +137,7 @@ foods <- foods %>% unnest()
 
 Now we can take these `--`s and change them into `NA`s.
 
-```{r code_NAs, warning=FALSE}
+```{r code_NAs, warning=FALSE, message=FALSE}
 foods <- foods %>% 
   mutate(
     gm = ifelse(gm == "--", NA, gm),
@@ -142,22 +149,84 @@ foods$gm <- as.numeric(foods$gm)
 ```
 
 ```{r warning=FALSE}
-foods %>% kable()
+foods[1:20, ] %>% kable()
 ```
 
 
 Great, we've successfully unnested. As I mentioned before, we'll use our nice ABBREV.xlsx rather than using data pulled from the API. So:
 
 ```{r read_in_abbre}
-abbrev <- readxl::read_excel("./data/raw/ABBREV.xlsx") %>% as_tibble()
+abbrev_raw <- readxl::read_excel("./data/raw/ABBREV.xlsx") %>% as_tibble()
 
-abbrev %>% kable()
+abbrev_raw %>% kable()
 ```
 
-You can read in depth the prep I did on this file in `/scripts/prep`. Mainly this involved a bit of cleaning on the column names like stripping out parentheses. In there you'll also find 
+You can read in depth the prep I did on this file in `/scripts/prep`. Mainly this involved a bit of cleaning on the column names like stripping out parentheses (changing for example the column name `Vit_C_(mg)` to `Vit_C_mg`). In there you'll also find a dataframe called `all_nut_and_mr_df` where I define the nutritional constraints on menus. If a nutrient is among the "must restricts," that is, `r str_c(mr_df$must_restrict, collapse = ", ")` then that value is a daily upper bound. Otherwise, it's a lower bound. 
+
+So for example, you're supposed to have at least 18mg of Iron and no more than 2400mg of Sodium per day. (As someone who puts salt on everything indiscriminately I'd be shocked if I've ever been under that threshold.)
 
 ```{r all_nut_and_mr_df}
 all_nut_and_mr_df
+```
+
+In `/scripts/prep` we also create a z-scored version of `abbrev` with:
+
+```{r scaled}
+scaled <- abbrev %>% 
+  drop_na_(all_nut_and_mr_df$nutrient) %>% filter(!(is.na(Energ_Kcal)) & !(is.na(GmWt_1))) %>% 
+  mutate_at(
+    vars(nutrient_names, "Energ_Kcal"), dobtools::z_score   # <-- equivalent to scale(), but simpler
+  )
+
+scaled
+```
+
+Then we do a few mutates to `abbrev` using the function below. This is a function we can use on any menu dataframe, not just `abbrev`, which is why it's called `do_menu_mutates()`. Turns out that the short descriptions of foods in the `Shrt_Desc` column actually aren't so short so we'll create a `shorter_desc` column by taking only the values in `Shrt_Desc` up to the first comma. That turns "BUTTER,WHIPPED,W/ SALT" into just "BUTTER".
+
+Since we'll need a cost associated with each row in order to optimize something, for now each item gets a random cost between \$1 and \$10.
+
+What we'll do when we eventually "solve" these menus is change the amount we have of each item, i.e. its `GmWt_1`. We'll vary that by multiplying it by some `solution_amount`. In order to keep a record of what the gram weight of a single serving of a food is, we'll save that in `serving_gmwt`. Since we know that all foods in `abbrev` are exactly one serving, for now `GmWt_1` and `serving_gmwt` are the same thing, and `solution_amounts` is 1.
+
+Finally, we rearrange columns a bit.
+
+```{r do_menu_mutates}
+cols_to_keep <- c(nutrient_names, "Shrt_Desc", "GmWt_1", "NDB_No")
+
+do_menu_mutates <- function(menu, to_keep = cols_to_keep) {
+
+  quo_to_keep <- quo(to_keep)
+  
+  menu <- menu %>% 
+    mutate(
+      shorter_desc = map_chr(Shrt_Desc, grab_first_word, splitter = ","), # Take only the fist word
+      cost = runif(nrow(.), min = 1, max = 10) %>% round(digits = 2) # Add a cost column
+    ) 
+  
+  if (!("serving_gmwt" %in% names(menu))) {
+    menu <- menu %>% mutate(
+      serving_gmwt = GmWt_1   # Single serving gram weight
+    )
+  }
+  
+  if (!("solution_amounts" %in% names(menu))) {
+    menu <- menu %>% mutate(
+      solution_amounts = 1   # Single serving gram weight
+    )
+  }
+  
+  menu <- menu %>%
+    select(shorter_desc, solution_amounts, GmWt_1, serving_gmwt, cost, !!quo_to_keep,  Shrt_Desc, NDB_No)
+  
+  return(menu)
+}
+```
+
+We'll do these mutates and score each item (see `/scripts/score/rank_foods.R` for `add_ranked_foods()`; also more on scoring in the Scoring section below).
+
+
+```{r do_mutates_add_ranked}
+abbrev <- abbrev %>% do_menu_mutates() %>% add_ranked_foods() 
+abbrev %>% kable()
 ```
 
 
@@ -168,7 +237,7 @@ all_nut_and_mr_df
 
 Now to build a menu. The only constraint we have to worry about here is that menus have to contain at least 2300 calories. Our strategy is simple; pick one serving of a food at random from our dataset and, if it doesn't yet exist in our menu, add it. We do this until we're no longer under 2300 calories. 
 
-That's implemented in `add_calories()` below, which we'll as a helper inside `build_menu()`. The reason I've spun `add_calories()` out into its own function is so that we can easily add more foods to existing menus. It takes `menu` as its first argument, unlike `build_menu()` which takes a dataframe of all possible foods to choose from.
+That's implemented in `add_calories()` below, which we'll as a helper inside `build_menu()`. The reason I've spun `add_calories()` out into its own function is so that we can easily add more foods to existing menus. It takes `menu` as its first argument, unlike `build_menu()` which takes a dataframe of possible foods to choose from as its first argument. That makes it more convenient to call `add_calories()` from inside `build_menu()` and use `build_menu()` primarily to create totally new menus.
 
 ```{r add_calories}
 add_calories <- function(menu = NULL, df = abbrev, seed = NULL, ...) {

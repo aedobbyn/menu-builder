@@ -1,5 +1,8 @@
 # Smart Menu Builder
 
+Various things this project touches upon: APIs, algorithms, simulations, web scraping, NLP, networks.
+
+
 The main poriton of this project is a daily menu planning and optimization using foods from the [USDA food database](https://ndb.nal.usda.gov/ndb/doc/index) and the `Rglpk` package interface to the [GNU linear programming solver](https://www.gnu.org/software/glpk/) to implement the simplex algorithm. This minimizes the cost of each menu while keeping us above the minimum daily nutrient values and below the daily maximum "must restrict" values.
 
 The latest phase is intended to optimize the tastiness of menus. Menus were scraped from [Allrecipes](http://allrecipes.com)  in order to identify which foods tend to co-occur in menus in which portion sizes. 
