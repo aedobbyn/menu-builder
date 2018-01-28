@@ -4,25 +4,25 @@ author:
   name: Amanda Dobbyn
   email: amanda.e.dobbyn@gmail.com
   twitter: dobbleobble
-output:
-  html_notebook:
-    toc: false
-    theme: yeti
-  pdf_document:
-    keep_tex: true
-    toc: false
-  github_document:
-    toc: false
 # output:
-#   html_document:
-#     keep_md: true
+#   html_notebook:
 #     toc: false
 #     theme: yeti
-#   github_document:
-#     toc: true
 #   pdf_document:
 #     keep_tex: true
 #     toc: false
+#   github_document:
+#     toc: false
+output:
+  html_document:
+    keep_md: true
+    toc: false
+    theme: yeti
+  github_document:
+    toc: true
+  pdf_document:
+    keep_tex: true
+    toc: false
 editor_options: 
   chunk_output_type: inline
 ---
@@ -51,8 +51,9 @@ library(ggraph)
 library(assertthat)
 
 source("./other/api/key.R")
+```
 
-#### Load all scripts ####
+```{r load_scripts}
 dirs <- c("prep", "build", "score", "scrape", "solve", "simulate")
 paths <- str_c("./scripts/", dirs)
 
@@ -61,6 +62,7 @@ for (p in paths) {
   suppressMessages(suppressPackageStartupMessages(dobtools::import_scripts(p)))
 }
 ```
+
 
 ```{r read_in, include=FALSE}
 # some_recipes_df <- read_feather("./data/derived/some_recipes_df.feather")
@@ -90,16 +92,21 @@ The default number of results per request is 50 so we specify 1500 as our `max`.
 
 We've specified just 4 nutrient values we want here: calories, sugar, lipids, and carbohydrates.
 
+
+
 ```{r json_req}
 food_raw <- jsonlite::fromJSON(paste0("http://api.nal.usda.gov/ndb/nutrients/?format=json&api_key=", 
-                       key, "&subset=1&max=1500&nutrients=205&nutrients=204&nutrients=208&nutrients=269"),
-                flatten = TRUE)
+                       key, "&subset=1&max=1500&nutrients=205&nutrients=204&nutrients=208&nutrients=269"))
 
 foods <- as_tibble(food_raw$report$foods)
 ```
 
+In the browser, you could paste that same thing in to see:
+
+![](img/json_resp_long.jpg)
+
 ```{r foods}
-foods %>% kable()
+foods %>% kable(format = "html")
 ```
 
 We've got one row per food and a nested list-col of nutrients.
@@ -110,7 +117,7 @@ str(foods$nutrients[1:3])
 
 
 If we tried to unnest this right now we'd get an error. 
-```{r unnest_foods_error}
+```{r unnest_foods_error, eval=FALSE}
 foods %>% unnest()
 ```
 
@@ -149,7 +156,7 @@ foods$gm <- as.numeric(foods$gm)
 ```
 
 ```{r warning=FALSE}
-foods[1:20, ] %>% kable()
+foods[1:20, ] %>% kable(format = "html")
 ```
 
 
@@ -158,15 +165,17 @@ Great, we've successfully unnested. As I mentioned before, we'll use our nice AB
 ```{r read_in_abbre}
 abbrev_raw <- readxl::read_excel("./data/raw/ABBREV.xlsx") %>% as_tibble()
 
-abbrev_raw %>% kable()
+abbrev_raw %>% kable(format = "html")
 ```
 
-You can read in depth the prep I did on this file in `/scripts/prep`. Mainly this involved a bit of cleaning on the column names like stripping out parentheses (changing for example the column name `Vit_C_(mg)` to `Vit_C_mg`). In there you'll also find a dataframe called `all_nut_and_mr_df` where I define the nutritional constraints on menus. If a nutrient is among the "must restricts," that is, `r str_c(mr_df$must_restrict, collapse = ", ")` then that value is a daily upper bound. Otherwise, it's a lower bound. 
+
+
+You can read in depth the prep I did on this file in `/scripts/prep`. Mainly this involved a bit of cleaning like stripping out parentheses from column names, e.g., `Vit_C_(mg)` becomes `Vit_C_mg`. In there you'll also find a dataframe called `all_nut_and_mr_df` where I define the nutritional constraints on menus. If a nutrient is among the "must restricts," that is, `r str_c(mr_df$must_restrict, collapse = ", ")` then that value is a daily upper bound. Otherwise, it's a lower bound. 
 
 So for example, you're supposed to have at least 18mg of Iron and no more than 2400mg of Sodium per day. (As someone who puts salt on everything indiscriminately I'd be shocked if I've ever been under that threshold.)
 
 ```{r all_nut_and_mr_df}
-all_nut_and_mr_df
+all_nut_and_mr_df %>% kable(format = "html")
 ```
 
 In `/scripts/prep` we also create a z-scored version of `abbrev` with:
@@ -226,7 +235,7 @@ We'll do these mutates and score each item (see `/scripts/score/rank_foods.R` fo
 
 ```{r do_mutates_add_ranked}
 abbrev <- abbrev %>% do_menu_mutates() %>% add_ranked_foods() 
-abbrev %>% kable()
+abbrev %>% kable(format = "html")
 ```
 
 
@@ -617,7 +626,7 @@ solve_menu <- function(sol, verbose = TRUE) {
 
 ```{r our_solved_menu}
 our_solved_menu <- our_menu_solution %>% solve_menu()
-our_solved_menu %>% kable()
+our_solved_menu %>% kable(format = "html")
 ```
 
 
@@ -660,7 +669,7 @@ solve_nutrients <- function(sol, verbose = TRUE) {
 
 ```{r our_solved_nutrients}
 our_solved_nutrients <- our_menu_solution %>% solve_nutrients()
-our_solved_nutrients %>% kable()
+our_solved_nutrients %>% kable(format = "html")
 ```
 
 
@@ -670,13 +679,13 @@ our_solved_nutrients %>% kable()
 Single swap
 
 ```{r}
-our_random_menu %>% do_single_swap() %>% kable()
+our_random_menu %>% do_single_swap() %>% kable(format = "html")
 ```
 
 
 Wholesale swap
 ```{r}
-our_random_menu %>% wholesale_swap() %>% kable()
+our_random_menu %>% wholesale_swap() %>% kable(format = "html")
 ```
 
 
@@ -684,7 +693,7 @@ our_random_menu %>% wholesale_swap() %>% kable()
 
 ```{r fully_solved, message=FALSE}
 fully_solved <- build_menu() %>% solve_full(verbose = FALSE)
-fully_solved %>% kable()
+fully_solved %>% kable(format = "html")
 ```
 
 
@@ -760,7 +769,7 @@ simulate_spectrum <- function(n_intervals = 10, n_sims = 2, from = -1, to = 1,
 
 
 ```{r do_simulate_spectrum}
-simulate_spectrum() %>% kable()
+simulate_spectrum() %>% kable(format = "html")
 ```
 
 
@@ -936,7 +945,7 @@ dfize <- function(lst, remove_bad_urls = TRUE) {
 
 ```{r some_recipes}
 a_couple_recipes_df <- dfize(a_couple_recipes)
-a_couple_recipes_df %>% kable()
+a_couple_recipes_df %>% kable(format = "html")
 ```
 
 
@@ -957,7 +966,7 @@ But, as it happens, protion sizes don't usually consist of just one number. Ther
 Here is a fake recipe to illustrate some of those cases. (Certainly falls into Eat, Pray, Barf territory.)
 
 ```{r some_recipes_tester}
-some_recipes_tester %>% kable()
+some_recipes_tester %>% kable(format = "html")
 ```
 
 
@@ -1142,7 +1151,7 @@ Let's see what that looks like in practice.
 
 
 ```{r do_get_portions}
-some_recipes_tester %>% get_portion_values() %>% kable()
+some_recipes_tester %>% get_portion_values() %>% kable(format = "html")
 ```
 
 Looks pretty solid.
@@ -1224,7 +1233,7 @@ get_portions <- function(df, add_abbrevs = FALSE, pare_portion_info = FALSE) {
 
 
 ```{r do_get_portions_and_abbrevs}
-some_recipes_tester %>% get_portions() %>% add_abbrevs() %>% kable()
+some_recipes_tester %>% get_portions() %>% add_abbrevs() %>% kable(format = "html")
 ```
 
 
@@ -1232,6 +1241,112 @@ We've got some units! Next step will be to convert all units into grams.
 
 ## NLP
 
+
+```{r}
+
+# Get a dataframe of all units (need plurals for abbrev_dict ones)
+all_units <- c(units, abbrev_dict$name, abbrev_dict$key, "inch")
+all_units_df <- list(word = all_units) %>% as_tibble()
+
+
+# Get a sample (can't be random because we need foods that come from the same menus) and 
+# unnest words
+grab_words <- function(df, row_start = 1, row_stop = 100, n_grams = 1) {
+  df <- df %>% 
+    slice(row_start:row_stop) %>% 
+    group_by(recipe_name) %>% 
+    mutate(ingredient_num = row_number()) %>% 
+    ungroup() %>% 
+    unnest_tokens(word, ingredients, token = "ngrams", n = n_grams) %>% 
+    select(recipe_name, word, everything())
+  
+  return(df)
+}
+
+unigrams <- grab_words(more_recipes_df)
+bigrams <- grab_words(more_recipes_df, n_grams = 2)
+
+
+# Logical for whether an word is a number or not
+# we could have as easily done this w a regex
+find_nums <- function(df) {
+  df <- df %>% mutate(
+    num = suppressWarnings(as.numeric(word)),    # we could have as easily done this w a regex
+    is_num = case_when(
+      !is.na(num) ~ TRUE,
+      is.na(num) ~ FALSE
+    )
+  ) %>% select(-num)
+  
+  return(df)
+}
+
+# Filter out numbers
+unigrams <- unigrams %>%
+  find_nums() %>%
+  filter(is_num == FALSE) %>% 
+  select(-is_num)
+
+
+# Looking at pairs of words within a recipe (not neccessarily bigrams), which paris tend to co-occur?
+# i.e., higher frequency within the same recipe
+per_rec_freq <- unigrams %>% 
+  anti_join(stop_words) %>% 
+  anti_join(all_units_df) %>% 
+  group_by(recipe_name) %>% 
+  add_count(word, sort = TRUE) %>%    # Count of number of times this word appears in this recipe
+  rename(n_this_rec = n) %>% 
+  ungroup() %>% 
+  add_count(word, sort = TRUE) %>%    # Count of number of times this word appears in all recipes
+  rename(n_all_rec = n) %>%
+  select(recipe_name, word, n_this_rec, n_all_rec)
+
+# Get the total number of words per recipe
+per_rec_totals <- per_rec_freq %>% 
+  group_by(recipe_name) %>%
+  summarise(total_this_recipe = sum(n_this_rec))
+
+# Get the total number of times a word is used across all the recipes
+all_rec_totals <- per_rec_freq %>% 
+  ungroup() %>% 
+  summarise(total_this_recipe = sum(n_this_rec))
+  
+# Join that on the sums we've found
+per_rec_freq_out <- per_rec_freq %>% 
+  mutate(
+    total_overall = sum(n_this_rec)
+  ) %>% 
+  left_join(per_rec_totals) %>% 
+  left_join(all_rec_totals)
+
+
+# See tfidf
+per_rec_freq %>% 
+  bind_tf_idf(word, recipe_name, n_this_rec) %>% 
+  arrange(desc(tf_idf))
+
+
+
+
+# --------- Pairwise ---------
+
+# Get the pairwise correlation between words in each recipe
+pairwise_per_rec <- per_rec_freq %>% 
+  group_by(recipe_name) %>%      # <---- Not sure if we should be grouping here
+  pairwise_cor(word, recipe_name, sort = TRUE) 
+
+# Graph the correlations between a few words and their highest correlated neighbors
+pairwise_per_rec %>%
+  filter(item1 %in% c("cheese", "garlic", "onion", "sugar")) %>% 
+  filter(correlation > .5) %>%
+  graph_from_data_frame() %>%
+  ggraph(layout = "fr") +
+  geom_edge_link(aes(edge_alpha = correlation), show.legend = FALSE) +
+  geom_node_point(color = "lightblue", size = 5) +
+  geom_node_text(aes(label = name), repel = TRUE) +
+  theme_void()
+
+```
 
 
 
