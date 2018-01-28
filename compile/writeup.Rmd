@@ -772,24 +772,33 @@ Great, so we've got a tidy dataframe that we can start to get some useful data o
 
 One of the goals here is to see what portion of a menu tends to be devoted to, say, meat or spices or a word that appears in the receipe name etc. In order to answer that, we'll need to extract portion names and portion sizes from the text. That wouldn't be pretty simple with a fixed list of portion names ("gram", "lb") if portion sizes were always just a single number.
 
-But, as it happens, protion sizes don't usually consist of just one number. There are a few hurdles: 1) complex fractions, 2) multiple items of the same item, and 3) ranges. A complex fraction would be something a recipe item like "2 1/3 cups of flour." A multiple of an item is, e.g., "4 12oz bottles of beer." A range would be "6-7 tomatoes." 
+But, as it happens, protion sizes don't usually consist of just one number. There are a few hurdles: 
+
+1) complex fractions
+* 2 1/3 cups of flour
+    * Should become: 2.3333 cups of flour
+2) multiple items of the same item
+* 4 (12oz) bottles of beer
+    * Should become: 48 oz of beer
+3) ranges
+* 6-7 tomatoes
+    * Should become: 6.5 tomatoes
 
 
-Here is a fake recipe to illustrate some of those cases:
+Here is a fake recipe to illustrate some of those cases. (Certainly falls into Eat, Pray, Barf territory.)
+
 ```{r some_recipes_tester}
 some_recipes_tester
 ```
 
 
-Rather than start doing conditional random field-level smart to get around these problems, to start off I started writing a few rules of thumb.
+Rather than start doing something conditional random field-level smart to get around these problems, to start off I started writing a few rules of thumb.
 
-**Complex fractions**
-
-First, a way to turn a single fraction into a decimal form. We keep them `as.character`
+First, let's consider complex fractions. Off the bat, we know we'll need a way to turn a single fraction into a decimal form. We keep them `as.character` for now and turn them into numeric later down the pipe.
 
 ```{r frac_to_dec}
 frac_to_dec <- function(e) {
-  if (length(e) == 0) {    # If NA, make the portion 0
+  if (length(e) == 0) {    # If NA because there are no numbers, make the portion 0
     out <- 0
   } else {
     out <- parse(text = e) %>% eval() %>% as.character()
@@ -798,14 +807,66 @@ frac_to_dec <- function(e) {
 }
 ```
 
+`eval()` only only evaluates the last string in a vector, not multiple, so as a workaround I put it into a helper that will turn all fractions into decimal strings:
 
-**Multiplying Sizes**
+```{r map_frac_to_dec}
+map_frac_to_dec <- function(e) {
+  out <- NULL
+  for (i in e) {
+    out <- e %>% map_chr(frac_to_dec)
+  }
+  return(out)
+}
+```
+
+
+For example: 
+```{r do_map_frac_to_dec}
+map_frac_to_dec(c("1/2", "1/8", "1/3"))
+```
+
+
+Cool, so for a given ingredient we'll need to look for numbers that are occur next to other numbers, and then and add complex fractions and multiply multiples. 
+
+We'll use this function to look two numbers separated by a " " or a " (". If the second number evaluates to a decimal less than 1, we've got a complex fraction. For example, if we're extracting digits and turning all fractions among them into decimals if we consider "4 1/2 loaves of bread" we'd end up with "4" and "0.5". We know "0.5" is less than 1, so we've got a complex fraction on our hands. We need to add 4 + 0.5 to end up with 4.5 loaves of bread.
+
+It's true that this function doesn't address the issue of having both a complex fraction and multiples in a recipe. That would look like "3 (1 1/2 inch) blocks of cheese." I haven't run into that issue too much but it certainly could use a workaround.
+
+```{r multiply_or_add_portions}
+multiply_or_add_portions <- function(e) {
+  if (length(e) == 0) {
+    e <- 0    
+  } else if (length(e) > 1) {
+    if (e[2] < 1) {  # If our second element is a fraction, we know this is a complex fraction so we add the two
+      e <- e[1:2] %>% reduce(`+`)
+    } else {   # Otherwise, we multiply them
+      e <- e[1:2] %>% reduce(`*`)
+    }   
+  }
+  return(e)
+}
+```
+
+A few regexs we'll need: 
+
+```{r regs}
+# Match any number, even if it has a decimal or slash in it
+portions_reg <- "[[:digit:]]+\\.*[[:digit:]]*+\\/*[[:digit:]]*"
+
+# Match numbers separated by " (" as in "3 (5 ounce) cans of broth" for multiplying
+multiplier_reg <- "[[:digit:]]+ \\(+[[:digit:]]"   
+
+# Match numbers separated by " "
+multiplier_reg_looser <- "[0-9]+\ +[0-9]"
+```
 
 
 If we've got something that needs to be multiplied, like "4 (12 oz) hams" or a fraction like "2/3 pound of butter",
-then multiply or add those numbers as appropriate
+then multiply or add those numbers as appropriate. The `only_mult_after_paren` parameter is something I put in that is specific to Allrecipes. On Allrecipes, it seems that if we do have multiples, they'll always be of the form "<number_of_things> (<quantity_of_single_thing>)". There are always parentheses around <quantity_of_single_thing>. If we're only using Allrecipes data, that gives us some more security that we're only multiplying quantities that actually should be multiplied. If we want to make this extensible in the future we'd want to set `only_mult_after_paren` to FALSE to account for cases like "7 4oz cans of broth".
 
-```{r}
+This function will allow us to add a new column to our dataframe called `mult_add_portion`. If we've done any multiplying or adding of numbers, we'll have a value greater than 0 there, and 0 otherwise.
+
+```{r get_mult_add_portion}
 get_mult_add_portion <- function(e, only_mult_after_paren = FALSE) {
   if ((str_detect(e, multiplier_reg) == TRUE | str_detect(e, multiplier_reg_looser) == TRUE)
       & only_mult_after_paren == FALSE) {  # If either matches and we don't care about where there's a parenthesis there or not
@@ -830,12 +891,47 @@ get_mult_add_portion <- function(e, only_mult_after_paren = FALSE) {
 ```
 
 
+
+
 **Ranges**
 
+Finally, ranges. If two numbers are separated by an "or" or a "-" like "4-5 teaspoons of sugar" we know that this is a range. We'll take the average of those two numbers.
+
+We'll add a new column to our dataframe called `range_portion` for the result of any range calculations. If we don't have a range, just like `mult_add_portion`, this becomes 0.
+
+```{r range_regexes}
+to_reg <- "([0-9])(( to ))(([0-9]))"
+or_reg <- "([0-9])(( or ))(([0-9]))"
+dash_reg_1 <- "([0-9])((-))(([0-9]))"
+dash_reg_2 <- "([0-9])(( - ))(([0-9]))"
+```
+
+
+```{r get_ranges}
+get_ranges <- function(e) {
+  
+  if (determine_if_range(e) == TRUE) {
+    out <- str_extract_all(e, portions_reg) %>%  
+      
+      map(str_split, pattern = " to ", simplify = FALSE) %>%  
+      map(str_split, pattern = " - ", simplify = FALSE) %>%  
+      map(str_split, pattern = "-", simplify = FALSE) %>%
+      
+      map(map_frac_to_dec) %>%
+      map(as.numeric) %>% 
+      map_dbl(get_portion_means) %>% round(digits = 2)
+    
+  } else {
+    out <- 0
+  }
+  return(out)
+}
+
+```
 
 
 
-And finally, if we neither need to get a range nor multiply/add portions, we'll just take whatever the first number is in there.
+At the end of the day, we want to end up with a single number describing how much of our recipe item we want. So, let's put all that together into one function. Either `range_portion` or `mult_add_portion` will always be 0, so we add them together to get our final portion size. If we neither need to get a range nor multiply or add numbers, we'll just take whatever the first number is in there.
 
 ```{r get_final_portion}
 get_final_portion <- function(e, range_portion, mult_add_portion, ...) {
@@ -853,16 +949,80 @@ get_final_portion <- function(e, range_portion, mult_add_portion, ...) {
 ```
 
 
+Let's see what that looks like in practice.
 
 
-```{r}
-some_recipes_df %>% get_portions() 
+```{r do_get_portions}
+some_recipes_tester %>% get_portions() 
 ```
 
-```{r}
-some_recipes_df %>% get_portions() %>% add_abbrevs()
+Looks pretty solid.
+
+Now onto easier waters: portion names. You can check out `/scripts/scrape/get_measurement_types.R` if you're interested in the steps I took to find some usual portion names and create an abbreviation dictionary, `abbrev_dict`. What we also do there is create `measures_collapsed` which is a single vector of all portion names separated by "|" so we can find all the portion names that might occur in a given item.
+
+```{r measures_collapsed}
+measures_collapsed
 ```
 
+Then if there are multiple portions that match, we'll take the last one.
+
+We'll also add `approximate` to our dataframe which is just a boolean value indicating whether this item is exact or approximate. If the item contains one of `approximate` then we give it a TRUE.
+
+```{r approximate}
+approximate
+```
+
+
+```{r get_portion_text}
+get_portion_text <- function(df) {
+  
+  df <- df %>% 
+    mutate(
+      raw_portion_num = str_extract_all(ingredients, portions_reg, simplify = FALSE) %>%   # Extract the raw portion numbers,
+        map_chr(str_c, collapse = ", ", default = ""),   # separating by comma if multiple
+      
+      portion_name = str_extract_all(ingredients, measures_collapsed) %>%
+        map(nix_nas) %>%  
+        str_extract_all("[a-z]+") %>% 
+        map(nix_nas) %>%   # Get rid of numbers
+        map_chr(last),       # If there are multiple arguments that match, grab the last one
+
+      approximate = str_detect(ingredients, approximate)
+    )
+  return(df)
+}
+```
+
+
+Last thing for us for now on this subject (though there's a lot more to do here!) will be to add abbreviations. This will let us standardize things like "ounces" and "oz" which actually refer to the same thing. 
+
+All `add_abbrevs()` will do is let us mutate our dataframe with a new column for the abbreviation of our portion size, if we've got a recognized portion size.
+
+```{r add_abbrevs}
+add_abbrevs <- function(df) {
+
+  out <- vector(length = nrow(df))
+  for (i in seq_along(out)) {
+    if (df$portion_name[i] %in% abbrev_dict$name) {
+      out[i] <- abbrev_dict[which(abbrev_dict$name == df$portion_name[i]), ]$key
+      
+    } else {
+      out[i] <- df$portion_name[i]
+    }
+  }
+  
+  out <- df %>% bind_cols(list(portion_abbrev = out) %>% as_tibble())
+  return(out)
+}
+```
+
+
+```{r do_get_portions}
+some_recipes_tester %>% get_portions() %>% add_abbrevs()
+```
+
+
+We've got some units! Next step will be to convert all units into grams. 
 
 ## NLP
 

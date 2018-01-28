@@ -174,7 +174,7 @@ multiply_or_add_portions <- function(e) {
 }
 
 
-# For use in get_ragng(): get the mean of the first two elements in a numeric vector
+# For use in get_range(): get the mean of the first two elements in a numeric vector
 get_portion_means <- function(e) {
   if (length(e) == 0) {
     e <- 0    # NA to 0
@@ -198,7 +198,7 @@ dash_reg_2 <- "([0-9])(( - ))(([0-9]))"
 
 
 # If two numbers are separated by an "or" or a "-" we know that this is a range,
-# e.g., 4-5 teaspoons of sugar. So we want to say that this
+# e.g., 4-5 teaspoons of sugar. 
 determine_if_range <- function(ingredients) {
   if (str_detect(ingredients, pattern = to_reg) | 
       str_detect(ingredients, pattern = or_reg) |
