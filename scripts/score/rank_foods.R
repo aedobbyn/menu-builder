@@ -3,7 +3,7 @@
 # return a vector of their ranks that we can cbind to the menu
 
 rank_foods <- function(df) {
-  food_ranks <- vector(length = nrow(df))
+  food_ranks <- vector()
   for (i in 1:nrow(df)) {
     this_food_rank <- score_menu(df[i, ])
     food_ranks <- c(food_ranks, this_food_rank)

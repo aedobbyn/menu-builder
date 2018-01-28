@@ -213,7 +213,8 @@ determine_if_range <- function(ingredients) {
 
 
 # Logical indicating whether the amount is exact or not
-approximate <- c("about", "around", "as desired", "as needed", "optional",  "or so", "to taste") %>% 
+approximate_raw <- c("about", "around", "as desired", "as needed", "optional",  "or so", "to taste") 
+approximate <- approximate_raw %>% 
   str_c(collapse = "|")
 
 

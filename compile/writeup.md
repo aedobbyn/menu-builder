@@ -1,7 +1,21 @@
 # Food for Thought
 
+***
 
 
+
+
+
+
+```r
+dirs <- c("prep", "build", "score", "scrape", "solve", "simulate")
+paths <- stringr::str_c("./scripts/", dirs)
+
+# Import all .R scripts from all the dirs above 
+for (p in paths) {
+  suppressMessages(suppressPackageStartupMessages(dobtools::import_scripts(p)))
+}
+```
 
 ```
 ## [1] "File not found :("
@@ -14,6 +28,2492 @@
 ## [1] "File not found :("
 ```
 
+
+
+
+
+### About
+
+This is an ongoing project on food. A few data science techniques come into play in various proportions here: along the way I query an API, generate menus, solve them algorithmically, simulate solving them, scrape the web for real menus, and touch on some natural language processing techniques.
+
+The meat of it surrounds building menus and changing them until they are in compliance with daily nutritional guidelines. We'll simulate the curve of the proportion of these that are solvable as we increase the minimum portion size that each item must meet, and start about trying to improve the quality of the menus by taking a cue from actual recipes scraped from Allrecipes.com.
+
+
+### Getting from A to Beef
+
+The data we'll be using here is conveniently located in an Excel file called ABBREV.xlsx on the USDA website. As the name suggests, this is an abbreviated version of all the foods in their database. 
+
+If you do want the full list, they provide a Microsoft Access SQL dump as well (which requires that you have Access). The USDA also does have an open API so you can create an API key and grab foods from them with requests along the lines of a quick example I'll go through. The [API documentation](https://ndb.nal.usda.gov/ndb/doc/apilist/API-FOOD-REPORTV2.md) walks through the format for requesting data in more detail. 
+
+The base URL you'll want is `http://api.nal.usda.gov/ndb/`.
+
+The default number of results per request is 50 so we specify 1500 as our `max`. In this example I set `subset` to 1 in order to grab the most common foods. (Otherwise 1:1500 query only gets you from a to beef 😆.) If you do want to grab all foods, you can send requests of 1500 iteratively specifying `offset`, which refers to the number of the first row you want, and then glue them together.
+
+We've specified just 4 nutrient values we want here: calories, sugar, lipids, and carbohydrates.
+
+
+
+
+```r
+food_raw <- jsonlite::fromJSON(paste0("http://api.nal.usda.gov/ndb/nutrients/?format=json&api_key=", 
+                       key, "&subset=1&max=1500&nutrients=205&nutrients=204&nutrients=208&nutrients=269"))
+
+foods <- as_tibble(food_raw$report$foods)
+```
+
+In the browser, you could paste that same thing in to see:
+
+![](img/json_resp_long.jpg)
+
+
+```r
+head(foods) %>% kable(format = "html")
+```
+
+<table>
+ <thead>
+  <tr>
+   <th style="text-align:left;"> ndbno </th>
+   <th style="text-align:left;"> name </th>
+   <th style="text-align:right;"> weight </th>
+   <th style="text-align:left;"> measure </th>
+   <th style="text-align:left;"> nutrients </th>
+  </tr>
+ </thead>
+<tbody>
+  <tr>
+   <td style="text-align:left;"> 14007 </td>
+   <td style="text-align:left;"> Alcoholic beverage, beer, light, BUD LIGHT </td>
+   <td style="text-align:right;"> 29.5 </td>
+   <td style="text-align:left;"> 1.0 fl oz </td>
+   <td style="text-align:left;"> 208, 269, 204, 205, Energy, Sugars, total, Total lipid (fat), Carbohydrate, by difference, kcal, g, g, g, 9, --, 0.00, 0.38, 29, --, 0, 1.3 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> 14009 </td>
+   <td style="text-align:left;"> Alcoholic beverage, daiquiri, canned </td>
+   <td style="text-align:right;"> 30.5 </td>
+   <td style="text-align:left;"> 1.0 fl oz </td>
+   <td style="text-align:left;"> 208, 269, 204, 205, Energy, Sugars, total, Total lipid (fat), Carbohydrate, by difference, kcal, g, g, g, 38, --, 0.00, 4.79, 125, --, 0, 15.7 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> 14534 </td>
+   <td style="text-align:left;"> Alcoholic beverage, liqueur, coffee, 63 proof </td>
+   <td style="text-align:right;"> 34.8 </td>
+   <td style="text-align:left;"> 1.0 fl oz </td>
+   <td style="text-align:left;"> 208, 269, 204, 205, Energy, Sugars, total, Total lipid (fat), Carbohydrate, by difference, kcal, g, g, g, 107, --, 0.10, 11.21, 308, --, 0.3, 32.2 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> 14015 </td>
+   <td style="text-align:left;"> Alcoholic beverage, pina colada, canned </td>
+   <td style="text-align:right;"> 32.6 </td>
+   <td style="text-align:left;"> 1.0 fl oz </td>
+   <td style="text-align:left;"> 208, 269, 204, 205, Energy, Sugars, total, Total lipid (fat), Carbohydrate, by difference, kcal, g, g, g, 77, --, 2.48, 9.00, 237, --, 7.6, 27.6 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> 14019 </td>
+   <td style="text-align:left;"> Alcoholic beverage, tequila sunrise, canned </td>
+   <td style="text-align:right;"> 31.1 </td>
+   <td style="text-align:left;"> 1.0 fl oz </td>
+   <td style="text-align:left;"> 208, 269, 204, 205, Energy, Sugars, total, Total lipid (fat), Carbohydrate, by difference, kcal, g, g, g, 34, --, 0.03, 3.51, 110, --, 0.1, 11.3 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> 14027 </td>
+   <td style="text-align:left;"> Alcoholic beverage, whiskey sour, canned </td>
+   <td style="text-align:right;"> 30.8 </td>
+   <td style="text-align:left;"> 1.0 fl oz </td>
+   <td style="text-align:left;"> 208, 269, 204, 205, Energy, Sugars, total, Total lipid (fat), Carbohydrate, by difference, kcal, g, g, g, 37, --, 0.00, 4.13, 119, --, 0, 13.4 </td>
+  </tr>
+</tbody>
+</table>
+
+We've got one row per food and a nested list-col of nutrients [^1].
+
+
+```r
+str(foods$nutrients[1:3])
+```
+
+```
+## List of 3
+##  $ :'data.frame':	4 obs. of  5 variables:
+##   ..$ nutrient_id: chr [1:4] "208" "269" "204" "205"
+##   ..$ nutrient   : chr [1:4] "Energy" "Sugars, total" "Total lipid (fat)" "Carbohydrate, by difference"
+##   ..$ unit       : chr [1:4] "kcal" "g" "g" "g"
+##   ..$ value      : chr [1:4] "9" "--" "0.00" "0.38"
+##   ..$ gm         : chr [1:4] "29" "--" "0" "1.3"
+##  $ :'data.frame':	4 obs. of  5 variables:
+##   ..$ nutrient_id: chr [1:4] "208" "269" "204" "205"
+##   ..$ nutrient   : chr [1:4] "Energy" "Sugars, total" "Total lipid (fat)" "Carbohydrate, by difference"
+##   ..$ unit       : chr [1:4] "kcal" "g" "g" "g"
+##   ..$ value      : chr [1:4] "38" "--" "0.00" "4.79"
+##   ..$ gm         : chr [1:4] "125" "--" "0" "15.7"
+##  $ :'data.frame':	4 obs. of  5 variables:
+##   ..$ nutrient_id: chr [1:4] "208" "269" "204" "205"
+##   ..$ nutrient   : chr [1:4] "Energy" "Sugars, total" "Total lipid (fat)" "Carbohydrate, by difference"
+##   ..$ unit       : chr [1:4] "kcal" "g" "g" "g"
+##   ..$ value      : chr [1:4] "107" "--" "0.10" "11.21"
+##   ..$ gm         : chr [1:4] "308" "--" "0.3" "32.2"
+```
+
+
+Now we can take these `--`s and change them into `NA`s.
+
+
+```r
+foods <- foods %>% 
+  mutate(
+    gm = ifelse(gm == "--", NA, gm),
+    value = ifelse(value == "--", NA, value)
+  )
+
+foods$value <- as.numeric(foods$value)
+foods$gm <- as.numeric(foods$gm)
+```
+
+
+```r
+foods[1:20, ] %>% kable(format = "html")
+```
+
+<table>
+ <thead>
+  <tr>
+   <th style="text-align:left;"> ndbno </th>
+   <th style="text-align:left;"> name </th>
+   <th style="text-align:right;"> weight </th>
+   <th style="text-align:left;"> measure </th>
+   <th style="text-align:left;"> nutrient_id </th>
+   <th style="text-align:left;"> nutrient </th>
+   <th style="text-align:left;"> unit </th>
+   <th style="text-align:right;"> value </th>
+   <th style="text-align:right;"> gm </th>
+  </tr>
+ </thead>
+<tbody>
+  <tr>
+   <td style="text-align:left;"> 14007 </td>
+   <td style="text-align:left;"> Alcoholic beverage, beer, light, BUD LIGHT </td>
+   <td style="text-align:right;"> 29.5 </td>
+   <td style="text-align:left;"> 1.0 fl oz </td>
+   <td style="text-align:left;"> 208 </td>
+   <td style="text-align:left;"> Energy </td>
+   <td style="text-align:left;"> kcal </td>
+   <td style="text-align:right;"> 9.00 </td>
+   <td style="text-align:right;"> 29.0 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> 14007 </td>
+   <td style="text-align:left;"> Alcoholic beverage, beer, light, BUD LIGHT </td>
+   <td style="text-align:right;"> 29.5 </td>
+   <td style="text-align:left;"> 1.0 fl oz </td>
+   <td style="text-align:left;"> 269 </td>
+   <td style="text-align:left;"> Sugars, total </td>
+   <td style="text-align:left;"> g </td>
+   <td style="text-align:right;"> NA </td>
+   <td style="text-align:right;"> NA </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> 14007 </td>
+   <td style="text-align:left;"> Alcoholic beverage, beer, light, BUD LIGHT </td>
+   <td style="text-align:right;"> 29.5 </td>
+   <td style="text-align:left;"> 1.0 fl oz </td>
+   <td style="text-align:left;"> 204 </td>
+   <td style="text-align:left;"> Total lipid (fat) </td>
+   <td style="text-align:left;"> g </td>
+   <td style="text-align:right;"> 0.00 </td>
+   <td style="text-align:right;"> 0.0 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> 14007 </td>
+   <td style="text-align:left;"> Alcoholic beverage, beer, light, BUD LIGHT </td>
+   <td style="text-align:right;"> 29.5 </td>
+   <td style="text-align:left;"> 1.0 fl oz </td>
+   <td style="text-align:left;"> 205 </td>
+   <td style="text-align:left;"> Carbohydrate, by difference </td>
+   <td style="text-align:left;"> g </td>
+   <td style="text-align:right;"> 0.38 </td>
+   <td style="text-align:right;"> 1.3 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> 14009 </td>
+   <td style="text-align:left;"> Alcoholic beverage, daiquiri, canned </td>
+   <td style="text-align:right;"> 30.5 </td>
+   <td style="text-align:left;"> 1.0 fl oz </td>
+   <td style="text-align:left;"> 208 </td>
+   <td style="text-align:left;"> Energy </td>
+   <td style="text-align:left;"> kcal </td>
+   <td style="text-align:right;"> 38.00 </td>
+   <td style="text-align:right;"> 125.0 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> 14009 </td>
+   <td style="text-align:left;"> Alcoholic beverage, daiquiri, canned </td>
+   <td style="text-align:right;"> 30.5 </td>
+   <td style="text-align:left;"> 1.0 fl oz </td>
+   <td style="text-align:left;"> 269 </td>
+   <td style="text-align:left;"> Sugars, total </td>
+   <td style="text-align:left;"> g </td>
+   <td style="text-align:right;"> NA </td>
+   <td style="text-align:right;"> NA </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> 14009 </td>
+   <td style="text-align:left;"> Alcoholic beverage, daiquiri, canned </td>
+   <td style="text-align:right;"> 30.5 </td>
+   <td style="text-align:left;"> 1.0 fl oz </td>
+   <td style="text-align:left;"> 204 </td>
+   <td style="text-align:left;"> Total lipid (fat) </td>
+   <td style="text-align:left;"> g </td>
+   <td style="text-align:right;"> 0.00 </td>
+   <td style="text-align:right;"> 0.0 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> 14009 </td>
+   <td style="text-align:left;"> Alcoholic beverage, daiquiri, canned </td>
+   <td style="text-align:right;"> 30.5 </td>
+   <td style="text-align:left;"> 1.0 fl oz </td>
+   <td style="text-align:left;"> 205 </td>
+   <td style="text-align:left;"> Carbohydrate, by difference </td>
+   <td style="text-align:left;"> g </td>
+   <td style="text-align:right;"> 4.79 </td>
+   <td style="text-align:right;"> 15.7 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> 14534 </td>
+   <td style="text-align:left;"> Alcoholic beverage, liqueur, coffee, 63 proof </td>
+   <td style="text-align:right;"> 34.8 </td>
+   <td style="text-align:left;"> 1.0 fl oz </td>
+   <td style="text-align:left;"> 208 </td>
+   <td style="text-align:left;"> Energy </td>
+   <td style="text-align:left;"> kcal </td>
+   <td style="text-align:right;"> 107.00 </td>
+   <td style="text-align:right;"> 308.0 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> 14534 </td>
+   <td style="text-align:left;"> Alcoholic beverage, liqueur, coffee, 63 proof </td>
+   <td style="text-align:right;"> 34.8 </td>
+   <td style="text-align:left;"> 1.0 fl oz </td>
+   <td style="text-align:left;"> 269 </td>
+   <td style="text-align:left;"> Sugars, total </td>
+   <td style="text-align:left;"> g </td>
+   <td style="text-align:right;"> NA </td>
+   <td style="text-align:right;"> NA </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> 14534 </td>
+   <td style="text-align:left;"> Alcoholic beverage, liqueur, coffee, 63 proof </td>
+   <td style="text-align:right;"> 34.8 </td>
+   <td style="text-align:left;"> 1.0 fl oz </td>
+   <td style="text-align:left;"> 204 </td>
+   <td style="text-align:left;"> Total lipid (fat) </td>
+   <td style="text-align:left;"> g </td>
+   <td style="text-align:right;"> 0.10 </td>
+   <td style="text-align:right;"> 0.3 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> 14534 </td>
+   <td style="text-align:left;"> Alcoholic beverage, liqueur, coffee, 63 proof </td>
+   <td style="text-align:right;"> 34.8 </td>
+   <td style="text-align:left;"> 1.0 fl oz </td>
+   <td style="text-align:left;"> 205 </td>
+   <td style="text-align:left;"> Carbohydrate, by difference </td>
+   <td style="text-align:left;"> g </td>
+   <td style="text-align:right;"> 11.21 </td>
+   <td style="text-align:right;"> 32.2 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> 14015 </td>
+   <td style="text-align:left;"> Alcoholic beverage, pina colada, canned </td>
+   <td style="text-align:right;"> 32.6 </td>
+   <td style="text-align:left;"> 1.0 fl oz </td>
+   <td style="text-align:left;"> 208 </td>
+   <td style="text-align:left;"> Energy </td>
+   <td style="text-align:left;"> kcal </td>
+   <td style="text-align:right;"> 77.00 </td>
+   <td style="text-align:right;"> 237.0 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> 14015 </td>
+   <td style="text-align:left;"> Alcoholic beverage, pina colada, canned </td>
+   <td style="text-align:right;"> 32.6 </td>
+   <td style="text-align:left;"> 1.0 fl oz </td>
+   <td style="text-align:left;"> 269 </td>
+   <td style="text-align:left;"> Sugars, total </td>
+   <td style="text-align:left;"> g </td>
+   <td style="text-align:right;"> NA </td>
+   <td style="text-align:right;"> NA </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> 14015 </td>
+   <td style="text-align:left;"> Alcoholic beverage, pina colada, canned </td>
+   <td style="text-align:right;"> 32.6 </td>
+   <td style="text-align:left;"> 1.0 fl oz </td>
+   <td style="text-align:left;"> 204 </td>
+   <td style="text-align:left;"> Total lipid (fat) </td>
+   <td style="text-align:left;"> g </td>
+   <td style="text-align:right;"> 2.48 </td>
+   <td style="text-align:right;"> 7.6 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> 14015 </td>
+   <td style="text-align:left;"> Alcoholic beverage, pina colada, canned </td>
+   <td style="text-align:right;"> 32.6 </td>
+   <td style="text-align:left;"> 1.0 fl oz </td>
+   <td style="text-align:left;"> 205 </td>
+   <td style="text-align:left;"> Carbohydrate, by difference </td>
+   <td style="text-align:left;"> g </td>
+   <td style="text-align:right;"> 9.00 </td>
+   <td style="text-align:right;"> 27.6 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> 14019 </td>
+   <td style="text-align:left;"> Alcoholic beverage, tequila sunrise, canned </td>
+   <td style="text-align:right;"> 31.1 </td>
+   <td style="text-align:left;"> 1.0 fl oz </td>
+   <td style="text-align:left;"> 208 </td>
+   <td style="text-align:left;"> Energy </td>
+   <td style="text-align:left;"> kcal </td>
+   <td style="text-align:right;"> 34.00 </td>
+   <td style="text-align:right;"> 110.0 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> 14019 </td>
+   <td style="text-align:left;"> Alcoholic beverage, tequila sunrise, canned </td>
+   <td style="text-align:right;"> 31.1 </td>
+   <td style="text-align:left;"> 1.0 fl oz </td>
+   <td style="text-align:left;"> 269 </td>
+   <td style="text-align:left;"> Sugars, total </td>
+   <td style="text-align:left;"> g </td>
+   <td style="text-align:right;"> NA </td>
+   <td style="text-align:right;"> NA </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> 14019 </td>
+   <td style="text-align:left;"> Alcoholic beverage, tequila sunrise, canned </td>
+   <td style="text-align:right;"> 31.1 </td>
+   <td style="text-align:left;"> 1.0 fl oz </td>
+   <td style="text-align:left;"> 204 </td>
+   <td style="text-align:left;"> Total lipid (fat) </td>
+   <td style="text-align:left;"> g </td>
+   <td style="text-align:right;"> 0.03 </td>
+   <td style="text-align:right;"> 0.1 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> 14019 </td>
+   <td style="text-align:left;"> Alcoholic beverage, tequila sunrise, canned </td>
+   <td style="text-align:right;"> 31.1 </td>
+   <td style="text-align:left;"> 1.0 fl oz </td>
+   <td style="text-align:left;"> 205 </td>
+   <td style="text-align:left;"> Carbohydrate, by difference </td>
+   <td style="text-align:left;"> g </td>
+   <td style="text-align:right;"> 3.51 </td>
+   <td style="text-align:right;"> 11.3 </td>
+  </tr>
+</tbody>
+</table>
+
+
+Great, we've successfully unnested. As I mentioned before, we'll use our nice ABBREV.xlsx rather than using data pulled from the API. So:
+
+
+```r
+abbrev_raw <- readxl::read_excel("./data/raw/ABBREV.xlsx") %>% as_tibble()
+
+abbrev_raw[1:20, ] %>% kable(format = "html")
+```
+
+<table>
+ <thead>
+  <tr>
+   <th style="text-align:left;"> NDB_No </th>
+   <th style="text-align:left;"> Shrt_Desc </th>
+   <th style="text-align:right;"> Water_(g) </th>
+   <th style="text-align:right;"> Energ_Kcal </th>
+   <th style="text-align:right;"> Protein_(g) </th>
+   <th style="text-align:right;"> Lipid_Tot_(g) </th>
+   <th style="text-align:right;"> Ash_(g) </th>
+   <th style="text-align:right;"> Carbohydrt_(g) </th>
+   <th style="text-align:right;"> Fiber_TD_(g) </th>
+   <th style="text-align:right;"> Sugar_Tot_(g) </th>
+   <th style="text-align:right;"> Calcium_(mg) </th>
+   <th style="text-align:right;"> Iron_(mg) </th>
+   <th style="text-align:right;"> Magnesium_(mg) </th>
+   <th style="text-align:right;"> Phosphorus_(mg) </th>
+   <th style="text-align:right;"> Potassium_(mg) </th>
+   <th style="text-align:right;"> Sodium_(mg) </th>
+   <th style="text-align:right;"> Zinc_(mg) </th>
+   <th style="text-align:right;"> Copper_mg) </th>
+   <th style="text-align:right;"> Manganese_(mg) </th>
+   <th style="text-align:right;"> Selenium_(µg) </th>
+   <th style="text-align:right;"> Vit_C_(mg) </th>
+   <th style="text-align:right;"> Thiamin_(mg) </th>
+   <th style="text-align:right;"> Riboflavin_(mg) </th>
+   <th style="text-align:right;"> Niacin_(mg) </th>
+   <th style="text-align:right;"> Panto_Acid_mg) </th>
+   <th style="text-align:right;"> Vit_B6_(mg) </th>
+   <th style="text-align:right;"> Folate_Tot_(µg) </th>
+   <th style="text-align:right;"> Folic_Acid_(µg) </th>
+   <th style="text-align:right;"> Food_Folate_(µg) </th>
+   <th style="text-align:right;"> Folate_DFE_(µg) </th>
+   <th style="text-align:right;"> Choline_Tot_ (mg) </th>
+   <th style="text-align:right;"> Vit_B12_(µg) </th>
+   <th style="text-align:right;"> Vit_A_IU </th>
+   <th style="text-align:right;"> Vit_A_RAE </th>
+   <th style="text-align:right;"> Retinol_(µg) </th>
+   <th style="text-align:right;"> Alpha_Carot_(µg) </th>
+   <th style="text-align:right;"> Beta_Carot_(µg) </th>
+   <th style="text-align:right;"> Beta_Crypt_(µg) </th>
+   <th style="text-align:right;"> Lycopene_(µg) </th>
+   <th style="text-align:right;"> Lut+Zea_ (µg) </th>
+   <th style="text-align:right;"> Vit_E_(mg) </th>
+   <th style="text-align:right;"> Vit_D_µg </th>
+   <th style="text-align:right;"> Vit_D_IU </th>
+   <th style="text-align:right;"> Vit_K_(µg) </th>
+   <th style="text-align:right;"> FA_Sat_(g) </th>
+   <th style="text-align:right;"> FA_Mono_(g) </th>
+   <th style="text-align:right;"> FA_Poly_(g) </th>
+   <th style="text-align:right;"> Cholestrl_(mg) </th>
+   <th style="text-align:right;"> GmWt_1 </th>
+   <th style="text-align:left;"> GmWt_Desc1 </th>
+   <th style="text-align:right;"> GmWt_2 </th>
+   <th style="text-align:left;"> GmWt_Desc2 </th>
+   <th style="text-align:right;"> Refuse_Pct </th>
+  </tr>
+ </thead>
+<tbody>
+  <tr>
+   <td style="text-align:left;"> 01001 </td>
+   <td style="text-align:left;"> BUTTER,WITH SALT </td>
+   <td style="text-align:right;"> 15.87 </td>
+   <td style="text-align:right;"> 717 </td>
+   <td style="text-align:right;"> 0.85 </td>
+   <td style="text-align:right;"> 81.11 </td>
+   <td style="text-align:right;"> 2.11 </td>
+   <td style="text-align:right;"> 0.06 </td>
+   <td style="text-align:right;"> 0.0 </td>
+   <td style="text-align:right;"> 0.06 </td>
+   <td style="text-align:right;"> 24 </td>
+   <td style="text-align:right;"> 0.02 </td>
+   <td style="text-align:right;"> 2 </td>
+   <td style="text-align:right;"> 24 </td>
+   <td style="text-align:right;"> 24 </td>
+   <td style="text-align:right;"> 643 </td>
+   <td style="text-align:right;"> 0.09 </td>
+   <td style="text-align:right;"> 0.000 </td>
+   <td style="text-align:right;"> 0.000 </td>
+   <td style="text-align:right;"> 1.0 </td>
+   <td style="text-align:right;"> 0.0 </td>
+   <td style="text-align:right;"> 0.005 </td>
+   <td style="text-align:right;"> 0.034 </td>
+   <td style="text-align:right;"> 0.042 </td>
+   <td style="text-align:right;"> 0.110 </td>
+   <td style="text-align:right;"> 0.003 </td>
+   <td style="text-align:right;"> 3 </td>
+   <td style="text-align:right;"> 0 </td>
+   <td style="text-align:right;"> 3 </td>
+   <td style="text-align:right;"> 3 </td>
+   <td style="text-align:right;"> 18.8 </td>
+   <td style="text-align:right;"> 0.17 </td>
+   <td style="text-align:right;"> 2499 </td>
+   <td style="text-align:right;"> 684 </td>
+   <td style="text-align:right;"> 671 </td>
+   <td style="text-align:right;"> 0 </td>
+   <td style="text-align:right;"> 158 </td>
+   <td style="text-align:right;"> 0 </td>
+   <td style="text-align:right;"> 0 </td>
+   <td style="text-align:right;"> 0 </td>
+   <td style="text-align:right;"> 2.32 </td>
+   <td style="text-align:right;"> 0.0 </td>
+   <td style="text-align:right;"> 0 </td>
+   <td style="text-align:right;"> 7.0 </td>
+   <td style="text-align:right;"> 51.368 </td>
+   <td style="text-align:right;"> 21.021 </td>
+   <td style="text-align:right;"> 3.043 </td>
+   <td style="text-align:right;"> 215 </td>
+   <td style="text-align:right;"> 5.00 </td>
+   <td style="text-align:left;"> 1 pat,  (1&quot; sq, 1/3&quot; high) </td>
+   <td style="text-align:right;"> 14.20 </td>
+   <td style="text-align:left;"> 1 tbsp </td>
+   <td style="text-align:right;"> 0 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> 01002 </td>
+   <td style="text-align:left;"> BUTTER,WHIPPED,W/ SALT </td>
+   <td style="text-align:right;"> 16.72 </td>
+   <td style="text-align:right;"> 718 </td>
+   <td style="text-align:right;"> 0.49 </td>
+   <td style="text-align:right;"> 78.30 </td>
+   <td style="text-align:right;"> 1.62 </td>
+   <td style="text-align:right;"> 2.87 </td>
+   <td style="text-align:right;"> 0.0 </td>
+   <td style="text-align:right;"> 0.06 </td>
+   <td style="text-align:right;"> 23 </td>
+   <td style="text-align:right;"> 0.05 </td>
+   <td style="text-align:right;"> 1 </td>
+   <td style="text-align:right;"> 24 </td>
+   <td style="text-align:right;"> 41 </td>
+   <td style="text-align:right;"> 583 </td>
+   <td style="text-align:right;"> 0.05 </td>
+   <td style="text-align:right;"> 0.010 </td>
+   <td style="text-align:right;"> 0.001 </td>
+   <td style="text-align:right;"> 0.0 </td>
+   <td style="text-align:right;"> 0.0 </td>
+   <td style="text-align:right;"> 0.007 </td>
+   <td style="text-align:right;"> 0.064 </td>
+   <td style="text-align:right;"> 0.022 </td>
+   <td style="text-align:right;"> 0.097 </td>
+   <td style="text-align:right;"> 0.008 </td>
+   <td style="text-align:right;"> 4 </td>
+   <td style="text-align:right;"> 0 </td>
+   <td style="text-align:right;"> 4 </td>
+   <td style="text-align:right;"> 4 </td>
+   <td style="text-align:right;"> 18.8 </td>
+   <td style="text-align:right;"> 0.07 </td>
+   <td style="text-align:right;"> 2468 </td>
+   <td style="text-align:right;"> 683 </td>
+   <td style="text-align:right;"> 671 </td>
+   <td style="text-align:right;"> 1 </td>
+   <td style="text-align:right;"> 135 </td>
+   <td style="text-align:right;"> 6 </td>
+   <td style="text-align:right;"> 0 </td>
+   <td style="text-align:right;"> 13 </td>
+   <td style="text-align:right;"> 1.37 </td>
+   <td style="text-align:right;"> 0.0 </td>
+   <td style="text-align:right;"> 0 </td>
+   <td style="text-align:right;"> 4.6 </td>
+   <td style="text-align:right;"> 45.390 </td>
+   <td style="text-align:right;"> 19.874 </td>
+   <td style="text-align:right;"> 3.331 </td>
+   <td style="text-align:right;"> 225 </td>
+   <td style="text-align:right;"> 3.80 </td>
+   <td style="text-align:left;"> 1 pat,  (1&quot; sq, 1/3&quot; high) </td>
+   <td style="text-align:right;"> 9.40 </td>
+   <td style="text-align:left;"> 1 tbsp </td>
+   <td style="text-align:right;"> 0 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> 01003 </td>
+   <td style="text-align:left;"> BUTTER OIL,ANHYDROUS </td>
+   <td style="text-align:right;"> 0.24 </td>
+   <td style="text-align:right;"> 876 </td>
+   <td style="text-align:right;"> 0.28 </td>
+   <td style="text-align:right;"> 99.48 </td>
+   <td style="text-align:right;"> 0.00 </td>
+   <td style="text-align:right;"> 0.00 </td>
+   <td style="text-align:right;"> 0.0 </td>
+   <td style="text-align:right;"> 0.00 </td>
+   <td style="text-align:right;"> 4 </td>
+   <td style="text-align:right;"> 0.00 </td>
+   <td style="text-align:right;"> 0 </td>
+   <td style="text-align:right;"> 3 </td>
+   <td style="text-align:right;"> 5 </td>
+   <td style="text-align:right;"> 2 </td>
+   <td style="text-align:right;"> 0.01 </td>
+   <td style="text-align:right;"> 0.001 </td>
+   <td style="text-align:right;"> 0.000 </td>
+   <td style="text-align:right;"> 0.0 </td>
+   <td style="text-align:right;"> 0.0 </td>
+   <td style="text-align:right;"> 0.001 </td>
+   <td style="text-align:right;"> 0.005 </td>
+   <td style="text-align:right;"> 0.003 </td>
+   <td style="text-align:right;"> 0.010 </td>
+   <td style="text-align:right;"> 0.001 </td>
+   <td style="text-align:right;"> 0 </td>
+   <td style="text-align:right;"> 0 </td>
+   <td style="text-align:right;"> 0 </td>
+   <td style="text-align:right;"> 0 </td>
+   <td style="text-align:right;"> 22.3 </td>
+   <td style="text-align:right;"> 0.01 </td>
+   <td style="text-align:right;"> 3069 </td>
+   <td style="text-align:right;"> 840 </td>
+   <td style="text-align:right;"> 824 </td>
+   <td style="text-align:right;"> 0 </td>
+   <td style="text-align:right;"> 193 </td>
+   <td style="text-align:right;"> 0 </td>
+   <td style="text-align:right;"> 0 </td>
+   <td style="text-align:right;"> 0 </td>
+   <td style="text-align:right;"> 2.80 </td>
+   <td style="text-align:right;"> 0.0 </td>
+   <td style="text-align:right;"> 0 </td>
+   <td style="text-align:right;"> 8.6 </td>
+   <td style="text-align:right;"> 61.924 </td>
+   <td style="text-align:right;"> 28.732 </td>
+   <td style="text-align:right;"> 3.694 </td>
+   <td style="text-align:right;"> 256 </td>
+   <td style="text-align:right;"> 12.80 </td>
+   <td style="text-align:left;"> 1 tbsp </td>
+   <td style="text-align:right;"> 205.00 </td>
+   <td style="text-align:left;"> 1 cup </td>
+   <td style="text-align:right;"> 0 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> 01004 </td>
+   <td style="text-align:left;"> CHEESE,BLUE </td>
+   <td style="text-align:right;"> 42.41 </td>
+   <td style="text-align:right;"> 353 </td>
+   <td style="text-align:right;"> 21.40 </td>
+   <td style="text-align:right;"> 28.74 </td>
+   <td style="text-align:right;"> 5.11 </td>
+   <td style="text-align:right;"> 2.34 </td>
+   <td style="text-align:right;"> 0.0 </td>
+   <td style="text-align:right;"> 0.50 </td>
+   <td style="text-align:right;"> 528 </td>
+   <td style="text-align:right;"> 0.31 </td>
+   <td style="text-align:right;"> 23 </td>
+   <td style="text-align:right;"> 387 </td>
+   <td style="text-align:right;"> 256 </td>
+   <td style="text-align:right;"> 1146 </td>
+   <td style="text-align:right;"> 2.66 </td>
+   <td style="text-align:right;"> 0.040 </td>
+   <td style="text-align:right;"> 0.009 </td>
+   <td style="text-align:right;"> 14.5 </td>
+   <td style="text-align:right;"> 0.0 </td>
+   <td style="text-align:right;"> 0.029 </td>
+   <td style="text-align:right;"> 0.382 </td>
+   <td style="text-align:right;"> 1.016 </td>
+   <td style="text-align:right;"> 1.729 </td>
+   <td style="text-align:right;"> 0.166 </td>
+   <td style="text-align:right;"> 36 </td>
+   <td style="text-align:right;"> 0 </td>
+   <td style="text-align:right;"> 36 </td>
+   <td style="text-align:right;"> 36 </td>
+   <td style="text-align:right;"> 15.4 </td>
+   <td style="text-align:right;"> 1.22 </td>
+   <td style="text-align:right;"> 721 </td>
+   <td style="text-align:right;"> 198 </td>
+   <td style="text-align:right;"> 192 </td>
+   <td style="text-align:right;"> 0 </td>
+   <td style="text-align:right;"> 74 </td>
+   <td style="text-align:right;"> 0 </td>
+   <td style="text-align:right;"> 0 </td>
+   <td style="text-align:right;"> 0 </td>
+   <td style="text-align:right;"> 0.25 </td>
+   <td style="text-align:right;"> 0.5 </td>
+   <td style="text-align:right;"> 21 </td>
+   <td style="text-align:right;"> 2.4 </td>
+   <td style="text-align:right;"> 18.669 </td>
+   <td style="text-align:right;"> 7.778 </td>
+   <td style="text-align:right;"> 0.800 </td>
+   <td style="text-align:right;"> 75 </td>
+   <td style="text-align:right;"> 28.35 </td>
+   <td style="text-align:left;"> 1 oz </td>
+   <td style="text-align:right;"> 17.00 </td>
+   <td style="text-align:left;"> 1 cubic inch </td>
+   <td style="text-align:right;"> 0 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> 01005 </td>
+   <td style="text-align:left;"> CHEESE,BRICK </td>
+   <td style="text-align:right;"> 41.11 </td>
+   <td style="text-align:right;"> 371 </td>
+   <td style="text-align:right;"> 23.24 </td>
+   <td style="text-align:right;"> 29.68 </td>
+   <td style="text-align:right;"> 3.18 </td>
+   <td style="text-align:right;"> 2.79 </td>
+   <td style="text-align:right;"> 0.0 </td>
+   <td style="text-align:right;"> 0.51 </td>
+   <td style="text-align:right;"> 674 </td>
+   <td style="text-align:right;"> 0.43 </td>
+   <td style="text-align:right;"> 24 </td>
+   <td style="text-align:right;"> 451 </td>
+   <td style="text-align:right;"> 136 </td>
+   <td style="text-align:right;"> 560 </td>
+   <td style="text-align:right;"> 2.60 </td>
+   <td style="text-align:right;"> 0.024 </td>
+   <td style="text-align:right;"> 0.012 </td>
+   <td style="text-align:right;"> 14.5 </td>
+   <td style="text-align:right;"> 0.0 </td>
+   <td style="text-align:right;"> 0.014 </td>
+   <td style="text-align:right;"> 0.351 </td>
+   <td style="text-align:right;"> 0.118 </td>
+   <td style="text-align:right;"> 0.288 </td>
+   <td style="text-align:right;"> 0.065 </td>
+   <td style="text-align:right;"> 20 </td>
+   <td style="text-align:right;"> 0 </td>
+   <td style="text-align:right;"> 20 </td>
+   <td style="text-align:right;"> 20 </td>
+   <td style="text-align:right;"> 15.4 </td>
+   <td style="text-align:right;"> 1.26 </td>
+   <td style="text-align:right;"> 1080 </td>
+   <td style="text-align:right;"> 292 </td>
+   <td style="text-align:right;"> 286 </td>
+   <td style="text-align:right;"> 0 </td>
+   <td style="text-align:right;"> 76 </td>
+   <td style="text-align:right;"> 0 </td>
+   <td style="text-align:right;"> 0 </td>
+   <td style="text-align:right;"> 0 </td>
+   <td style="text-align:right;"> 0.26 </td>
+   <td style="text-align:right;"> 0.5 </td>
+   <td style="text-align:right;"> 22 </td>
+   <td style="text-align:right;"> 2.5 </td>
+   <td style="text-align:right;"> 18.764 </td>
+   <td style="text-align:right;"> 8.598 </td>
+   <td style="text-align:right;"> 0.784 </td>
+   <td style="text-align:right;"> 94 </td>
+   <td style="text-align:right;"> 132.00 </td>
+   <td style="text-align:left;"> 1 cup, diced </td>
+   <td style="text-align:right;"> 113.00 </td>
+   <td style="text-align:left;"> 1 cup, shredded </td>
+   <td style="text-align:right;"> 0 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> 01006 </td>
+   <td style="text-align:left;"> CHEESE,BRIE </td>
+   <td style="text-align:right;"> 48.42 </td>
+   <td style="text-align:right;"> 334 </td>
+   <td style="text-align:right;"> 20.75 </td>
+   <td style="text-align:right;"> 27.68 </td>
+   <td style="text-align:right;"> 2.70 </td>
+   <td style="text-align:right;"> 0.45 </td>
+   <td style="text-align:right;"> 0.0 </td>
+   <td style="text-align:right;"> 0.45 </td>
+   <td style="text-align:right;"> 184 </td>
+   <td style="text-align:right;"> 0.50 </td>
+   <td style="text-align:right;"> 20 </td>
+   <td style="text-align:right;"> 188 </td>
+   <td style="text-align:right;"> 152 </td>
+   <td style="text-align:right;"> 629 </td>
+   <td style="text-align:right;"> 2.38 </td>
+   <td style="text-align:right;"> 0.019 </td>
+   <td style="text-align:right;"> 0.034 </td>
+   <td style="text-align:right;"> 14.5 </td>
+   <td style="text-align:right;"> 0.0 </td>
+   <td style="text-align:right;"> 0.070 </td>
+   <td style="text-align:right;"> 0.520 </td>
+   <td style="text-align:right;"> 0.380 </td>
+   <td style="text-align:right;"> 0.690 </td>
+   <td style="text-align:right;"> 0.235 </td>
+   <td style="text-align:right;"> 65 </td>
+   <td style="text-align:right;"> 0 </td>
+   <td style="text-align:right;"> 65 </td>
+   <td style="text-align:right;"> 65 </td>
+   <td style="text-align:right;"> 15.4 </td>
+   <td style="text-align:right;"> 1.65 </td>
+   <td style="text-align:right;"> 592 </td>
+   <td style="text-align:right;"> 174 </td>
+   <td style="text-align:right;"> 173 </td>
+   <td style="text-align:right;"> 0 </td>
+   <td style="text-align:right;"> 9 </td>
+   <td style="text-align:right;"> 0 </td>
+   <td style="text-align:right;"> 0 </td>
+   <td style="text-align:right;"> 0 </td>
+   <td style="text-align:right;"> 0.24 </td>
+   <td style="text-align:right;"> 0.5 </td>
+   <td style="text-align:right;"> 20 </td>
+   <td style="text-align:right;"> 2.3 </td>
+   <td style="text-align:right;"> 17.410 </td>
+   <td style="text-align:right;"> 8.013 </td>
+   <td style="text-align:right;"> 0.826 </td>
+   <td style="text-align:right;"> 100 </td>
+   <td style="text-align:right;"> 28.35 </td>
+   <td style="text-align:left;"> 1 oz </td>
+   <td style="text-align:right;"> 144.00 </td>
+   <td style="text-align:left;"> 1 cup, sliced </td>
+   <td style="text-align:right;"> 0 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> 01007 </td>
+   <td style="text-align:left;"> CHEESE,CAMEMBERT </td>
+   <td style="text-align:right;"> 51.80 </td>
+   <td style="text-align:right;"> 300 </td>
+   <td style="text-align:right;"> 19.80 </td>
+   <td style="text-align:right;"> 24.26 </td>
+   <td style="text-align:right;"> 3.68 </td>
+   <td style="text-align:right;"> 0.46 </td>
+   <td style="text-align:right;"> 0.0 </td>
+   <td style="text-align:right;"> 0.46 </td>
+   <td style="text-align:right;"> 388 </td>
+   <td style="text-align:right;"> 0.33 </td>
+   <td style="text-align:right;"> 20 </td>
+   <td style="text-align:right;"> 347 </td>
+   <td style="text-align:right;"> 187 </td>
+   <td style="text-align:right;"> 842 </td>
+   <td style="text-align:right;"> 2.38 </td>
+   <td style="text-align:right;"> 0.021 </td>
+   <td style="text-align:right;"> 0.038 </td>
+   <td style="text-align:right;"> 14.5 </td>
+   <td style="text-align:right;"> 0.0 </td>
+   <td style="text-align:right;"> 0.028 </td>
+   <td style="text-align:right;"> 0.488 </td>
+   <td style="text-align:right;"> 0.630 </td>
+   <td style="text-align:right;"> 1.364 </td>
+   <td style="text-align:right;"> 0.227 </td>
+   <td style="text-align:right;"> 62 </td>
+   <td style="text-align:right;"> 0 </td>
+   <td style="text-align:right;"> 62 </td>
+   <td style="text-align:right;"> 62 </td>
+   <td style="text-align:right;"> 15.4 </td>
+   <td style="text-align:right;"> 1.30 </td>
+   <td style="text-align:right;"> 820 </td>
+   <td style="text-align:right;"> 241 </td>
+   <td style="text-align:right;"> 240 </td>
+   <td style="text-align:right;"> 0 </td>
+   <td style="text-align:right;"> 12 </td>
+   <td style="text-align:right;"> 0 </td>
+   <td style="text-align:right;"> 0 </td>
+   <td style="text-align:right;"> 0 </td>
+   <td style="text-align:right;"> 0.21 </td>
+   <td style="text-align:right;"> 0.4 </td>
+   <td style="text-align:right;"> 18 </td>
+   <td style="text-align:right;"> 2.0 </td>
+   <td style="text-align:right;"> 15.259 </td>
+   <td style="text-align:right;"> 7.023 </td>
+   <td style="text-align:right;"> 0.724 </td>
+   <td style="text-align:right;"> 72 </td>
+   <td style="text-align:right;"> 28.35 </td>
+   <td style="text-align:left;"> 1 oz </td>
+   <td style="text-align:right;"> 246.00 </td>
+   <td style="text-align:left;"> 1 cup </td>
+   <td style="text-align:right;"> 0 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> 01008 </td>
+   <td style="text-align:left;"> CHEESE,CARAWAY </td>
+   <td style="text-align:right;"> 39.28 </td>
+   <td style="text-align:right;"> 376 </td>
+   <td style="text-align:right;"> 25.18 </td>
+   <td style="text-align:right;"> 29.20 </td>
+   <td style="text-align:right;"> 3.28 </td>
+   <td style="text-align:right;"> 3.06 </td>
+   <td style="text-align:right;"> 0.0 </td>
+   <td style="text-align:right;"> NA </td>
+   <td style="text-align:right;"> 673 </td>
+   <td style="text-align:right;"> 0.64 </td>
+   <td style="text-align:right;"> 22 </td>
+   <td style="text-align:right;"> 490 </td>
+   <td style="text-align:right;"> 93 </td>
+   <td style="text-align:right;"> 690 </td>
+   <td style="text-align:right;"> 2.94 </td>
+   <td style="text-align:right;"> 0.024 </td>
+   <td style="text-align:right;"> 0.021 </td>
+   <td style="text-align:right;"> 14.5 </td>
+   <td style="text-align:right;"> 0.0 </td>
+   <td style="text-align:right;"> 0.031 </td>
+   <td style="text-align:right;"> 0.450 </td>
+   <td style="text-align:right;"> 0.180 </td>
+   <td style="text-align:right;"> 0.190 </td>
+   <td style="text-align:right;"> 0.074 </td>
+   <td style="text-align:right;"> 18 </td>
+   <td style="text-align:right;"> 0 </td>
+   <td style="text-align:right;"> 18 </td>
+   <td style="text-align:right;"> 18 </td>
+   <td style="text-align:right;"> NA </td>
+   <td style="text-align:right;"> 0.27 </td>
+   <td style="text-align:right;"> 1054 </td>
+   <td style="text-align:right;"> 271 </td>
+   <td style="text-align:right;"> 262 </td>
+   <td style="text-align:right;"> NA </td>
+   <td style="text-align:right;"> NA </td>
+   <td style="text-align:right;"> NA </td>
+   <td style="text-align:right;"> NA </td>
+   <td style="text-align:right;"> NA </td>
+   <td style="text-align:right;"> NA </td>
+   <td style="text-align:right;"> NA </td>
+   <td style="text-align:right;"> NA </td>
+   <td style="text-align:right;"> NA </td>
+   <td style="text-align:right;"> 18.584 </td>
+   <td style="text-align:right;"> 8.275 </td>
+   <td style="text-align:right;"> 0.830 </td>
+   <td style="text-align:right;"> 93 </td>
+   <td style="text-align:right;"> 28.35 </td>
+   <td style="text-align:left;"> 1 oz </td>
+   <td style="text-align:right;"> NA </td>
+   <td style="text-align:left;"> NA </td>
+   <td style="text-align:right;"> 0 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> 01009 </td>
+   <td style="text-align:left;"> CHEESE,CHEDDAR </td>
+   <td style="text-align:right;"> 37.02 </td>
+   <td style="text-align:right;"> 404 </td>
+   <td style="text-align:right;"> 22.87 </td>
+   <td style="text-align:right;"> 33.31 </td>
+   <td style="text-align:right;"> 3.71 </td>
+   <td style="text-align:right;"> 3.09 </td>
+   <td style="text-align:right;"> 0.0 </td>
+   <td style="text-align:right;"> 0.48 </td>
+   <td style="text-align:right;"> 710 </td>
+   <td style="text-align:right;"> 0.14 </td>
+   <td style="text-align:right;"> 27 </td>
+   <td style="text-align:right;"> 455 </td>
+   <td style="text-align:right;"> 76 </td>
+   <td style="text-align:right;"> 653 </td>
+   <td style="text-align:right;"> 3.64 </td>
+   <td style="text-align:right;"> 0.030 </td>
+   <td style="text-align:right;"> 0.027 </td>
+   <td style="text-align:right;"> 28.5 </td>
+   <td style="text-align:right;"> 0.0 </td>
+   <td style="text-align:right;"> 0.029 </td>
+   <td style="text-align:right;"> 0.428 </td>
+   <td style="text-align:right;"> 0.059 </td>
+   <td style="text-align:right;"> 0.410 </td>
+   <td style="text-align:right;"> 0.066 </td>
+   <td style="text-align:right;"> 27 </td>
+   <td style="text-align:right;"> 0 </td>
+   <td style="text-align:right;"> 27 </td>
+   <td style="text-align:right;"> 27 </td>
+   <td style="text-align:right;"> 16.5 </td>
+   <td style="text-align:right;"> 1.10 </td>
+   <td style="text-align:right;"> 1242 </td>
+   <td style="text-align:right;"> 330 </td>
+   <td style="text-align:right;"> 330 </td>
+   <td style="text-align:right;"> 0 </td>
+   <td style="text-align:right;"> 85 </td>
+   <td style="text-align:right;"> 0 </td>
+   <td style="text-align:right;"> 0 </td>
+   <td style="text-align:right;"> 0 </td>
+   <td style="text-align:right;"> 0.71 </td>
+   <td style="text-align:right;"> 0.6 </td>
+   <td style="text-align:right;"> 24 </td>
+   <td style="text-align:right;"> 2.4 </td>
+   <td style="text-align:right;"> 18.867 </td>
+   <td style="text-align:right;"> 9.246 </td>
+   <td style="text-align:right;"> 1.421 </td>
+   <td style="text-align:right;"> 99 </td>
+   <td style="text-align:right;"> 132.00 </td>
+   <td style="text-align:left;"> 1 cup, diced </td>
+   <td style="text-align:right;"> 244.00 </td>
+   <td style="text-align:left;"> 1 cup, melted </td>
+   <td style="text-align:right;"> 0 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> 01010 </td>
+   <td style="text-align:left;"> CHEESE,CHESHIRE </td>
+   <td style="text-align:right;"> 37.65 </td>
+   <td style="text-align:right;"> 387 </td>
+   <td style="text-align:right;"> 23.37 </td>
+   <td style="text-align:right;"> 30.60 </td>
+   <td style="text-align:right;"> 3.60 </td>
+   <td style="text-align:right;"> 4.78 </td>
+   <td style="text-align:right;"> 0.0 </td>
+   <td style="text-align:right;"> NA </td>
+   <td style="text-align:right;"> 643 </td>
+   <td style="text-align:right;"> 0.21 </td>
+   <td style="text-align:right;"> 21 </td>
+   <td style="text-align:right;"> 464 </td>
+   <td style="text-align:right;"> 95 </td>
+   <td style="text-align:right;"> 700 </td>
+   <td style="text-align:right;"> 2.79 </td>
+   <td style="text-align:right;"> 0.042 </td>
+   <td style="text-align:right;"> 0.012 </td>
+   <td style="text-align:right;"> 14.5 </td>
+   <td style="text-align:right;"> 0.0 </td>
+   <td style="text-align:right;"> 0.046 </td>
+   <td style="text-align:right;"> 0.293 </td>
+   <td style="text-align:right;"> 0.080 </td>
+   <td style="text-align:right;"> 0.413 </td>
+   <td style="text-align:right;"> 0.074 </td>
+   <td style="text-align:right;"> 18 </td>
+   <td style="text-align:right;"> 0 </td>
+   <td style="text-align:right;"> 18 </td>
+   <td style="text-align:right;"> 18 </td>
+   <td style="text-align:right;"> NA </td>
+   <td style="text-align:right;"> 0.83 </td>
+   <td style="text-align:right;"> 985 </td>
+   <td style="text-align:right;"> 233 </td>
+   <td style="text-align:right;"> 220 </td>
+   <td style="text-align:right;"> NA </td>
+   <td style="text-align:right;"> NA </td>
+   <td style="text-align:right;"> NA </td>
+   <td style="text-align:right;"> NA </td>
+   <td style="text-align:right;"> NA </td>
+   <td style="text-align:right;"> NA </td>
+   <td style="text-align:right;"> NA </td>
+   <td style="text-align:right;"> NA </td>
+   <td style="text-align:right;"> NA </td>
+   <td style="text-align:right;"> 19.475 </td>
+   <td style="text-align:right;"> 8.671 </td>
+   <td style="text-align:right;"> 0.870 </td>
+   <td style="text-align:right;"> 103 </td>
+   <td style="text-align:right;"> 28.35 </td>
+   <td style="text-align:left;"> 1 oz </td>
+   <td style="text-align:right;"> NA </td>
+   <td style="text-align:left;"> NA </td>
+   <td style="text-align:right;"> 0 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> 01011 </td>
+   <td style="text-align:left;"> CHEESE,COLBY </td>
+   <td style="text-align:right;"> 38.20 </td>
+   <td style="text-align:right;"> 394 </td>
+   <td style="text-align:right;"> 23.76 </td>
+   <td style="text-align:right;"> 32.11 </td>
+   <td style="text-align:right;"> 3.36 </td>
+   <td style="text-align:right;"> 2.57 </td>
+   <td style="text-align:right;"> 0.0 </td>
+   <td style="text-align:right;"> 0.52 </td>
+   <td style="text-align:right;"> 685 </td>
+   <td style="text-align:right;"> 0.76 </td>
+   <td style="text-align:right;"> 26 </td>
+   <td style="text-align:right;"> 457 </td>
+   <td style="text-align:right;"> 127 </td>
+   <td style="text-align:right;"> 604 </td>
+   <td style="text-align:right;"> 3.07 </td>
+   <td style="text-align:right;"> 0.042 </td>
+   <td style="text-align:right;"> 0.012 </td>
+   <td style="text-align:right;"> 14.5 </td>
+   <td style="text-align:right;"> 0.0 </td>
+   <td style="text-align:right;"> 0.015 </td>
+   <td style="text-align:right;"> 0.375 </td>
+   <td style="text-align:right;"> 0.093 </td>
+   <td style="text-align:right;"> 0.210 </td>
+   <td style="text-align:right;"> 0.079 </td>
+   <td style="text-align:right;"> 18 </td>
+   <td style="text-align:right;"> 0 </td>
+   <td style="text-align:right;"> 18 </td>
+   <td style="text-align:right;"> 18 </td>
+   <td style="text-align:right;"> 15.4 </td>
+   <td style="text-align:right;"> 0.83 </td>
+   <td style="text-align:right;"> 994 </td>
+   <td style="text-align:right;"> 264 </td>
+   <td style="text-align:right;"> 257 </td>
+   <td style="text-align:right;"> 0 </td>
+   <td style="text-align:right;"> 82 </td>
+   <td style="text-align:right;"> 0 </td>
+   <td style="text-align:right;"> 0 </td>
+   <td style="text-align:right;"> 0 </td>
+   <td style="text-align:right;"> 0.28 </td>
+   <td style="text-align:right;"> 0.6 </td>
+   <td style="text-align:right;"> 24 </td>
+   <td style="text-align:right;"> 2.7 </td>
+   <td style="text-align:right;"> 20.218 </td>
+   <td style="text-align:right;"> 9.280 </td>
+   <td style="text-align:right;"> 0.953 </td>
+   <td style="text-align:right;"> 95 </td>
+   <td style="text-align:right;"> 132.00 </td>
+   <td style="text-align:left;"> 1 cup, diced </td>
+   <td style="text-align:right;"> 113.00 </td>
+   <td style="text-align:left;"> 1 cup, shredded </td>
+   <td style="text-align:right;"> 0 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> 01012 </td>
+   <td style="text-align:left;"> CHEESE,COTTAGE,CRMD,LRG OR SML CURD </td>
+   <td style="text-align:right;"> 79.79 </td>
+   <td style="text-align:right;"> 98 </td>
+   <td style="text-align:right;"> 11.12 </td>
+   <td style="text-align:right;"> 4.30 </td>
+   <td style="text-align:right;"> 1.41 </td>
+   <td style="text-align:right;"> 3.38 </td>
+   <td style="text-align:right;"> 0.0 </td>
+   <td style="text-align:right;"> 2.67 </td>
+   <td style="text-align:right;"> 83 </td>
+   <td style="text-align:right;"> 0.07 </td>
+   <td style="text-align:right;"> 8 </td>
+   <td style="text-align:right;"> 159 </td>
+   <td style="text-align:right;"> 104 </td>
+   <td style="text-align:right;"> 364 </td>
+   <td style="text-align:right;"> 0.40 </td>
+   <td style="text-align:right;"> 0.029 </td>
+   <td style="text-align:right;"> 0.002 </td>
+   <td style="text-align:right;"> 9.7 </td>
+   <td style="text-align:right;"> 0.0 </td>
+   <td style="text-align:right;"> 0.027 </td>
+   <td style="text-align:right;"> 0.163 </td>
+   <td style="text-align:right;"> 0.099 </td>
+   <td style="text-align:right;"> 0.557 </td>
+   <td style="text-align:right;"> 0.046 </td>
+   <td style="text-align:right;"> 12 </td>
+   <td style="text-align:right;"> 0 </td>
+   <td style="text-align:right;"> 12 </td>
+   <td style="text-align:right;"> 12 </td>
+   <td style="text-align:right;"> 18.4 </td>
+   <td style="text-align:right;"> 0.43 </td>
+   <td style="text-align:right;"> 140 </td>
+   <td style="text-align:right;"> 37 </td>
+   <td style="text-align:right;"> 36 </td>
+   <td style="text-align:right;"> 0 </td>
+   <td style="text-align:right;"> 12 </td>
+   <td style="text-align:right;"> 0 </td>
+   <td style="text-align:right;"> 0 </td>
+   <td style="text-align:right;"> 0 </td>
+   <td style="text-align:right;"> 0.08 </td>
+   <td style="text-align:right;"> 0.1 </td>
+   <td style="text-align:right;"> 3 </td>
+   <td style="text-align:right;"> 0.0 </td>
+   <td style="text-align:right;"> 1.718 </td>
+   <td style="text-align:right;"> 0.778 </td>
+   <td style="text-align:right;"> 0.123 </td>
+   <td style="text-align:right;"> 17 </td>
+   <td style="text-align:right;"> 113.00 </td>
+   <td style="text-align:left;"> 4 oz </td>
+   <td style="text-align:right;"> 210.00 </td>
+   <td style="text-align:left;"> 1 cup, large curd (not packed) </td>
+   <td style="text-align:right;"> 0 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> 01013 </td>
+   <td style="text-align:left;"> CHEESE,COTTAGE,CRMD,W/FRUIT </td>
+   <td style="text-align:right;"> 79.64 </td>
+   <td style="text-align:right;"> 97 </td>
+   <td style="text-align:right;"> 10.69 </td>
+   <td style="text-align:right;"> 3.85 </td>
+   <td style="text-align:right;"> 1.20 </td>
+   <td style="text-align:right;"> 4.61 </td>
+   <td style="text-align:right;"> 0.2 </td>
+   <td style="text-align:right;"> 2.38 </td>
+   <td style="text-align:right;"> 53 </td>
+   <td style="text-align:right;"> 0.16 </td>
+   <td style="text-align:right;"> 7 </td>
+   <td style="text-align:right;"> 113 </td>
+   <td style="text-align:right;"> 90 </td>
+   <td style="text-align:right;"> 344 </td>
+   <td style="text-align:right;"> 0.33 </td>
+   <td style="text-align:right;"> 0.040 </td>
+   <td style="text-align:right;"> 0.003 </td>
+   <td style="text-align:right;"> 7.7 </td>
+   <td style="text-align:right;"> 1.4 </td>
+   <td style="text-align:right;"> 0.033 </td>
+   <td style="text-align:right;"> 0.142 </td>
+   <td style="text-align:right;"> 0.150 </td>
+   <td style="text-align:right;"> 0.181 </td>
+   <td style="text-align:right;"> 0.068 </td>
+   <td style="text-align:right;"> 11 </td>
+   <td style="text-align:right;"> 0 </td>
+   <td style="text-align:right;"> 11 </td>
+   <td style="text-align:right;"> 11 </td>
+   <td style="text-align:right;"> 17.5 </td>
+   <td style="text-align:right;"> 0.53 </td>
+   <td style="text-align:right;"> 146 </td>
+   <td style="text-align:right;"> 38 </td>
+   <td style="text-align:right;"> 37 </td>
+   <td style="text-align:right;"> 0 </td>
+   <td style="text-align:right;"> 14 </td>
+   <td style="text-align:right;"> 0 </td>
+   <td style="text-align:right;"> 0 </td>
+   <td style="text-align:right;"> 0 </td>
+   <td style="text-align:right;"> 0.04 </td>
+   <td style="text-align:right;"> 0.0 </td>
+   <td style="text-align:right;"> 0 </td>
+   <td style="text-align:right;"> 0.4 </td>
+   <td style="text-align:right;"> 2.311 </td>
+   <td style="text-align:right;"> 1.036 </td>
+   <td style="text-align:right;"> 0.124 </td>
+   <td style="text-align:right;"> 13 </td>
+   <td style="text-align:right;"> 113.00 </td>
+   <td style="text-align:left;"> 4 oz </td>
+   <td style="text-align:right;"> 226.00 </td>
+   <td style="text-align:left;"> 1 cup,  (not packed) </td>
+   <td style="text-align:right;"> 0 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> 01014 </td>
+   <td style="text-align:left;"> CHEESE,COTTAGE,NONFAT,UNCRMD,DRY,LRG OR SML CURD </td>
+   <td style="text-align:right;"> 81.01 </td>
+   <td style="text-align:right;"> 72 </td>
+   <td style="text-align:right;"> 10.34 </td>
+   <td style="text-align:right;"> 0.29 </td>
+   <td style="text-align:right;"> 1.71 </td>
+   <td style="text-align:right;"> 6.66 </td>
+   <td style="text-align:right;"> 0.0 </td>
+   <td style="text-align:right;"> 1.85 </td>
+   <td style="text-align:right;"> 86 </td>
+   <td style="text-align:right;"> 0.15 </td>
+   <td style="text-align:right;"> 11 </td>
+   <td style="text-align:right;"> 190 </td>
+   <td style="text-align:right;"> 137 </td>
+   <td style="text-align:right;"> 372 </td>
+   <td style="text-align:right;"> 0.47 </td>
+   <td style="text-align:right;"> 0.030 </td>
+   <td style="text-align:right;"> 0.022 </td>
+   <td style="text-align:right;"> 9.4 </td>
+   <td style="text-align:right;"> 0.0 </td>
+   <td style="text-align:right;"> 0.023 </td>
+   <td style="text-align:right;"> 0.226 </td>
+   <td style="text-align:right;"> 0.144 </td>
+   <td style="text-align:right;"> 0.446 </td>
+   <td style="text-align:right;"> 0.016 </td>
+   <td style="text-align:right;"> 9 </td>
+   <td style="text-align:right;"> 0 </td>
+   <td style="text-align:right;"> 9 </td>
+   <td style="text-align:right;"> 9 </td>
+   <td style="text-align:right;"> 17.9 </td>
+   <td style="text-align:right;"> 0.46 </td>
+   <td style="text-align:right;"> 8 </td>
+   <td style="text-align:right;"> 2 </td>
+   <td style="text-align:right;"> 2 </td>
+   <td style="text-align:right;"> 0 </td>
+   <td style="text-align:right;"> 0 </td>
+   <td style="text-align:right;"> 0 </td>
+   <td style="text-align:right;"> 0 </td>
+   <td style="text-align:right;"> 0 </td>
+   <td style="text-align:right;"> 0.01 </td>
+   <td style="text-align:right;"> 0.0 </td>
+   <td style="text-align:right;"> 0 </td>
+   <td style="text-align:right;"> 0.0 </td>
+   <td style="text-align:right;"> 0.169 </td>
+   <td style="text-align:right;"> 0.079 </td>
+   <td style="text-align:right;"> 0.003 </td>
+   <td style="text-align:right;"> 7 </td>
+   <td style="text-align:right;"> 145.00 </td>
+   <td style="text-align:left;"> 1 cup,  (not packed) </td>
+   <td style="text-align:right;"> 113.00 </td>
+   <td style="text-align:left;"> 4 oz </td>
+   <td style="text-align:right;"> 0 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> 01015 </td>
+   <td style="text-align:left;"> CHEESE,COTTAGE,LOWFAT,2% MILKFAT </td>
+   <td style="text-align:right;"> 81.24 </td>
+   <td style="text-align:right;"> 81 </td>
+   <td style="text-align:right;"> 10.45 </td>
+   <td style="text-align:right;"> 2.27 </td>
+   <td style="text-align:right;"> 1.27 </td>
+   <td style="text-align:right;"> 4.76 </td>
+   <td style="text-align:right;"> 0.0 </td>
+   <td style="text-align:right;"> 4.00 </td>
+   <td style="text-align:right;"> 111 </td>
+   <td style="text-align:right;"> 0.13 </td>
+   <td style="text-align:right;"> 9 </td>
+   <td style="text-align:right;"> 150 </td>
+   <td style="text-align:right;"> 125 </td>
+   <td style="text-align:right;"> 308 </td>
+   <td style="text-align:right;"> 0.51 </td>
+   <td style="text-align:right;"> 0.033 </td>
+   <td style="text-align:right;"> 0.015 </td>
+   <td style="text-align:right;"> 11.9 </td>
+   <td style="text-align:right;"> 0.0 </td>
+   <td style="text-align:right;"> 0.020 </td>
+   <td style="text-align:right;"> 0.251 </td>
+   <td style="text-align:right;"> 0.103 </td>
+   <td style="text-align:right;"> 0.524 </td>
+   <td style="text-align:right;"> 0.057 </td>
+   <td style="text-align:right;"> 8 </td>
+   <td style="text-align:right;"> 0 </td>
+   <td style="text-align:right;"> 8 </td>
+   <td style="text-align:right;"> 8 </td>
+   <td style="text-align:right;"> 16.3 </td>
+   <td style="text-align:right;"> 0.47 </td>
+   <td style="text-align:right;"> 225 </td>
+   <td style="text-align:right;"> 68 </td>
+   <td style="text-align:right;"> 68 </td>
+   <td style="text-align:right;"> 0 </td>
+   <td style="text-align:right;"> 6 </td>
+   <td style="text-align:right;"> 0 </td>
+   <td style="text-align:right;"> 0 </td>
+   <td style="text-align:right;"> 0 </td>
+   <td style="text-align:right;"> 0.08 </td>
+   <td style="text-align:right;"> 0.0 </td>
+   <td style="text-align:right;"> 0 </td>
+   <td style="text-align:right;"> 0.0 </td>
+   <td style="text-align:right;"> 1.235 </td>
+   <td style="text-align:right;"> 0.516 </td>
+   <td style="text-align:right;"> 0.083 </td>
+   <td style="text-align:right;"> 12 </td>
+   <td style="text-align:right;"> 113.00 </td>
+   <td style="text-align:left;"> 4 oz </td>
+   <td style="text-align:right;"> 226.00 </td>
+   <td style="text-align:left;"> 1 cup,  (not packed) </td>
+   <td style="text-align:right;"> 0 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> 01016 </td>
+   <td style="text-align:left;"> CHEESE,COTTAGE,LOWFAT,1% MILKFAT </td>
+   <td style="text-align:right;"> 82.48 </td>
+   <td style="text-align:right;"> 72 </td>
+   <td style="text-align:right;"> 12.39 </td>
+   <td style="text-align:right;"> 1.02 </td>
+   <td style="text-align:right;"> 1.39 </td>
+   <td style="text-align:right;"> 2.72 </td>
+   <td style="text-align:right;"> 0.0 </td>
+   <td style="text-align:right;"> 2.72 </td>
+   <td style="text-align:right;"> 61 </td>
+   <td style="text-align:right;"> 0.14 </td>
+   <td style="text-align:right;"> 5 </td>
+   <td style="text-align:right;"> 134 </td>
+   <td style="text-align:right;"> 86 </td>
+   <td style="text-align:right;"> 406 </td>
+   <td style="text-align:right;"> 0.38 </td>
+   <td style="text-align:right;"> 0.028 </td>
+   <td style="text-align:right;"> 0.003 </td>
+   <td style="text-align:right;"> 9.0 </td>
+   <td style="text-align:right;"> 0.0 </td>
+   <td style="text-align:right;"> 0.021 </td>
+   <td style="text-align:right;"> 0.165 </td>
+   <td style="text-align:right;"> 0.128 </td>
+   <td style="text-align:right;"> 0.215 </td>
+   <td style="text-align:right;"> 0.068 </td>
+   <td style="text-align:right;"> 12 </td>
+   <td style="text-align:right;"> 0 </td>
+   <td style="text-align:right;"> 12 </td>
+   <td style="text-align:right;"> 12 </td>
+   <td style="text-align:right;"> 17.5 </td>
+   <td style="text-align:right;"> 0.63 </td>
+   <td style="text-align:right;"> 41 </td>
+   <td style="text-align:right;"> 11 </td>
+   <td style="text-align:right;"> 11 </td>
+   <td style="text-align:right;"> 0 </td>
+   <td style="text-align:right;"> 3 </td>
+   <td style="text-align:right;"> 0 </td>
+   <td style="text-align:right;"> 0 </td>
+   <td style="text-align:right;"> 0 </td>
+   <td style="text-align:right;"> 0.01 </td>
+   <td style="text-align:right;"> 0.0 </td>
+   <td style="text-align:right;"> 0 </td>
+   <td style="text-align:right;"> 0.1 </td>
+   <td style="text-align:right;"> 0.645 </td>
+   <td style="text-align:right;"> 0.291 </td>
+   <td style="text-align:right;"> 0.031 </td>
+   <td style="text-align:right;"> 4 </td>
+   <td style="text-align:right;"> 113.00 </td>
+   <td style="text-align:left;"> 4 oz </td>
+   <td style="text-align:right;"> 226.00 </td>
+   <td style="text-align:left;"> 1 cup,  (not packed) </td>
+   <td style="text-align:right;"> 0 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> 01017 </td>
+   <td style="text-align:left;"> CHEESE,CREAM </td>
+   <td style="text-align:right;"> 52.62 </td>
+   <td style="text-align:right;"> 350 </td>
+   <td style="text-align:right;"> 6.15 </td>
+   <td style="text-align:right;"> 34.44 </td>
+   <td style="text-align:right;"> 1.27 </td>
+   <td style="text-align:right;"> 5.52 </td>
+   <td style="text-align:right;"> 0.0 </td>
+   <td style="text-align:right;"> 3.76 </td>
+   <td style="text-align:right;"> 97 </td>
+   <td style="text-align:right;"> 0.11 </td>
+   <td style="text-align:right;"> 9 </td>
+   <td style="text-align:right;"> 107 </td>
+   <td style="text-align:right;"> 132 </td>
+   <td style="text-align:right;"> 314 </td>
+   <td style="text-align:right;"> 0.50 </td>
+   <td style="text-align:right;"> 0.018 </td>
+   <td style="text-align:right;"> 0.011 </td>
+   <td style="text-align:right;"> 8.6 </td>
+   <td style="text-align:right;"> 0.0 </td>
+   <td style="text-align:right;"> 0.023 </td>
+   <td style="text-align:right;"> 0.230 </td>
+   <td style="text-align:right;"> 0.091 </td>
+   <td style="text-align:right;"> 0.517 </td>
+   <td style="text-align:right;"> 0.056 </td>
+   <td style="text-align:right;"> 9 </td>
+   <td style="text-align:right;"> 0 </td>
+   <td style="text-align:right;"> 9 </td>
+   <td style="text-align:right;"> 9 </td>
+   <td style="text-align:right;"> 27.2 </td>
+   <td style="text-align:right;"> 0.22 </td>
+   <td style="text-align:right;"> 1111 </td>
+   <td style="text-align:right;"> 308 </td>
+   <td style="text-align:right;"> 303 </td>
+   <td style="text-align:right;"> 1 </td>
+   <td style="text-align:right;"> 59 </td>
+   <td style="text-align:right;"> 2 </td>
+   <td style="text-align:right;"> 0 </td>
+   <td style="text-align:right;"> 7 </td>
+   <td style="text-align:right;"> 0.86 </td>
+   <td style="text-align:right;"> 0.0 </td>
+   <td style="text-align:right;"> 0 </td>
+   <td style="text-align:right;"> 2.1 </td>
+   <td style="text-align:right;"> 20.213 </td>
+   <td style="text-align:right;"> 8.907 </td>
+   <td style="text-align:right;"> 1.483 </td>
+   <td style="text-align:right;"> 101 </td>
+   <td style="text-align:right;"> 14.50 </td>
+   <td style="text-align:left;"> 1 tbsp </td>
+   <td style="text-align:right;"> 232.00 </td>
+   <td style="text-align:left;"> 1 cup </td>
+   <td style="text-align:right;"> 0 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> 01018 </td>
+   <td style="text-align:left;"> CHEESE,EDAM </td>
+   <td style="text-align:right;"> 41.56 </td>
+   <td style="text-align:right;"> 357 </td>
+   <td style="text-align:right;"> 24.99 </td>
+   <td style="text-align:right;"> 27.80 </td>
+   <td style="text-align:right;"> 4.22 </td>
+   <td style="text-align:right;"> 1.43 </td>
+   <td style="text-align:right;"> 0.0 </td>
+   <td style="text-align:right;"> 1.43 </td>
+   <td style="text-align:right;"> 731 </td>
+   <td style="text-align:right;"> 0.44 </td>
+   <td style="text-align:right;"> 30 </td>
+   <td style="text-align:right;"> 536 </td>
+   <td style="text-align:right;"> 188 </td>
+   <td style="text-align:right;"> 812 </td>
+   <td style="text-align:right;"> 3.75 </td>
+   <td style="text-align:right;"> 0.036 </td>
+   <td style="text-align:right;"> 0.011 </td>
+   <td style="text-align:right;"> 14.5 </td>
+   <td style="text-align:right;"> 0.0 </td>
+   <td style="text-align:right;"> 0.037 </td>
+   <td style="text-align:right;"> 0.389 </td>
+   <td style="text-align:right;"> 0.082 </td>
+   <td style="text-align:right;"> 0.281 </td>
+   <td style="text-align:right;"> 0.076 </td>
+   <td style="text-align:right;"> 16 </td>
+   <td style="text-align:right;"> 0 </td>
+   <td style="text-align:right;"> 16 </td>
+   <td style="text-align:right;"> 16 </td>
+   <td style="text-align:right;"> 15.4 </td>
+   <td style="text-align:right;"> 1.54 </td>
+   <td style="text-align:right;"> 825 </td>
+   <td style="text-align:right;"> 243 </td>
+   <td style="text-align:right;"> 242 </td>
+   <td style="text-align:right;"> 0 </td>
+   <td style="text-align:right;"> 11 </td>
+   <td style="text-align:right;"> 0 </td>
+   <td style="text-align:right;"> 0 </td>
+   <td style="text-align:right;"> 0 </td>
+   <td style="text-align:right;"> 0.24 </td>
+   <td style="text-align:right;"> 0.5 </td>
+   <td style="text-align:right;"> 20 </td>
+   <td style="text-align:right;"> 2.3 </td>
+   <td style="text-align:right;"> 17.572 </td>
+   <td style="text-align:right;"> 8.125 </td>
+   <td style="text-align:right;"> 0.665 </td>
+   <td style="text-align:right;"> 89 </td>
+   <td style="text-align:right;"> 28.35 </td>
+   <td style="text-align:left;"> 1 oz </td>
+   <td style="text-align:right;"> 198.00 </td>
+   <td style="text-align:left;"> 1 package,  (7 oz) </td>
+   <td style="text-align:right;"> 0 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> 01019 </td>
+   <td style="text-align:left;"> CHEESE,FETA </td>
+   <td style="text-align:right;"> 55.22 </td>
+   <td style="text-align:right;"> 264 </td>
+   <td style="text-align:right;"> 14.21 </td>
+   <td style="text-align:right;"> 21.28 </td>
+   <td style="text-align:right;"> 5.20 </td>
+   <td style="text-align:right;"> 4.09 </td>
+   <td style="text-align:right;"> 0.0 </td>
+   <td style="text-align:right;"> 4.09 </td>
+   <td style="text-align:right;"> 493 </td>
+   <td style="text-align:right;"> 0.65 </td>
+   <td style="text-align:right;"> 19 </td>
+   <td style="text-align:right;"> 337 </td>
+   <td style="text-align:right;"> 62 </td>
+   <td style="text-align:right;"> 917 </td>
+   <td style="text-align:right;"> 2.88 </td>
+   <td style="text-align:right;"> 0.032 </td>
+   <td style="text-align:right;"> 0.028 </td>
+   <td style="text-align:right;"> 15.0 </td>
+   <td style="text-align:right;"> 0.0 </td>
+   <td style="text-align:right;"> 0.154 </td>
+   <td style="text-align:right;"> 0.844 </td>
+   <td style="text-align:right;"> 0.991 </td>
+   <td style="text-align:right;"> 0.967 </td>
+   <td style="text-align:right;"> 0.424 </td>
+   <td style="text-align:right;"> 32 </td>
+   <td style="text-align:right;"> 0 </td>
+   <td style="text-align:right;"> 32 </td>
+   <td style="text-align:right;"> 32 </td>
+   <td style="text-align:right;"> 15.4 </td>
+   <td style="text-align:right;"> 1.69 </td>
+   <td style="text-align:right;"> 422 </td>
+   <td style="text-align:right;"> 125 </td>
+   <td style="text-align:right;"> 125 </td>
+   <td style="text-align:right;"> 0 </td>
+   <td style="text-align:right;"> 3 </td>
+   <td style="text-align:right;"> 0 </td>
+   <td style="text-align:right;"> 0 </td>
+   <td style="text-align:right;"> 0 </td>
+   <td style="text-align:right;"> 0.18 </td>
+   <td style="text-align:right;"> 0.4 </td>
+   <td style="text-align:right;"> 16 </td>
+   <td style="text-align:right;"> 1.8 </td>
+   <td style="text-align:right;"> 14.946 </td>
+   <td style="text-align:right;"> 4.623 </td>
+   <td style="text-align:right;"> 0.591 </td>
+   <td style="text-align:right;"> 89 </td>
+   <td style="text-align:right;"> 150.00 </td>
+   <td style="text-align:left;"> 1 cup, crumbled </td>
+   <td style="text-align:right;"> 28.35 </td>
+   <td style="text-align:left;"> 1 oz </td>
+   <td style="text-align:right;"> 0 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> 01020 </td>
+   <td style="text-align:left;"> CHEESE,FONTINA </td>
+   <td style="text-align:right;"> 37.92 </td>
+   <td style="text-align:right;"> 389 </td>
+   <td style="text-align:right;"> 25.60 </td>
+   <td style="text-align:right;"> 31.14 </td>
+   <td style="text-align:right;"> 3.79 </td>
+   <td style="text-align:right;"> 1.55 </td>
+   <td style="text-align:right;"> 0.0 </td>
+   <td style="text-align:right;"> 1.55 </td>
+   <td style="text-align:right;"> 550 </td>
+   <td style="text-align:right;"> 0.23 </td>
+   <td style="text-align:right;"> 14 </td>
+   <td style="text-align:right;"> 346 </td>
+   <td style="text-align:right;"> 64 </td>
+   <td style="text-align:right;"> 800 </td>
+   <td style="text-align:right;"> 3.50 </td>
+   <td style="text-align:right;"> 0.025 </td>
+   <td style="text-align:right;"> 0.014 </td>
+   <td style="text-align:right;"> 14.5 </td>
+   <td style="text-align:right;"> 0.0 </td>
+   <td style="text-align:right;"> 0.021 </td>
+   <td style="text-align:right;"> 0.204 </td>
+   <td style="text-align:right;"> 0.150 </td>
+   <td style="text-align:right;"> 0.429 </td>
+   <td style="text-align:right;"> 0.083 </td>
+   <td style="text-align:right;"> 6 </td>
+   <td style="text-align:right;"> 0 </td>
+   <td style="text-align:right;"> 6 </td>
+   <td style="text-align:right;"> 6 </td>
+   <td style="text-align:right;"> 15.4 </td>
+   <td style="text-align:right;"> 1.68 </td>
+   <td style="text-align:right;"> 913 </td>
+   <td style="text-align:right;"> 261 </td>
+   <td style="text-align:right;"> 258 </td>
+   <td style="text-align:right;"> 0 </td>
+   <td style="text-align:right;"> 32 </td>
+   <td style="text-align:right;"> 0 </td>
+   <td style="text-align:right;"> 0 </td>
+   <td style="text-align:right;"> 0 </td>
+   <td style="text-align:right;"> 0.27 </td>
+   <td style="text-align:right;"> 0.6 </td>
+   <td style="text-align:right;"> 23 </td>
+   <td style="text-align:right;"> 2.6 </td>
+   <td style="text-align:right;"> 19.196 </td>
+   <td style="text-align:right;"> 8.687 </td>
+   <td style="text-align:right;"> 1.654 </td>
+   <td style="text-align:right;"> 116 </td>
+   <td style="text-align:right;"> 132.00 </td>
+   <td style="text-align:left;"> 1 cup, diced </td>
+   <td style="text-align:right;"> 108.00 </td>
+   <td style="text-align:left;"> 1 cup, shredded </td>
+   <td style="text-align:right;"> 0 </td>
+  </tr>
+</tbody>
+</table>
+
+
+```r
+dim(abbrev_raw)
+```
+
+```
+## [1] 8790   53
+```
+
+
+
+You can read in depth the prep I did on this file in `/scripts/prep`. Mainly this involved a bit of cleaning like stripping out parentheses from column names, e.g., `Vit_C_(mg)` becomes `Vit_C_mg`. In there you'll also find a dataframe called `all_nut_and_mr_df` where I define the nutritional constraints on menus. If a nutrient is among the "must restricts," that is, Lipid_Tot_g, Sodium_mg, Cholestrl_mg, FA_Sat_g then that value is a daily upper bound. Otherwise, it's a lower bound. 
+
+So for example, you're supposed to have at least 18mg of Iron and no more than 2400mg of Sodium per day. (As someone who puts salt on everything indiscriminately I'd be shocked if I've ever been under that threshold.)
+
+
+```r
+all_nut_and_mr_df %>% kable(format = "html")
+```
+
+<table>
+ <thead>
+  <tr>
+   <th style="text-align:left;"> nutrient </th>
+   <th style="text-align:right;"> value </th>
+  </tr>
+ </thead>
+<tbody>
+  <tr>
+   <td style="text-align:left;"> Lipid_Tot_g </td>
+   <td style="text-align:right;"> 65 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> Sodium_mg </td>
+   <td style="text-align:right;"> 2400 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> Cholestrl_mg </td>
+   <td style="text-align:right;"> 300 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> FA_Sat_g </td>
+   <td style="text-align:right;"> 20 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> Protein_g </td>
+   <td style="text-align:right;"> 56 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> Calcium_mg </td>
+   <td style="text-align:right;"> 1000 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> Iron_mg </td>
+   <td style="text-align:right;"> 18 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> Magnesium_mg </td>
+   <td style="text-align:right;"> 400 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> Phosphorus_mg </td>
+   <td style="text-align:right;"> 1000 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> Potassium_mg </td>
+   <td style="text-align:right;"> 3500 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> Zinc_mg </td>
+   <td style="text-align:right;"> 15 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> Copper_mg </td>
+   <td style="text-align:right;"> 2 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> Manganese_mg </td>
+   <td style="text-align:right;"> 2 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> Selenium_µg </td>
+   <td style="text-align:right;"> 70 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> Vit_C_mg </td>
+   <td style="text-align:right;"> 60 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> Thiamin_mg </td>
+   <td style="text-align:right;"> 2 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> Riboflavin_mg </td>
+   <td style="text-align:right;"> 2 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> Niacin_mg </td>
+   <td style="text-align:right;"> 20 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> Panto_Acid_mg </td>
+   <td style="text-align:right;"> 10 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> Vit_B6_mg </td>
+   <td style="text-align:right;"> 2 </td>
+  </tr>
+</tbody>
+</table>
+
+In `/scripts/prep` we also create a z-scored version of `abbrev` with:
+
+
+```r
+scaled <- abbrev %>% 
+  drop_na_(all_nut_and_mr_df$nutrient) %>% filter(!(is.na(Energ_Kcal)) & !(is.na(GmWt_1))) %>% 
+  mutate_at(
+    vars(nutrient_names, "Energ_Kcal"), dobtools::z_score   # <-- equivalent to scale(), but simpler
+  )
+
+scaled[1:20, ] %>% kable()
+```
+
+
+
+shorter_desc    solution_amounts   GmWt_1   serving_gmwt   cost   Lipid_Tot_g    Sodium_mg   Cholestrl_mg     FA_Sat_g    Protein_g   Calcium_mg      Iron_mg   Magnesium_mg   Phosphorus_mg   Potassium_mg      Zinc_mg    Copper_mg   Manganese_mg   Selenium_µg     Vit_C_mg   Thiamin_mg   Riboflavin_mg    Niacin_mg   Panto_Acid_mg    Vit_B6_mg   Energ_Kcal  Shrt_Desc                                          NDB_No        score   scaled_score
+-------------  -----------------  -------  -------------  -----  ------------  -----------  -------------  -----------  -----------  -----------  -----------  -------------  --------------  -------------  -----------  -----------  -------------  ------------  -----------  -----------  --------------  -----------  --------------  -----------  -----------  -------------------------------------------------  -------  ----------  -------------
+BUTTER                         1     5.00           5.00   7.80     5.0713727    0.3020499      1.1239165    7.6802714   -1.1342898   -0.2071890   -0.5151346     -0.6086378      -0.6680318     -0.6719806   -0.5944711   -0.3061583     -0.0822562    -0.4821958   -0.1318713   -0.3814302      -0.4448635   -0.7689737      -0.3962200   -0.6405274    3.3042137  BUTTER,WITH SALT                                   01001     -3419.716     -0.4532518
+BUTTER                         1     3.80           3.80   6.50     4.8707676    0.2487875      1.1929970    6.7219460   -1.1671035   -0.2119396   -0.5081402     -0.6277555      -0.6680318     -0.6299679   -0.6053622   -0.2910091     -0.0821312    -0.5130922   -0.1318713   -0.3772865      -0.3796632   -0.7732304      -0.4056312   -0.6287325    3.3107643  BUTTER,WHIPPED,W/ SALT                             01002     -3405.992     -0.4270146
+BUTTER OIL                     1    12.80          12.80   8.20     6.3828013   -0.2669700      1.4071466    9.3724902   -1.1862449   -0.3022006   -0.5197976     -0.6468732      -0.7618769     -0.7189361   -0.6162534   -0.3046434     -0.0822562    -0.5130922   -0.1318713   -0.3897175      -0.5078905   -0.7772742      -0.4686138   -0.6452454    4.3457655  BUTTER OIL,ANHYDROUS                               01003     -3426.108     -0.4654711
+CHEESE                         1    28.35          28.35   4.28     1.3326945    0.7485664      0.1567890    2.4383369    0.7388273    2.1871032   -0.4475222     -0.2071661       0.9541465     -0.0986301    0.1052854   -0.2455614     -0.0811313    -0.0650934   -0.1318713   -0.3317063       0.3114603   -0.5616729       0.7758346   -0.2560127    0.9197807  CHEESE,BLUE                                        01004     -3383.120     -0.3832890
+CHEESE                         1   132.00         132.00   5.42     1.3998008    0.2283703      0.2880420    2.4535663    0.9065419    2.8806878   -0.4195446     -0.1880484       1.2401504     -0.3951907    0.0889486   -0.2698001     -0.0807564    -0.0650934   -0.1318713   -0.3627837       0.2440866   -0.7527983      -0.2673592   -0.4942703    1.0376922  CHEESE,BRICK                                       01005     -2550.059      1.2092995
+CHEESE                         1    28.35          28.35   5.17     1.2570214    0.2896220      0.3294903    2.2365083    0.6795803    0.5529037   -0.4032243     -0.2645192       0.0648531     -0.3556493    0.0290473   -0.2773748     -0.0780068    -0.0650934   -0.1318713   -0.2467613       0.6113818   -0.6970356       0.0236636   -0.0932426    0.7953185  CHEESE,BRIE                                        01006     -3427.868     -0.4688367
+CHEESE                         1    28.35          28.35   7.37     1.0128687    0.4787035      0.1360648    1.8916842    0.5929885    1.5220220   -0.4428592     -0.2645192       0.7753941     -0.2691525    0.0290473   -0.2743449     -0.0775069    -0.0650934   -0.1318713   -0.3337781       0.5418348   -0.6438270       0.5115974   -0.1121145    0.5725968  CHEESE,CAMEMBERT                                   01007     -3365.981     -0.3505239
+CHEESE                         1    28.35          28.35   5.26     1.3655338    0.3437721      0.2811339    2.4247107    1.0833714    2.8759373   -0.3705838     -0.2262838       1.4144340     -0.5014583    0.1815234   -0.2698001     -0.0796316    -0.0650934   -0.1318713   -0.3275626       0.4592477   -0.7396025      -0.3383050   -0.4730394    1.0704454  CHEESE,CARAWAY                                     01008     -3234.675     -0.0995030
+CHEESE                         1   132.00         132.00   7.99     1.6589454    0.3109270      0.3225823    2.4700781    0.8728167    3.0517087   -0.4871571     -0.1306952       1.2580257     -0.5434710    0.3721185   -0.2607106     -0.0788817     0.3674573   -0.1318713   -0.3317063       0.4114341   -0.7653555      -0.1790388   -0.4919113    1.2538633  CHEESE,CHEDDAR                                     01009     -2687.571      0.9464129
+CHEESE                         1    28.35          28.35   2.99     1.4654793    0.3526492      0.3502145    2.5675458    0.9183913    2.7334199   -0.4708368     -0.2454015       1.2982450     -0.4965156    0.1406816   -0.2425315     -0.0807564    -0.0650934   -0.1318713   -0.2964852       0.1180326   -0.7608860      -0.1768670   -0.4730394    1.1425025  CHEESE,CHESHIRE                                    01010     -3257.267     -0.1426935
+CHEESE                         1   132.00         132.00   1.14     1.5732778    0.2674294      0.2949501    2.6866551    0.9539395    2.9329442   -0.3426062     -0.1498129       1.2669633     -0.4174328    0.2169196   -0.2425315     -0.0807564    -0.0650934   -0.1318713   -0.3607119       0.2962469   -0.7581191      -0.3238263   -0.4612445    1.1883569  CHEESE,COLBY                                       01011     -2599.704      1.1143912
+CHEESE                         1   113.00         113.00   1.67    -0.4120696    0.0543798     -0.2438781   -0.2790560   -0.1981870    0.0730952   -0.5034773     -0.4939316      -0.0647424     -0.4742736   -0.5100647   -0.2622255     -0.0820062    -0.2133964   -0.1318713   -0.3358499      -0.1645021   -0.7568421      -0.0726200   -0.5390910   -0.7506325  CHEESE,COTTAGE,CRMD,LRG OR SML CURD                01012     -3386.210     -0.3891963
+CHEESE                         1   113.00         113.00   1.87    -0.4441949    0.0366256     -0.2715103   -0.1839929   -0.2373812   -0.0694222   -0.4824941     -0.5130493      -0.2703077     -0.5088723   -0.5291242   -0.2455614     -0.0818812    -0.2751894   -0.1061157   -0.3234190      -0.2101423   -0.7459876      -0.3448205   -0.4871933   -0.7571832  CHEESE,COTTAGE,CRMD,W/FRUIT                        01013     -3463.568     -0.5370853
+CHEESE                         1   145.00         145.00   8.64    -0.6983422    0.0614814     -0.3129586   -0.5273742   -0.2692834    0.0873469   -0.4848256     -0.4365785       0.0737908     -0.3927194   -0.4910051   -0.2607106     -0.0795066    -0.2226654   -0.1318713   -0.3441373      -0.0275814   -0.7472646      -0.1529771   -0.6098606   -0.9209492  CHEESE,COTTAGE,NONFAT,UNCRMD,DRY,LRG OR SML CURD   01014     -3278.578     -0.1834343
+CHEESE                         1   113.00         113.00   8.15    -0.5569906    0.0046682     -0.2784184   -0.3564851   -0.2592570    0.2061114   -0.4894885     -0.4748139      -0.1049617     -0.4223755   -0.4801140   -0.2561658     -0.0803815    -0.1454242   -0.1318713   -0.3503528       0.0267522   -0.7559908      -0.0965100   -0.5131421   -0.8619934  CHEESE,COTTAGE,LOWFAT,2% MILKFAT                   01015     -3266.099     -0.1595762
+CHEESE                         1   113.00         113.00   1.33    -0.6462277    0.0916634     -0.3336828   -0.4510672   -0.0824275   -0.0314176   -0.4871571     -0.5512847      -0.1764626     -0.5187577   -0.5155102   -0.2637404     -0.0818812    -0.2350240   -0.1318713   -0.3482809      -0.1601554   -0.7506699      -0.3202066   -0.4871933   -0.9209492  CHEESE,COTTAGE,LOWFAT,1% MILKFAT                   01016     -3490.534     -0.5886355
+CHEESE                         1    14.50          14.50   3.15     1.7396158    0.0099944      0.3363984    2.6858536   -0.6511988    0.1396033   -0.4941514     -0.4748139      -0.2971205     -0.4050761   -0.4828368   -0.2788897     -0.0808814    -0.2473826   -0.1318713   -0.3441373      -0.0188880   -0.7585448      -0.1015775   -0.5155011    0.9001288  CHEESE,CREAM                                       01017     -3389.710     -0.3958887
+CHEESE                         1    28.35          28.35   3.94     1.2655882    0.4520723      0.2535017    2.2624783    1.0660531    3.1514709   -0.4172131     -0.0733421       1.6199993     -0.2666811    0.4020692   -0.2516211     -0.0808814    -0.0650934   -0.1318713   -0.3151317       0.3266737   -0.7604603      -0.2724267   -0.4683214    0.9459833  CHEESE,EDAM                                        01018     -3208.657     -0.0497637
+CHEESE                         1   150.00         150.00   4.61     0.8001274    0.5452815      0.2535017    1.8415076    0.0834642    2.0208329   -0.3682524     -0.2836369       0.7307060     -0.5780698    0.1651867   -0.2576807     -0.0787567    -0.0496451   -0.1318713   -0.0727276       1.3155454   -0.5669938       0.2241943    0.3526058    0.3367737  CHEESE,FETA                                        01019     -3516.569     -0.6384083
+CHEESE                         1   132.00         132.00   1.73     1.5040298    0.4414199      0.4400192    2.5228196    1.1216541    2.2916159   -0.4661739     -0.3792254       0.7709253     -0.5731271    0.3339995   -0.2682852     -0.0805064    -0.0650934   -0.1318713   -0.3482809      -0.0753950   -0.7459876      -0.1652840   -0.4518085    1.1556037  CHEESE,FONTINA                                     01020     -3304.806     -0.2335737
+
+Then we do a few mutates to `abbrev` using the function below. This is a function we can use on any menu dataframe, not just `abbrev`, which is why it's called `do_menu_mutates()`. Turns out that the short descriptions of foods in the `Shrt_Desc` column actually aren't so short so we'll create a `shorter_desc` column by taking only the values in `Shrt_Desc` up to the first comma. That turns "BUTTER,WHIPPED,W/ SALT" into just "BUTTER".
+
+Since we'll need a cost associated with each row in order to optimize something, for now each item gets a random cost between \$1 and \$10.
+
+What we'll do when we eventually "solve" these menus is change the amount we have of each item, i.e. its `GmWt_1`. We'll vary that by multiplying it by some `solution_amount`. In order to keep a record of what the gram weight of a single serving of a food is, we'll save that in `serving_gmwt`. Since we know that all foods in `abbrev` are exactly one serving, for now `GmWt_1` and `serving_gmwt` are the same thing, and `solution_amounts` is 1.
+
+Finally, we rearrange columns a bit.
+
+
+```r
+cols_to_keep <- c(nutrient_names, "Shrt_Desc", "GmWt_1", "NDB_No")
+
+do_menu_mutates <- function(menu, to_keep = cols_to_keep) {
+
+  quo_to_keep <- quo(to_keep)
+  
+  menu <- menu %>% 
+    mutate(
+      shorter_desc = map_chr(Shrt_Desc, grab_first_word, splitter = ","), # Take only the fist word
+      cost = runif(nrow(.), min = 1, max = 10) %>% round(digits = 2) # Add a cost column
+    ) 
+  
+  if (!("serving_gmwt" %in% names(menu))) {
+    menu <- menu %>% mutate(
+      serving_gmwt = GmWt_1   # Single serving gram weight
+    )
+  }
+  
+  if (!("solution_amounts" %in% names(menu))) {
+    menu <- menu %>% mutate(
+      solution_amounts = 1   # Single serving gram weight
+    )
+  }
+  
+  menu <- menu %>%
+    select(shorter_desc, solution_amounts, GmWt_1, serving_gmwt, cost, !!quo_to_keep,  Shrt_Desc, NDB_No)
+  
+  return(menu)
+}
+```
+
+We'll do these mutates and score each item (see `/scripts/score/rank_foods.R` for `add_ranked_foods()`; also more on scoring in the Scoring section below).
+
+
+
+```r
+abbrev <- abbrev %>% do_menu_mutates() %>% add_ranked_foods() 
+```
+
+```
+## score column doesn't exist; creating it
+```
+
+```
+## scaled_score doesn't exist; creating it
+```
+
+```r
+abbrev[1:20, ] %>% kable(format = "html")
+```
+
+<table>
+ <thead>
+  <tr>
+   <th style="text-align:left;"> shorter_desc </th>
+   <th style="text-align:right;"> solution_amounts </th>
+   <th style="text-align:right;"> GmWt_1 </th>
+   <th style="text-align:right;"> serving_gmwt </th>
+   <th style="text-align:right;"> cost </th>
+   <th style="text-align:right;"> Lipid_Tot_g </th>
+   <th style="text-align:right;"> Sodium_mg </th>
+   <th style="text-align:right;"> Cholestrl_mg </th>
+   <th style="text-align:right;"> FA_Sat_g </th>
+   <th style="text-align:right;"> Protein_g </th>
+   <th style="text-align:right;"> Calcium_mg </th>
+   <th style="text-align:right;"> Iron_mg </th>
+   <th style="text-align:right;"> Magnesium_mg </th>
+   <th style="text-align:right;"> Phosphorus_mg </th>
+   <th style="text-align:right;"> Potassium_mg </th>
+   <th style="text-align:right;"> Zinc_mg </th>
+   <th style="text-align:right;"> Copper_mg </th>
+   <th style="text-align:right;"> Manganese_mg </th>
+   <th style="text-align:right;"> Selenium_µg </th>
+   <th style="text-align:right;"> Vit_C_mg </th>
+   <th style="text-align:right;"> Thiamin_mg </th>
+   <th style="text-align:right;"> Riboflavin_mg </th>
+   <th style="text-align:right;"> Niacin_mg </th>
+   <th style="text-align:right;"> Panto_Acid_mg </th>
+   <th style="text-align:right;"> Vit_B6_mg </th>
+   <th style="text-align:right;"> Energ_Kcal </th>
+   <th style="text-align:left;"> Shrt_Desc </th>
+   <th style="text-align:left;"> NDB_No </th>
+   <th style="text-align:right;"> score </th>
+   <th style="text-align:right;"> scaled_score </th>
+  </tr>
+ </thead>
+<tbody>
+  <tr>
+   <td style="text-align:left;"> BUTTER </td>
+   <td style="text-align:right;"> 1 </td>
+   <td style="text-align:right;"> 5.00 </td>
+   <td style="text-align:right;"> 5.00 </td>
+   <td style="text-align:right;"> 6.26 </td>
+   <td style="text-align:right;"> 81.11 </td>
+   <td style="text-align:right;"> 643 </td>
+   <td style="text-align:right;"> 215 </td>
+   <td style="text-align:right;"> 51.368 </td>
+   <td style="text-align:right;"> 0.85 </td>
+   <td style="text-align:right;"> 24 </td>
+   <td style="text-align:right;"> 0.02 </td>
+   <td style="text-align:right;"> 2 </td>
+   <td style="text-align:right;"> 24 </td>
+   <td style="text-align:right;"> 24 </td>
+   <td style="text-align:right;"> 0.09 </td>
+   <td style="text-align:right;"> 0.000 </td>
+   <td style="text-align:right;"> 0.000 </td>
+   <td style="text-align:right;"> 1.0 </td>
+   <td style="text-align:right;"> 0.0 </td>
+   <td style="text-align:right;"> 0.005 </td>
+   <td style="text-align:right;"> 0.034 </td>
+   <td style="text-align:right;"> 0.042 </td>
+   <td style="text-align:right;"> 0.110 </td>
+   <td style="text-align:right;"> 0.003 </td>
+   <td style="text-align:right;"> 717 </td>
+   <td style="text-align:left;"> BUTTER,WITH SALT </td>
+   <td style="text-align:left;"> 01001 </td>
+   <td style="text-align:right;"> -3419.716 </td>
+   <td style="text-align:right;"> -0.4532518 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> BUTTER </td>
+   <td style="text-align:right;"> 1 </td>
+   <td style="text-align:right;"> 3.80 </td>
+   <td style="text-align:right;"> 3.80 </td>
+   <td style="text-align:right;"> 3.88 </td>
+   <td style="text-align:right;"> 78.30 </td>
+   <td style="text-align:right;"> 583 </td>
+   <td style="text-align:right;"> 225 </td>
+   <td style="text-align:right;"> 45.390 </td>
+   <td style="text-align:right;"> 0.49 </td>
+   <td style="text-align:right;"> 23 </td>
+   <td style="text-align:right;"> 0.05 </td>
+   <td style="text-align:right;"> 1 </td>
+   <td style="text-align:right;"> 24 </td>
+   <td style="text-align:right;"> 41 </td>
+   <td style="text-align:right;"> 0.05 </td>
+   <td style="text-align:right;"> 0.010 </td>
+   <td style="text-align:right;"> 0.001 </td>
+   <td style="text-align:right;"> 0.0 </td>
+   <td style="text-align:right;"> 0.0 </td>
+   <td style="text-align:right;"> 0.007 </td>
+   <td style="text-align:right;"> 0.064 </td>
+   <td style="text-align:right;"> 0.022 </td>
+   <td style="text-align:right;"> 0.097 </td>
+   <td style="text-align:right;"> 0.008 </td>
+   <td style="text-align:right;"> 718 </td>
+   <td style="text-align:left;"> BUTTER,WHIPPED,W/ SALT </td>
+   <td style="text-align:left;"> 01002 </td>
+   <td style="text-align:right;"> -3405.992 </td>
+   <td style="text-align:right;"> -0.4270146 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> BUTTER OIL </td>
+   <td style="text-align:right;"> 1 </td>
+   <td style="text-align:right;"> 12.80 </td>
+   <td style="text-align:right;"> 12.80 </td>
+   <td style="text-align:right;"> 8.05 </td>
+   <td style="text-align:right;"> 99.48 </td>
+   <td style="text-align:right;"> 2 </td>
+   <td style="text-align:right;"> 256 </td>
+   <td style="text-align:right;"> 61.924 </td>
+   <td style="text-align:right;"> 0.28 </td>
+   <td style="text-align:right;"> 4 </td>
+   <td style="text-align:right;"> 0.00 </td>
+   <td style="text-align:right;"> 0 </td>
+   <td style="text-align:right;"> 3 </td>
+   <td style="text-align:right;"> 5 </td>
+   <td style="text-align:right;"> 0.01 </td>
+   <td style="text-align:right;"> 0.001 </td>
+   <td style="text-align:right;"> 0.000 </td>
+   <td style="text-align:right;"> 0.0 </td>
+   <td style="text-align:right;"> 0.0 </td>
+   <td style="text-align:right;"> 0.001 </td>
+   <td style="text-align:right;"> 0.005 </td>
+   <td style="text-align:right;"> 0.003 </td>
+   <td style="text-align:right;"> 0.010 </td>
+   <td style="text-align:right;"> 0.001 </td>
+   <td style="text-align:right;"> 876 </td>
+   <td style="text-align:left;"> BUTTER OIL,ANHYDROUS </td>
+   <td style="text-align:left;"> 01003 </td>
+   <td style="text-align:right;"> -3426.108 </td>
+   <td style="text-align:right;"> -0.4654711 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> CHEESE </td>
+   <td style="text-align:right;"> 1 </td>
+   <td style="text-align:right;"> 28.35 </td>
+   <td style="text-align:right;"> 28.35 </td>
+   <td style="text-align:right;"> 6.20 </td>
+   <td style="text-align:right;"> 28.74 </td>
+   <td style="text-align:right;"> 1146 </td>
+   <td style="text-align:right;"> 75 </td>
+   <td style="text-align:right;"> 18.669 </td>
+   <td style="text-align:right;"> 21.40 </td>
+   <td style="text-align:right;"> 528 </td>
+   <td style="text-align:right;"> 0.31 </td>
+   <td style="text-align:right;"> 23 </td>
+   <td style="text-align:right;"> 387 </td>
+   <td style="text-align:right;"> 256 </td>
+   <td style="text-align:right;"> 2.66 </td>
+   <td style="text-align:right;"> 0.040 </td>
+   <td style="text-align:right;"> 0.009 </td>
+   <td style="text-align:right;"> 14.5 </td>
+   <td style="text-align:right;"> 0.0 </td>
+   <td style="text-align:right;"> 0.029 </td>
+   <td style="text-align:right;"> 0.382 </td>
+   <td style="text-align:right;"> 1.016 </td>
+   <td style="text-align:right;"> 1.729 </td>
+   <td style="text-align:right;"> 0.166 </td>
+   <td style="text-align:right;"> 353 </td>
+   <td style="text-align:left;"> CHEESE,BLUE </td>
+   <td style="text-align:left;"> 01004 </td>
+   <td style="text-align:right;"> -3383.120 </td>
+   <td style="text-align:right;"> -0.3832890 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> CHEESE </td>
+   <td style="text-align:right;"> 1 </td>
+   <td style="text-align:right;"> 132.00 </td>
+   <td style="text-align:right;"> 132.00 </td>
+   <td style="text-align:right;"> 7.83 </td>
+   <td style="text-align:right;"> 29.68 </td>
+   <td style="text-align:right;"> 560 </td>
+   <td style="text-align:right;"> 94 </td>
+   <td style="text-align:right;"> 18.764 </td>
+   <td style="text-align:right;"> 23.24 </td>
+   <td style="text-align:right;"> 674 </td>
+   <td style="text-align:right;"> 0.43 </td>
+   <td style="text-align:right;"> 24 </td>
+   <td style="text-align:right;"> 451 </td>
+   <td style="text-align:right;"> 136 </td>
+   <td style="text-align:right;"> 2.60 </td>
+   <td style="text-align:right;"> 0.024 </td>
+   <td style="text-align:right;"> 0.012 </td>
+   <td style="text-align:right;"> 14.5 </td>
+   <td style="text-align:right;"> 0.0 </td>
+   <td style="text-align:right;"> 0.014 </td>
+   <td style="text-align:right;"> 0.351 </td>
+   <td style="text-align:right;"> 0.118 </td>
+   <td style="text-align:right;"> 0.288 </td>
+   <td style="text-align:right;"> 0.065 </td>
+   <td style="text-align:right;"> 371 </td>
+   <td style="text-align:left;"> CHEESE,BRICK </td>
+   <td style="text-align:left;"> 01005 </td>
+   <td style="text-align:right;"> -2550.059 </td>
+   <td style="text-align:right;"> 1.2092995 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> CHEESE </td>
+   <td style="text-align:right;"> 1 </td>
+   <td style="text-align:right;"> 28.35 </td>
+   <td style="text-align:right;"> 28.35 </td>
+   <td style="text-align:right;"> 1.06 </td>
+   <td style="text-align:right;"> 27.68 </td>
+   <td style="text-align:right;"> 629 </td>
+   <td style="text-align:right;"> 100 </td>
+   <td style="text-align:right;"> 17.410 </td>
+   <td style="text-align:right;"> 20.75 </td>
+   <td style="text-align:right;"> 184 </td>
+   <td style="text-align:right;"> 0.50 </td>
+   <td style="text-align:right;"> 20 </td>
+   <td style="text-align:right;"> 188 </td>
+   <td style="text-align:right;"> 152 </td>
+   <td style="text-align:right;"> 2.38 </td>
+   <td style="text-align:right;"> 0.019 </td>
+   <td style="text-align:right;"> 0.034 </td>
+   <td style="text-align:right;"> 14.5 </td>
+   <td style="text-align:right;"> 0.0 </td>
+   <td style="text-align:right;"> 0.070 </td>
+   <td style="text-align:right;"> 0.520 </td>
+   <td style="text-align:right;"> 0.380 </td>
+   <td style="text-align:right;"> 0.690 </td>
+   <td style="text-align:right;"> 0.235 </td>
+   <td style="text-align:right;"> 334 </td>
+   <td style="text-align:left;"> CHEESE,BRIE </td>
+   <td style="text-align:left;"> 01006 </td>
+   <td style="text-align:right;"> -3427.868 </td>
+   <td style="text-align:right;"> -0.4688367 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> CHEESE </td>
+   <td style="text-align:right;"> 1 </td>
+   <td style="text-align:right;"> 28.35 </td>
+   <td style="text-align:right;"> 28.35 </td>
+   <td style="text-align:right;"> 1.33 </td>
+   <td style="text-align:right;"> 24.26 </td>
+   <td style="text-align:right;"> 842 </td>
+   <td style="text-align:right;"> 72 </td>
+   <td style="text-align:right;"> 15.259 </td>
+   <td style="text-align:right;"> 19.80 </td>
+   <td style="text-align:right;"> 388 </td>
+   <td style="text-align:right;"> 0.33 </td>
+   <td style="text-align:right;"> 20 </td>
+   <td style="text-align:right;"> 347 </td>
+   <td style="text-align:right;"> 187 </td>
+   <td style="text-align:right;"> 2.38 </td>
+   <td style="text-align:right;"> 0.021 </td>
+   <td style="text-align:right;"> 0.038 </td>
+   <td style="text-align:right;"> 14.5 </td>
+   <td style="text-align:right;"> 0.0 </td>
+   <td style="text-align:right;"> 0.028 </td>
+   <td style="text-align:right;"> 0.488 </td>
+   <td style="text-align:right;"> 0.630 </td>
+   <td style="text-align:right;"> 1.364 </td>
+   <td style="text-align:right;"> 0.227 </td>
+   <td style="text-align:right;"> 300 </td>
+   <td style="text-align:left;"> CHEESE,CAMEMBERT </td>
+   <td style="text-align:left;"> 01007 </td>
+   <td style="text-align:right;"> -3365.981 </td>
+   <td style="text-align:right;"> -0.3505239 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> CHEESE </td>
+   <td style="text-align:right;"> 1 </td>
+   <td style="text-align:right;"> 28.35 </td>
+   <td style="text-align:right;"> 28.35 </td>
+   <td style="text-align:right;"> 8.82 </td>
+   <td style="text-align:right;"> 29.20 </td>
+   <td style="text-align:right;"> 690 </td>
+   <td style="text-align:right;"> 93 </td>
+   <td style="text-align:right;"> 18.584 </td>
+   <td style="text-align:right;"> 25.18 </td>
+   <td style="text-align:right;"> 673 </td>
+   <td style="text-align:right;"> 0.64 </td>
+   <td style="text-align:right;"> 22 </td>
+   <td style="text-align:right;"> 490 </td>
+   <td style="text-align:right;"> 93 </td>
+   <td style="text-align:right;"> 2.94 </td>
+   <td style="text-align:right;"> 0.024 </td>
+   <td style="text-align:right;"> 0.021 </td>
+   <td style="text-align:right;"> 14.5 </td>
+   <td style="text-align:right;"> 0.0 </td>
+   <td style="text-align:right;"> 0.031 </td>
+   <td style="text-align:right;"> 0.450 </td>
+   <td style="text-align:right;"> 0.180 </td>
+   <td style="text-align:right;"> 0.190 </td>
+   <td style="text-align:right;"> 0.074 </td>
+   <td style="text-align:right;"> 376 </td>
+   <td style="text-align:left;"> CHEESE,CARAWAY </td>
+   <td style="text-align:left;"> 01008 </td>
+   <td style="text-align:right;"> -3234.675 </td>
+   <td style="text-align:right;"> -0.0995030 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> CHEESE </td>
+   <td style="text-align:right;"> 1 </td>
+   <td style="text-align:right;"> 132.00 </td>
+   <td style="text-align:right;"> 132.00 </td>
+   <td style="text-align:right;"> 2.61 </td>
+   <td style="text-align:right;"> 33.31 </td>
+   <td style="text-align:right;"> 653 </td>
+   <td style="text-align:right;"> 99 </td>
+   <td style="text-align:right;"> 18.867 </td>
+   <td style="text-align:right;"> 22.87 </td>
+   <td style="text-align:right;"> 710 </td>
+   <td style="text-align:right;"> 0.14 </td>
+   <td style="text-align:right;"> 27 </td>
+   <td style="text-align:right;"> 455 </td>
+   <td style="text-align:right;"> 76 </td>
+   <td style="text-align:right;"> 3.64 </td>
+   <td style="text-align:right;"> 0.030 </td>
+   <td style="text-align:right;"> 0.027 </td>
+   <td style="text-align:right;"> 28.5 </td>
+   <td style="text-align:right;"> 0.0 </td>
+   <td style="text-align:right;"> 0.029 </td>
+   <td style="text-align:right;"> 0.428 </td>
+   <td style="text-align:right;"> 0.059 </td>
+   <td style="text-align:right;"> 0.410 </td>
+   <td style="text-align:right;"> 0.066 </td>
+   <td style="text-align:right;"> 404 </td>
+   <td style="text-align:left;"> CHEESE,CHEDDAR </td>
+   <td style="text-align:left;"> 01009 </td>
+   <td style="text-align:right;"> -2687.571 </td>
+   <td style="text-align:right;"> 0.9464129 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> CHEESE </td>
+   <td style="text-align:right;"> 1 </td>
+   <td style="text-align:right;"> 28.35 </td>
+   <td style="text-align:right;"> 28.35 </td>
+   <td style="text-align:right;"> 7.93 </td>
+   <td style="text-align:right;"> 30.60 </td>
+   <td style="text-align:right;"> 700 </td>
+   <td style="text-align:right;"> 103 </td>
+   <td style="text-align:right;"> 19.475 </td>
+   <td style="text-align:right;"> 23.37 </td>
+   <td style="text-align:right;"> 643 </td>
+   <td style="text-align:right;"> 0.21 </td>
+   <td style="text-align:right;"> 21 </td>
+   <td style="text-align:right;"> 464 </td>
+   <td style="text-align:right;"> 95 </td>
+   <td style="text-align:right;"> 2.79 </td>
+   <td style="text-align:right;"> 0.042 </td>
+   <td style="text-align:right;"> 0.012 </td>
+   <td style="text-align:right;"> 14.5 </td>
+   <td style="text-align:right;"> 0.0 </td>
+   <td style="text-align:right;"> 0.046 </td>
+   <td style="text-align:right;"> 0.293 </td>
+   <td style="text-align:right;"> 0.080 </td>
+   <td style="text-align:right;"> 0.413 </td>
+   <td style="text-align:right;"> 0.074 </td>
+   <td style="text-align:right;"> 387 </td>
+   <td style="text-align:left;"> CHEESE,CHESHIRE </td>
+   <td style="text-align:left;"> 01010 </td>
+   <td style="text-align:right;"> -3257.267 </td>
+   <td style="text-align:right;"> -0.1426935 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> CHEESE </td>
+   <td style="text-align:right;"> 1 </td>
+   <td style="text-align:right;"> 132.00 </td>
+   <td style="text-align:right;"> 132.00 </td>
+   <td style="text-align:right;"> 4.12 </td>
+   <td style="text-align:right;"> 32.11 </td>
+   <td style="text-align:right;"> 604 </td>
+   <td style="text-align:right;"> 95 </td>
+   <td style="text-align:right;"> 20.218 </td>
+   <td style="text-align:right;"> 23.76 </td>
+   <td style="text-align:right;"> 685 </td>
+   <td style="text-align:right;"> 0.76 </td>
+   <td style="text-align:right;"> 26 </td>
+   <td style="text-align:right;"> 457 </td>
+   <td style="text-align:right;"> 127 </td>
+   <td style="text-align:right;"> 3.07 </td>
+   <td style="text-align:right;"> 0.042 </td>
+   <td style="text-align:right;"> 0.012 </td>
+   <td style="text-align:right;"> 14.5 </td>
+   <td style="text-align:right;"> 0.0 </td>
+   <td style="text-align:right;"> 0.015 </td>
+   <td style="text-align:right;"> 0.375 </td>
+   <td style="text-align:right;"> 0.093 </td>
+   <td style="text-align:right;"> 0.210 </td>
+   <td style="text-align:right;"> 0.079 </td>
+   <td style="text-align:right;"> 394 </td>
+   <td style="text-align:left;"> CHEESE,COLBY </td>
+   <td style="text-align:left;"> 01011 </td>
+   <td style="text-align:right;"> -2599.704 </td>
+   <td style="text-align:right;"> 1.1143912 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> CHEESE </td>
+   <td style="text-align:right;"> 1 </td>
+   <td style="text-align:right;"> 113.00 </td>
+   <td style="text-align:right;"> 113.00 </td>
+   <td style="text-align:right;"> 8.72 </td>
+   <td style="text-align:right;"> 4.30 </td>
+   <td style="text-align:right;"> 364 </td>
+   <td style="text-align:right;"> 17 </td>
+   <td style="text-align:right;"> 1.718 </td>
+   <td style="text-align:right;"> 11.12 </td>
+   <td style="text-align:right;"> 83 </td>
+   <td style="text-align:right;"> 0.07 </td>
+   <td style="text-align:right;"> 8 </td>
+   <td style="text-align:right;"> 159 </td>
+   <td style="text-align:right;"> 104 </td>
+   <td style="text-align:right;"> 0.40 </td>
+   <td style="text-align:right;"> 0.029 </td>
+   <td style="text-align:right;"> 0.002 </td>
+   <td style="text-align:right;"> 9.7 </td>
+   <td style="text-align:right;"> 0.0 </td>
+   <td style="text-align:right;"> 0.027 </td>
+   <td style="text-align:right;"> 0.163 </td>
+   <td style="text-align:right;"> 0.099 </td>
+   <td style="text-align:right;"> 0.557 </td>
+   <td style="text-align:right;"> 0.046 </td>
+   <td style="text-align:right;"> 98 </td>
+   <td style="text-align:left;"> CHEESE,COTTAGE,CRMD,LRG OR SML CURD </td>
+   <td style="text-align:left;"> 01012 </td>
+   <td style="text-align:right;"> -3386.210 </td>
+   <td style="text-align:right;"> -0.3891963 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> CHEESE </td>
+   <td style="text-align:right;"> 1 </td>
+   <td style="text-align:right;"> 113.00 </td>
+   <td style="text-align:right;"> 113.00 </td>
+   <td style="text-align:right;"> 3.85 </td>
+   <td style="text-align:right;"> 3.85 </td>
+   <td style="text-align:right;"> 344 </td>
+   <td style="text-align:right;"> 13 </td>
+   <td style="text-align:right;"> 2.311 </td>
+   <td style="text-align:right;"> 10.69 </td>
+   <td style="text-align:right;"> 53 </td>
+   <td style="text-align:right;"> 0.16 </td>
+   <td style="text-align:right;"> 7 </td>
+   <td style="text-align:right;"> 113 </td>
+   <td style="text-align:right;"> 90 </td>
+   <td style="text-align:right;"> 0.33 </td>
+   <td style="text-align:right;"> 0.040 </td>
+   <td style="text-align:right;"> 0.003 </td>
+   <td style="text-align:right;"> 7.7 </td>
+   <td style="text-align:right;"> 1.4 </td>
+   <td style="text-align:right;"> 0.033 </td>
+   <td style="text-align:right;"> 0.142 </td>
+   <td style="text-align:right;"> 0.150 </td>
+   <td style="text-align:right;"> 0.181 </td>
+   <td style="text-align:right;"> 0.068 </td>
+   <td style="text-align:right;"> 97 </td>
+   <td style="text-align:left;"> CHEESE,COTTAGE,CRMD,W/FRUIT </td>
+   <td style="text-align:left;"> 01013 </td>
+   <td style="text-align:right;"> -3463.568 </td>
+   <td style="text-align:right;"> -0.5370853 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> CHEESE </td>
+   <td style="text-align:right;"> 1 </td>
+   <td style="text-align:right;"> 145.00 </td>
+   <td style="text-align:right;"> 145.00 </td>
+   <td style="text-align:right;"> 3.07 </td>
+   <td style="text-align:right;"> 0.29 </td>
+   <td style="text-align:right;"> 372 </td>
+   <td style="text-align:right;"> 7 </td>
+   <td style="text-align:right;"> 0.169 </td>
+   <td style="text-align:right;"> 10.34 </td>
+   <td style="text-align:right;"> 86 </td>
+   <td style="text-align:right;"> 0.15 </td>
+   <td style="text-align:right;"> 11 </td>
+   <td style="text-align:right;"> 190 </td>
+   <td style="text-align:right;"> 137 </td>
+   <td style="text-align:right;"> 0.47 </td>
+   <td style="text-align:right;"> 0.030 </td>
+   <td style="text-align:right;"> 0.022 </td>
+   <td style="text-align:right;"> 9.4 </td>
+   <td style="text-align:right;"> 0.0 </td>
+   <td style="text-align:right;"> 0.023 </td>
+   <td style="text-align:right;"> 0.226 </td>
+   <td style="text-align:right;"> 0.144 </td>
+   <td style="text-align:right;"> 0.446 </td>
+   <td style="text-align:right;"> 0.016 </td>
+   <td style="text-align:right;"> 72 </td>
+   <td style="text-align:left;"> CHEESE,COTTAGE,NONFAT,UNCRMD,DRY,LRG OR SML CURD </td>
+   <td style="text-align:left;"> 01014 </td>
+   <td style="text-align:right;"> -3278.578 </td>
+   <td style="text-align:right;"> -0.1834343 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> CHEESE </td>
+   <td style="text-align:right;"> 1 </td>
+   <td style="text-align:right;"> 113.00 </td>
+   <td style="text-align:right;"> 113.00 </td>
+   <td style="text-align:right;"> 7.66 </td>
+   <td style="text-align:right;"> 2.27 </td>
+   <td style="text-align:right;"> 308 </td>
+   <td style="text-align:right;"> 12 </td>
+   <td style="text-align:right;"> 1.235 </td>
+   <td style="text-align:right;"> 10.45 </td>
+   <td style="text-align:right;"> 111 </td>
+   <td style="text-align:right;"> 0.13 </td>
+   <td style="text-align:right;"> 9 </td>
+   <td style="text-align:right;"> 150 </td>
+   <td style="text-align:right;"> 125 </td>
+   <td style="text-align:right;"> 0.51 </td>
+   <td style="text-align:right;"> 0.033 </td>
+   <td style="text-align:right;"> 0.015 </td>
+   <td style="text-align:right;"> 11.9 </td>
+   <td style="text-align:right;"> 0.0 </td>
+   <td style="text-align:right;"> 0.020 </td>
+   <td style="text-align:right;"> 0.251 </td>
+   <td style="text-align:right;"> 0.103 </td>
+   <td style="text-align:right;"> 0.524 </td>
+   <td style="text-align:right;"> 0.057 </td>
+   <td style="text-align:right;"> 81 </td>
+   <td style="text-align:left;"> CHEESE,COTTAGE,LOWFAT,2% MILKFAT </td>
+   <td style="text-align:left;"> 01015 </td>
+   <td style="text-align:right;"> -3266.099 </td>
+   <td style="text-align:right;"> -0.1595762 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> CHEESE </td>
+   <td style="text-align:right;"> 1 </td>
+   <td style="text-align:right;"> 113.00 </td>
+   <td style="text-align:right;"> 113.00 </td>
+   <td style="text-align:right;"> 3.56 </td>
+   <td style="text-align:right;"> 1.02 </td>
+   <td style="text-align:right;"> 406 </td>
+   <td style="text-align:right;"> 4 </td>
+   <td style="text-align:right;"> 0.645 </td>
+   <td style="text-align:right;"> 12.39 </td>
+   <td style="text-align:right;"> 61 </td>
+   <td style="text-align:right;"> 0.14 </td>
+   <td style="text-align:right;"> 5 </td>
+   <td style="text-align:right;"> 134 </td>
+   <td style="text-align:right;"> 86 </td>
+   <td style="text-align:right;"> 0.38 </td>
+   <td style="text-align:right;"> 0.028 </td>
+   <td style="text-align:right;"> 0.003 </td>
+   <td style="text-align:right;"> 9.0 </td>
+   <td style="text-align:right;"> 0.0 </td>
+   <td style="text-align:right;"> 0.021 </td>
+   <td style="text-align:right;"> 0.165 </td>
+   <td style="text-align:right;"> 0.128 </td>
+   <td style="text-align:right;"> 0.215 </td>
+   <td style="text-align:right;"> 0.068 </td>
+   <td style="text-align:right;"> 72 </td>
+   <td style="text-align:left;"> CHEESE,COTTAGE,LOWFAT,1% MILKFAT </td>
+   <td style="text-align:left;"> 01016 </td>
+   <td style="text-align:right;"> -3490.534 </td>
+   <td style="text-align:right;"> -0.5886355 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> CHEESE </td>
+   <td style="text-align:right;"> 1 </td>
+   <td style="text-align:right;"> 14.50 </td>
+   <td style="text-align:right;"> 14.50 </td>
+   <td style="text-align:right;"> 8.59 </td>
+   <td style="text-align:right;"> 34.44 </td>
+   <td style="text-align:right;"> 314 </td>
+   <td style="text-align:right;"> 101 </td>
+   <td style="text-align:right;"> 20.213 </td>
+   <td style="text-align:right;"> 6.15 </td>
+   <td style="text-align:right;"> 97 </td>
+   <td style="text-align:right;"> 0.11 </td>
+   <td style="text-align:right;"> 9 </td>
+   <td style="text-align:right;"> 107 </td>
+   <td style="text-align:right;"> 132 </td>
+   <td style="text-align:right;"> 0.50 </td>
+   <td style="text-align:right;"> 0.018 </td>
+   <td style="text-align:right;"> 0.011 </td>
+   <td style="text-align:right;"> 8.6 </td>
+   <td style="text-align:right;"> 0.0 </td>
+   <td style="text-align:right;"> 0.023 </td>
+   <td style="text-align:right;"> 0.230 </td>
+   <td style="text-align:right;"> 0.091 </td>
+   <td style="text-align:right;"> 0.517 </td>
+   <td style="text-align:right;"> 0.056 </td>
+   <td style="text-align:right;"> 350 </td>
+   <td style="text-align:left;"> CHEESE,CREAM </td>
+   <td style="text-align:left;"> 01017 </td>
+   <td style="text-align:right;"> -3389.710 </td>
+   <td style="text-align:right;"> -0.3958887 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> CHEESE </td>
+   <td style="text-align:right;"> 1 </td>
+   <td style="text-align:right;"> 28.35 </td>
+   <td style="text-align:right;"> 28.35 </td>
+   <td style="text-align:right;"> 4.73 </td>
+   <td style="text-align:right;"> 27.80 </td>
+   <td style="text-align:right;"> 812 </td>
+   <td style="text-align:right;"> 89 </td>
+   <td style="text-align:right;"> 17.572 </td>
+   <td style="text-align:right;"> 24.99 </td>
+   <td style="text-align:right;"> 731 </td>
+   <td style="text-align:right;"> 0.44 </td>
+   <td style="text-align:right;"> 30 </td>
+   <td style="text-align:right;"> 536 </td>
+   <td style="text-align:right;"> 188 </td>
+   <td style="text-align:right;"> 3.75 </td>
+   <td style="text-align:right;"> 0.036 </td>
+   <td style="text-align:right;"> 0.011 </td>
+   <td style="text-align:right;"> 14.5 </td>
+   <td style="text-align:right;"> 0.0 </td>
+   <td style="text-align:right;"> 0.037 </td>
+   <td style="text-align:right;"> 0.389 </td>
+   <td style="text-align:right;"> 0.082 </td>
+   <td style="text-align:right;"> 0.281 </td>
+   <td style="text-align:right;"> 0.076 </td>
+   <td style="text-align:right;"> 357 </td>
+   <td style="text-align:left;"> CHEESE,EDAM </td>
+   <td style="text-align:left;"> 01018 </td>
+   <td style="text-align:right;"> -3208.657 </td>
+   <td style="text-align:right;"> -0.0497637 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> CHEESE </td>
+   <td style="text-align:right;"> 1 </td>
+   <td style="text-align:right;"> 150.00 </td>
+   <td style="text-align:right;"> 150.00 </td>
+   <td style="text-align:right;"> 3.77 </td>
+   <td style="text-align:right;"> 21.28 </td>
+   <td style="text-align:right;"> 917 </td>
+   <td style="text-align:right;"> 89 </td>
+   <td style="text-align:right;"> 14.946 </td>
+   <td style="text-align:right;"> 14.21 </td>
+   <td style="text-align:right;"> 493 </td>
+   <td style="text-align:right;"> 0.65 </td>
+   <td style="text-align:right;"> 19 </td>
+   <td style="text-align:right;"> 337 </td>
+   <td style="text-align:right;"> 62 </td>
+   <td style="text-align:right;"> 2.88 </td>
+   <td style="text-align:right;"> 0.032 </td>
+   <td style="text-align:right;"> 0.028 </td>
+   <td style="text-align:right;"> 15.0 </td>
+   <td style="text-align:right;"> 0.0 </td>
+   <td style="text-align:right;"> 0.154 </td>
+   <td style="text-align:right;"> 0.844 </td>
+   <td style="text-align:right;"> 0.991 </td>
+   <td style="text-align:right;"> 0.967 </td>
+   <td style="text-align:right;"> 0.424 </td>
+   <td style="text-align:right;"> 264 </td>
+   <td style="text-align:left;"> CHEESE,FETA </td>
+   <td style="text-align:left;"> 01019 </td>
+   <td style="text-align:right;"> -3516.569 </td>
+   <td style="text-align:right;"> -0.6384083 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> CHEESE </td>
+   <td style="text-align:right;"> 1 </td>
+   <td style="text-align:right;"> 132.00 </td>
+   <td style="text-align:right;"> 132.00 </td>
+   <td style="text-align:right;"> 6.64 </td>
+   <td style="text-align:right;"> 31.14 </td>
+   <td style="text-align:right;"> 800 </td>
+   <td style="text-align:right;"> 116 </td>
+   <td style="text-align:right;"> 19.196 </td>
+   <td style="text-align:right;"> 25.60 </td>
+   <td style="text-align:right;"> 550 </td>
+   <td style="text-align:right;"> 0.23 </td>
+   <td style="text-align:right;"> 14 </td>
+   <td style="text-align:right;"> 346 </td>
+   <td style="text-align:right;"> 64 </td>
+   <td style="text-align:right;"> 3.50 </td>
+   <td style="text-align:right;"> 0.025 </td>
+   <td style="text-align:right;"> 0.014 </td>
+   <td style="text-align:right;"> 14.5 </td>
+   <td style="text-align:right;"> 0.0 </td>
+   <td style="text-align:right;"> 0.021 </td>
+   <td style="text-align:right;"> 0.204 </td>
+   <td style="text-align:right;"> 0.150 </td>
+   <td style="text-align:right;"> 0.429 </td>
+   <td style="text-align:right;"> 0.083 </td>
+   <td style="text-align:right;"> 389 </td>
+   <td style="text-align:left;"> CHEESE,FONTINA </td>
+   <td style="text-align:left;"> 01020 </td>
+   <td style="text-align:right;"> -3304.806 </td>
+   <td style="text-align:right;"> -0.2335737 </td>
+  </tr>
+</tbody>
+</table>
+
+
+**Per 100g vs. Raw**
+
+Note how our column titles have aways end with `_g` or `_mg`. That's because this column is giving us the value of each nutrient, *per 100g of this food*. The value we've got in that column isn't the raw value. Our contraints, though, are in raw terms. We'll need a way to know whether we've gotten our 1000mg of Calcium from the foods in our menu, each of which list how much Calcium they provide per 100g of that food.
+
+In order to get to the raw value of a nutrient, for each food in our menu we'll multiply the 100g value of that nutrient by the weight of the food in grams, or its `GmWt_1`.
+
+$TotalNutrientVal = \sum_{i=1}^{k} Per100gVal_{i} * GmWt_{i}$ 
+
+
+Two helper functions `get_per_g_vals()` and `get_raw_vals()` in `/scripts/solve` allow us to go back and forth between raw and per 100g values. We'll try to keep everything in per 100g whenever possible, as that's the format our raw data is in. Our main solving function does accept both formats, however.
+
+
+```r
+abbrev %>% sample_n(10) %>% get_raw_vals()
+```
+
+```
+## # A tibble: 10 x 30
+##     shorter_desc GmWt_1 serving_gmwt  cost Lipid_Tot_g Sodium_mg
+##            <chr>  <dbl>        <dbl> <dbl>       <dbl>     <dbl>
+##  1         SAUCE  30.00        30.00  9.83     5.01000  200.1000
+##  2         PASTA 117.00       117.00  9.78     2.00070    4.6800
+##  3        CHEESE 132.00       132.00  7.85    23.23200  811.8000
+##  4      BABYFOOD  15.00        15.00  3.47     0.07800    2.1000
+##  5      MACKEREL  28.35        28.35  6.69     1.78605  107.4465
+##  6          NUTS 157.00       157.00  4.44    86.61690  224.5100
+##  7          PORK  85.00        85.00  2.25    11.57700   40.8000
+##  8        YOGURT 170.00       170.00  5.29     0.66300   61.2000
+##  9 RUFFED GROUSE 113.00       113.00  4.41     0.99440   56.5000
+## 10          PATE  13.00        13.00  7.78     3.64000   90.6100
+## # ... with 24 more variables: Cholestrl_mg <dbl>, FA_Sat_g <dbl>,
+## #   Protein_g <dbl>, Calcium_mg <dbl>, Iron_mg <dbl>, Magnesium_mg <dbl>,
+## #   Phosphorus_mg <dbl>, Potassium_mg <dbl>, Zinc_mg <dbl>,
+## #   Copper_mg <dbl>, Manganese_mg <dbl>, Selenium_µg <dbl>,
+## #   Vit_C_mg <dbl>, Thiamin_mg <dbl>, Riboflavin_mg <dbl>,
+## #   Niacin_mg <dbl>, Panto_Acid_mg <dbl>, Vit_B6_mg <dbl>,
+## #   Energ_Kcal <dbl>, solution_amounts <dbl>, Shrt_Desc <chr>,
+## #   NDB_No <chr>, score <dbl>, scaled_score <dbl>
+```
 
 
 
@@ -21,9 +2521,9 @@
 
 ### Building
 
-Now to build a menu. The only constraint we have to worry about here is that menus have to contain at least 2300 calories. Our strategy is simple; pick one serving of a food at random from our dataset and, if it doesn't yet exist in our menu, add it. We do this until we're no longer under 2300 calories. 
+Now to build a menu. The only constraint we'll worry about for now is that menus have to contain at least 2300 calories. Our strategy is simple; pick one serving of a food at random from our dataset and, if it doesn't yet exist in our menu, add it. We do this until we're no longer under 2300 calories. 
 
-That's implemented in `add_calories()` below, which we'll as a helper inside `build_menu()`. The reason I've spun `add_calories()` out into its own function is so that we can easily add more foods to existing menus. It takes `menu` as its first argument, unlike `build_menu()` which takes a dataframe of all possible foods to choose from.
+That's implemented in `add_calories()` below, which we'll as a helper inside `build_menu()`. The reason I've spun `add_calories()` out into its own function is so that we can easily add more foods to existing menus. It takes `menu` as its first argument, unlike `build_menu()` which takes a dataframe of possible foods to choose from as its first argument. That makes it more convenient to call `add_calories()` from inside `build_menu()` and use `build_menu()` primarily to create totally new menus.
 
 
 ```r
@@ -449,31 +2949,623 @@ our_solved_menu <- our_menu_solution %>% solve_menu()
 ```
 
 ```r
-our_solved_menu %>% kable()
+our_solved_menu %>% kable(format = "html")
 ```
 
-
-
-shorter_desc                     solution_amounts   GmWt_1   serving_gmwt   cost   Lipid_Tot_g   Sodium_mg   Cholestrl_mg   FA_Sat_g   Protein_g   Calcium_mg   Iron_mg   Magnesium_mg   Phosphorus_mg   Potassium_mg   Zinc_mg   Copper_mg   Manganese_mg   Selenium_µg   Vit_C_mg   Thiamin_mg   Riboflavin_mg   Niacin_mg   Panto_Acid_mg   Vit_B6_mg   Energ_Kcal  Shrt_Desc                                                  NDB_No        score   scaled_score
-------------------------------  -----------------  -------  -------------  -----  ------------  ----------  -------------  ---------  ----------  -----------  --------  -------------  --------------  -------------  --------  ----------  -------------  ------------  ---------  -----------  --------------  ----------  --------------  ----------  -----------  ---------------------------------------------------------  -------  ----------  -------------
-CANDIES                                         1    40.00          40.00   2.24         34.50          39             11     20.600        5.58          109      1.33             38             129            306      0.79       0.180          0.000           0.0        1.0        0.040           0.160       0.330           0.250       0.060          563  CANDIES,HERSHEY'S,ALMOND JOY BITES                         19248     -4490.352      0.0062599
-SALMON                                          1    85.00          85.00   9.02          7.31          75             44      1.644       20.47          239      1.06             29             326            377      1.02       0.084          0.030          35.4        0.0        0.016           0.193       5.480           0.550       0.300          153  SALMON,SOCKEYE,CND,WO/SALT,DRND SOL W/BONE                 15182     -3913.498      1.1090489
-BROADBEANS                                      1   109.00         109.00   3.93          0.60          50              0      0.138        5.60           22      1.90             38              95            250      0.58       0.074          0.320           1.2       33.0        0.170           0.110       1.500           0.086       0.038           72  BROADBEANS,IMMAT SEEDS,RAW                                 11088     -4250.264      0.4652428
-GELATIN DSSRT                                   1    85.00          85.00   1.96          0.00         466              0      0.000        7.80            3      0.13              2             141              7      0.01       0.118          0.011           6.7        0.0        0.003           0.041       0.009           0.014       0.001          381  GELATIN DSSRT,DRY MIX                                      19172     -4938.439     -0.8503611
-CRAYFISH                                        1    85.00          85.00   6.64          1.20          94            133      0.181       16.77           60      0.83             33             270            296      1.76       0.685          0.522          36.7        0.9        0.050           0.085       2.280           0.580       0.076           82  CRAYFISH,MXD SP,WILD,CKD,MOIST HEAT                        15146     -4266.922      0.4333988
-CRACKERS                                        1    30.00          30.00   3.41         11.67        1167              0      3.333       10.00           67      4.80             22             162            141      0.90       0.118          0.517          26.2        0.0        1.087           0.750       7.170           0.528       0.044          418  CRACKERS,CHS,RED FAT                                       18965     -4906.367     -0.7890484
-CHEESE                                          1    28.35          28.35   7.25         30.64        1809             90     19.263       21.54          662      0.56             30             392             91      2.08       0.034          0.030          14.5        0.0        0.040           0.586       0.734           1.731       0.124          369  CHEESE,ROQUEFORT                                           01039     -4892.506     -0.7625507
-SPICES                                          1     0.70           0.70   9.03          4.07          76              0      2.157       22.98         2240     89.80            711             274           2630      7.10       2.100          9.800           3.0        0.8        0.080           1.200       4.900           0.838       1.340          233  SPICES,BASIL,DRIED                                         02003     -4643.583     -0.2866766
-RAVIOLI                                         1   242.00         242.00   7.63          1.45         306              3      0.723        2.48           33      0.74             15              50            232      0.36       0.142          0.176           3.5        0.0        0.074           0.080       1.060           0.272       0.102           77  RAVIOLI,CHEESE-FILLED,CND                                  22899     -4617.693     -0.2371810
-LUXURY LOAF                                     1    28.00          28.00   4.64          4.80        1225             36      1.580       18.40           36      1.05             20             185            377      3.05       0.100          0.041          21.5        0.0        0.707           0.297       3.482           0.515       0.310          141  LUXURY LOAF,PORK                                           07060     -4852.980     -0.6869870
-CANDIES                                         1    14.50          14.50   9.99         30.00          11              0     17.750        4.20           32      3.13            115             132            365      1.62       0.700          0.800           4.2        0.0        0.055           0.090       0.427           0.105       0.035          480  CANDIES,SEMISWEET CHOC                                     19080     -4597.911     -0.1993645
-ONIONS                                          1   210.00         210.00   4.83          0.05           8              0      0.009        0.71           27      0.34              8               2            101      0.09       0.024          0.040           0.4        5.1        0.016           0.018       0.132           0.078       0.070           28  ONIONS,FRZ,WHL,CKD,BLD,DRND,WO/SALT                        11290     -4397.386      0.1839856
-PIZZA HUT 14" PEPPERONI PIZZA                   1   113.00         113.00   5.69         13.07         676             23      4.823       11.47          147      2.57             22             193            187      1.36       0.104          0.425          15.5        1.0        0.420           0.210       3.750           0.323       0.090          291  PIZZA HUT 14" PEPPERONI PIZZA,PAN CRUST                    21297     -4832.658     -0.6481376
-BEANS                                           1   104.00         104.00   8.77          0.70          13              0      0.085        6.15           15      1.93            101             100            307      0.89       0.356          0.408           0.6       18.8        0.390           0.215       1.220           0.825       0.191           67  BEANS,NAVY,MATURE SEEDS,SPROUTED,RAW                       11046     -4122.162      0.7101393
-GRAPE JUC                                       1   253.00         253.00   4.53          0.13           5              0      0.025        0.37           11      0.25             10              14            104      0.07       0.018          0.239           0.0        0.1        0.017           0.015       0.133           0.048       0.032           60  GRAPE JUC,CND OR BTLD,UNSWTND,WO/ ADDED VIT C              09135     -4343.103      0.2877596
-PIE                                             1    28.35          28.35   1.75         12.50         211              0      3.050        2.40            7      1.12              7              28             79      0.19       0.053          0.185           7.8        1.7        0.148           0.107       1.230           0.093       0.032          265  PIE,APPL,PREP FROM RECIPE                                  18302     -4710.654     -0.4148992
-PORK                                            1    85.00          85.00   2.46          2.59          63             63      0.906       22.81            9      0.56             23             251            354      1.72       0.069          0.011          37.4        0.0        0.610           0.256       7.348           0.728       0.611          121  PORK,FRSH,LOIN,SIRLOIN (CHOPS OR ROASTS),BNLESS,LN,RAW     10214     -4192.317      0.5760225
-FAST FOODS                                      1   226.00         226.00   5.02         11.75         350             54      4.654       15.17           45      2.59             22             139            252      2.51       0.097          0.110          11.3        0.5        0.160           0.170       3.350           0.240       0.240          239  FAST FOODS,HAMBURGER; DOUBLE,LRG PATTY; W/ CONDMNT & VEG   21114     -4517.685     -0.0459943
+<table>
+ <thead>
+  <tr>
+   <th style="text-align:left;"> shorter_desc </th>
+   <th style="text-align:right;"> solution_amounts </th>
+   <th style="text-align:right;"> GmWt_1 </th>
+   <th style="text-align:right;"> serving_gmwt </th>
+   <th style="text-align:right;"> cost </th>
+   <th style="text-align:right;"> Lipid_Tot_g </th>
+   <th style="text-align:right;"> Sodium_mg </th>
+   <th style="text-align:right;"> Cholestrl_mg </th>
+   <th style="text-align:right;"> FA_Sat_g </th>
+   <th style="text-align:right;"> Protein_g </th>
+   <th style="text-align:right;"> Calcium_mg </th>
+   <th style="text-align:right;"> Iron_mg </th>
+   <th style="text-align:right;"> Magnesium_mg </th>
+   <th style="text-align:right;"> Phosphorus_mg </th>
+   <th style="text-align:right;"> Potassium_mg </th>
+   <th style="text-align:right;"> Zinc_mg </th>
+   <th style="text-align:right;"> Copper_mg </th>
+   <th style="text-align:right;"> Manganese_mg </th>
+   <th style="text-align:right;"> Selenium_µg </th>
+   <th style="text-align:right;"> Vit_C_mg </th>
+   <th style="text-align:right;"> Thiamin_mg </th>
+   <th style="text-align:right;"> Riboflavin_mg </th>
+   <th style="text-align:right;"> Niacin_mg </th>
+   <th style="text-align:right;"> Panto_Acid_mg </th>
+   <th style="text-align:right;"> Vit_B6_mg </th>
+   <th style="text-align:right;"> Energ_Kcal </th>
+   <th style="text-align:left;"> Shrt_Desc </th>
+   <th style="text-align:left;"> NDB_No </th>
+   <th style="text-align:right;"> score </th>
+   <th style="text-align:right;"> scaled_score </th>
+  </tr>
+ </thead>
+<tbody>
+  <tr>
+   <td style="text-align:left;"> CANDIES </td>
+   <td style="text-align:right;"> 1 </td>
+   <td style="text-align:right;"> 40.00 </td>
+   <td style="text-align:right;"> 40.00 </td>
+   <td style="text-align:right;"> 2.24 </td>
+   <td style="text-align:right;"> 34.50 </td>
+   <td style="text-align:right;"> 39 </td>
+   <td style="text-align:right;"> 11 </td>
+   <td style="text-align:right;"> 20.600 </td>
+   <td style="text-align:right;"> 5.58 </td>
+   <td style="text-align:right;"> 109 </td>
+   <td style="text-align:right;"> 1.33 </td>
+   <td style="text-align:right;"> 38 </td>
+   <td style="text-align:right;"> 129 </td>
+   <td style="text-align:right;"> 306 </td>
+   <td style="text-align:right;"> 0.79 </td>
+   <td style="text-align:right;"> 0.180 </td>
+   <td style="text-align:right;"> 0.000 </td>
+   <td style="text-align:right;"> 0.0 </td>
+   <td style="text-align:right;"> 1.0 </td>
+   <td style="text-align:right;"> 0.040 </td>
+   <td style="text-align:right;"> 0.160 </td>
+   <td style="text-align:right;"> 0.330 </td>
+   <td style="text-align:right;"> 0.250 </td>
+   <td style="text-align:right;"> 0.060 </td>
+   <td style="text-align:right;"> 563 </td>
+   <td style="text-align:left;"> CANDIES,HERSHEY'S,ALMOND JOY BITES </td>
+   <td style="text-align:left;"> 19248 </td>
+   <td style="text-align:right;"> -4490.352 </td>
+   <td style="text-align:right;"> 0.0062599 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> SALMON </td>
+   <td style="text-align:right;"> 1 </td>
+   <td style="text-align:right;"> 85.00 </td>
+   <td style="text-align:right;"> 85.00 </td>
+   <td style="text-align:right;"> 9.02 </td>
+   <td style="text-align:right;"> 7.31 </td>
+   <td style="text-align:right;"> 75 </td>
+   <td style="text-align:right;"> 44 </td>
+   <td style="text-align:right;"> 1.644 </td>
+   <td style="text-align:right;"> 20.47 </td>
+   <td style="text-align:right;"> 239 </td>
+   <td style="text-align:right;"> 1.06 </td>
+   <td style="text-align:right;"> 29 </td>
+   <td style="text-align:right;"> 326 </td>
+   <td style="text-align:right;"> 377 </td>
+   <td style="text-align:right;"> 1.02 </td>
+   <td style="text-align:right;"> 0.084 </td>
+   <td style="text-align:right;"> 0.030 </td>
+   <td style="text-align:right;"> 35.4 </td>
+   <td style="text-align:right;"> 0.0 </td>
+   <td style="text-align:right;"> 0.016 </td>
+   <td style="text-align:right;"> 0.193 </td>
+   <td style="text-align:right;"> 5.480 </td>
+   <td style="text-align:right;"> 0.550 </td>
+   <td style="text-align:right;"> 0.300 </td>
+   <td style="text-align:right;"> 153 </td>
+   <td style="text-align:left;"> SALMON,SOCKEYE,CND,WO/SALT,DRND SOL W/BONE </td>
+   <td style="text-align:left;"> 15182 </td>
+   <td style="text-align:right;"> -3913.498 </td>
+   <td style="text-align:right;"> 1.1090489 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> BROADBEANS </td>
+   <td style="text-align:right;"> 1 </td>
+   <td style="text-align:right;"> 109.00 </td>
+   <td style="text-align:right;"> 109.00 </td>
+   <td style="text-align:right;"> 3.93 </td>
+   <td style="text-align:right;"> 0.60 </td>
+   <td style="text-align:right;"> 50 </td>
+   <td style="text-align:right;"> 0 </td>
+   <td style="text-align:right;"> 0.138 </td>
+   <td style="text-align:right;"> 5.60 </td>
+   <td style="text-align:right;"> 22 </td>
+   <td style="text-align:right;"> 1.90 </td>
+   <td style="text-align:right;"> 38 </td>
+   <td style="text-align:right;"> 95 </td>
+   <td style="text-align:right;"> 250 </td>
+   <td style="text-align:right;"> 0.58 </td>
+   <td style="text-align:right;"> 0.074 </td>
+   <td style="text-align:right;"> 0.320 </td>
+   <td style="text-align:right;"> 1.2 </td>
+   <td style="text-align:right;"> 33.0 </td>
+   <td style="text-align:right;"> 0.170 </td>
+   <td style="text-align:right;"> 0.110 </td>
+   <td style="text-align:right;"> 1.500 </td>
+   <td style="text-align:right;"> 0.086 </td>
+   <td style="text-align:right;"> 0.038 </td>
+   <td style="text-align:right;"> 72 </td>
+   <td style="text-align:left;"> BROADBEANS,IMMAT SEEDS,RAW </td>
+   <td style="text-align:left;"> 11088 </td>
+   <td style="text-align:right;"> -4250.264 </td>
+   <td style="text-align:right;"> 0.4652428 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> GELATIN DSSRT </td>
+   <td style="text-align:right;"> 1 </td>
+   <td style="text-align:right;"> 85.00 </td>
+   <td style="text-align:right;"> 85.00 </td>
+   <td style="text-align:right;"> 1.96 </td>
+   <td style="text-align:right;"> 0.00 </td>
+   <td style="text-align:right;"> 466 </td>
+   <td style="text-align:right;"> 0 </td>
+   <td style="text-align:right;"> 0.000 </td>
+   <td style="text-align:right;"> 7.80 </td>
+   <td style="text-align:right;"> 3 </td>
+   <td style="text-align:right;"> 0.13 </td>
+   <td style="text-align:right;"> 2 </td>
+   <td style="text-align:right;"> 141 </td>
+   <td style="text-align:right;"> 7 </td>
+   <td style="text-align:right;"> 0.01 </td>
+   <td style="text-align:right;"> 0.118 </td>
+   <td style="text-align:right;"> 0.011 </td>
+   <td style="text-align:right;"> 6.7 </td>
+   <td style="text-align:right;"> 0.0 </td>
+   <td style="text-align:right;"> 0.003 </td>
+   <td style="text-align:right;"> 0.041 </td>
+   <td style="text-align:right;"> 0.009 </td>
+   <td style="text-align:right;"> 0.014 </td>
+   <td style="text-align:right;"> 0.001 </td>
+   <td style="text-align:right;"> 381 </td>
+   <td style="text-align:left;"> GELATIN DSSRT,DRY MIX </td>
+   <td style="text-align:left;"> 19172 </td>
+   <td style="text-align:right;"> -4938.439 </td>
+   <td style="text-align:right;"> -0.8503611 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> CRAYFISH </td>
+   <td style="text-align:right;"> 1 </td>
+   <td style="text-align:right;"> 85.00 </td>
+   <td style="text-align:right;"> 85.00 </td>
+   <td style="text-align:right;"> 6.64 </td>
+   <td style="text-align:right;"> 1.20 </td>
+   <td style="text-align:right;"> 94 </td>
+   <td style="text-align:right;"> 133 </td>
+   <td style="text-align:right;"> 0.181 </td>
+   <td style="text-align:right;"> 16.77 </td>
+   <td style="text-align:right;"> 60 </td>
+   <td style="text-align:right;"> 0.83 </td>
+   <td style="text-align:right;"> 33 </td>
+   <td style="text-align:right;"> 270 </td>
+   <td style="text-align:right;"> 296 </td>
+   <td style="text-align:right;"> 1.76 </td>
+   <td style="text-align:right;"> 0.685 </td>
+   <td style="text-align:right;"> 0.522 </td>
+   <td style="text-align:right;"> 36.7 </td>
+   <td style="text-align:right;"> 0.9 </td>
+   <td style="text-align:right;"> 0.050 </td>
+   <td style="text-align:right;"> 0.085 </td>
+   <td style="text-align:right;"> 2.280 </td>
+   <td style="text-align:right;"> 0.580 </td>
+   <td style="text-align:right;"> 0.076 </td>
+   <td style="text-align:right;"> 82 </td>
+   <td style="text-align:left;"> CRAYFISH,MXD SP,WILD,CKD,MOIST HEAT </td>
+   <td style="text-align:left;"> 15146 </td>
+   <td style="text-align:right;"> -4266.922 </td>
+   <td style="text-align:right;"> 0.4333988 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> CRACKERS </td>
+   <td style="text-align:right;"> 1 </td>
+   <td style="text-align:right;"> 30.00 </td>
+   <td style="text-align:right;"> 30.00 </td>
+   <td style="text-align:right;"> 3.41 </td>
+   <td style="text-align:right;"> 11.67 </td>
+   <td style="text-align:right;"> 1167 </td>
+   <td style="text-align:right;"> 0 </td>
+   <td style="text-align:right;"> 3.333 </td>
+   <td style="text-align:right;"> 10.00 </td>
+   <td style="text-align:right;"> 67 </td>
+   <td style="text-align:right;"> 4.80 </td>
+   <td style="text-align:right;"> 22 </td>
+   <td style="text-align:right;"> 162 </td>
+   <td style="text-align:right;"> 141 </td>
+   <td style="text-align:right;"> 0.90 </td>
+   <td style="text-align:right;"> 0.118 </td>
+   <td style="text-align:right;"> 0.517 </td>
+   <td style="text-align:right;"> 26.2 </td>
+   <td style="text-align:right;"> 0.0 </td>
+   <td style="text-align:right;"> 1.087 </td>
+   <td style="text-align:right;"> 0.750 </td>
+   <td style="text-align:right;"> 7.170 </td>
+   <td style="text-align:right;"> 0.528 </td>
+   <td style="text-align:right;"> 0.044 </td>
+   <td style="text-align:right;"> 418 </td>
+   <td style="text-align:left;"> CRACKERS,CHS,RED FAT </td>
+   <td style="text-align:left;"> 18965 </td>
+   <td style="text-align:right;"> -4906.367 </td>
+   <td style="text-align:right;"> -0.7890484 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> CHEESE </td>
+   <td style="text-align:right;"> 1 </td>
+   <td style="text-align:right;"> 28.35 </td>
+   <td style="text-align:right;"> 28.35 </td>
+   <td style="text-align:right;"> 7.25 </td>
+   <td style="text-align:right;"> 30.64 </td>
+   <td style="text-align:right;"> 1809 </td>
+   <td style="text-align:right;"> 90 </td>
+   <td style="text-align:right;"> 19.263 </td>
+   <td style="text-align:right;"> 21.54 </td>
+   <td style="text-align:right;"> 662 </td>
+   <td style="text-align:right;"> 0.56 </td>
+   <td style="text-align:right;"> 30 </td>
+   <td style="text-align:right;"> 392 </td>
+   <td style="text-align:right;"> 91 </td>
+   <td style="text-align:right;"> 2.08 </td>
+   <td style="text-align:right;"> 0.034 </td>
+   <td style="text-align:right;"> 0.030 </td>
+   <td style="text-align:right;"> 14.5 </td>
+   <td style="text-align:right;"> 0.0 </td>
+   <td style="text-align:right;"> 0.040 </td>
+   <td style="text-align:right;"> 0.586 </td>
+   <td style="text-align:right;"> 0.734 </td>
+   <td style="text-align:right;"> 1.731 </td>
+   <td style="text-align:right;"> 0.124 </td>
+   <td style="text-align:right;"> 369 </td>
+   <td style="text-align:left;"> CHEESE,ROQUEFORT </td>
+   <td style="text-align:left;"> 01039 </td>
+   <td style="text-align:right;"> -4892.506 </td>
+   <td style="text-align:right;"> -0.7625507 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> SPICES </td>
+   <td style="text-align:right;"> 1 </td>
+   <td style="text-align:right;"> 0.70 </td>
+   <td style="text-align:right;"> 0.70 </td>
+   <td style="text-align:right;"> 9.03 </td>
+   <td style="text-align:right;"> 4.07 </td>
+   <td style="text-align:right;"> 76 </td>
+   <td style="text-align:right;"> 0 </td>
+   <td style="text-align:right;"> 2.157 </td>
+   <td style="text-align:right;"> 22.98 </td>
+   <td style="text-align:right;"> 2240 </td>
+   <td style="text-align:right;"> 89.80 </td>
+   <td style="text-align:right;"> 711 </td>
+   <td style="text-align:right;"> 274 </td>
+   <td style="text-align:right;"> 2630 </td>
+   <td style="text-align:right;"> 7.10 </td>
+   <td style="text-align:right;"> 2.100 </td>
+   <td style="text-align:right;"> 9.800 </td>
+   <td style="text-align:right;"> 3.0 </td>
+   <td style="text-align:right;"> 0.8 </td>
+   <td style="text-align:right;"> 0.080 </td>
+   <td style="text-align:right;"> 1.200 </td>
+   <td style="text-align:right;"> 4.900 </td>
+   <td style="text-align:right;"> 0.838 </td>
+   <td style="text-align:right;"> 1.340 </td>
+   <td style="text-align:right;"> 233 </td>
+   <td style="text-align:left;"> SPICES,BASIL,DRIED </td>
+   <td style="text-align:left;"> 02003 </td>
+   <td style="text-align:right;"> -4643.583 </td>
+   <td style="text-align:right;"> -0.2866766 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> RAVIOLI </td>
+   <td style="text-align:right;"> 1 </td>
+   <td style="text-align:right;"> 242.00 </td>
+   <td style="text-align:right;"> 242.00 </td>
+   <td style="text-align:right;"> 7.63 </td>
+   <td style="text-align:right;"> 1.45 </td>
+   <td style="text-align:right;"> 306 </td>
+   <td style="text-align:right;"> 3 </td>
+   <td style="text-align:right;"> 0.723 </td>
+   <td style="text-align:right;"> 2.48 </td>
+   <td style="text-align:right;"> 33 </td>
+   <td style="text-align:right;"> 0.74 </td>
+   <td style="text-align:right;"> 15 </td>
+   <td style="text-align:right;"> 50 </td>
+   <td style="text-align:right;"> 232 </td>
+   <td style="text-align:right;"> 0.36 </td>
+   <td style="text-align:right;"> 0.142 </td>
+   <td style="text-align:right;"> 0.176 </td>
+   <td style="text-align:right;"> 3.5 </td>
+   <td style="text-align:right;"> 0.0 </td>
+   <td style="text-align:right;"> 0.074 </td>
+   <td style="text-align:right;"> 0.080 </td>
+   <td style="text-align:right;"> 1.060 </td>
+   <td style="text-align:right;"> 0.272 </td>
+   <td style="text-align:right;"> 0.102 </td>
+   <td style="text-align:right;"> 77 </td>
+   <td style="text-align:left;"> RAVIOLI,CHEESE-FILLED,CND </td>
+   <td style="text-align:left;"> 22899 </td>
+   <td style="text-align:right;"> -4617.693 </td>
+   <td style="text-align:right;"> -0.2371810 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> LUXURY LOAF </td>
+   <td style="text-align:right;"> 1 </td>
+   <td style="text-align:right;"> 28.00 </td>
+   <td style="text-align:right;"> 28.00 </td>
+   <td style="text-align:right;"> 4.64 </td>
+   <td style="text-align:right;"> 4.80 </td>
+   <td style="text-align:right;"> 1225 </td>
+   <td style="text-align:right;"> 36 </td>
+   <td style="text-align:right;"> 1.580 </td>
+   <td style="text-align:right;"> 18.40 </td>
+   <td style="text-align:right;"> 36 </td>
+   <td style="text-align:right;"> 1.05 </td>
+   <td style="text-align:right;"> 20 </td>
+   <td style="text-align:right;"> 185 </td>
+   <td style="text-align:right;"> 377 </td>
+   <td style="text-align:right;"> 3.05 </td>
+   <td style="text-align:right;"> 0.100 </td>
+   <td style="text-align:right;"> 0.041 </td>
+   <td style="text-align:right;"> 21.5 </td>
+   <td style="text-align:right;"> 0.0 </td>
+   <td style="text-align:right;"> 0.707 </td>
+   <td style="text-align:right;"> 0.297 </td>
+   <td style="text-align:right;"> 3.482 </td>
+   <td style="text-align:right;"> 0.515 </td>
+   <td style="text-align:right;"> 0.310 </td>
+   <td style="text-align:right;"> 141 </td>
+   <td style="text-align:left;"> LUXURY LOAF,PORK </td>
+   <td style="text-align:left;"> 07060 </td>
+   <td style="text-align:right;"> -4852.980 </td>
+   <td style="text-align:right;"> -0.6869870 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> CANDIES </td>
+   <td style="text-align:right;"> 1 </td>
+   <td style="text-align:right;"> 14.50 </td>
+   <td style="text-align:right;"> 14.50 </td>
+   <td style="text-align:right;"> 9.99 </td>
+   <td style="text-align:right;"> 30.00 </td>
+   <td style="text-align:right;"> 11 </td>
+   <td style="text-align:right;"> 0 </td>
+   <td style="text-align:right;"> 17.750 </td>
+   <td style="text-align:right;"> 4.20 </td>
+   <td style="text-align:right;"> 32 </td>
+   <td style="text-align:right;"> 3.13 </td>
+   <td style="text-align:right;"> 115 </td>
+   <td style="text-align:right;"> 132 </td>
+   <td style="text-align:right;"> 365 </td>
+   <td style="text-align:right;"> 1.62 </td>
+   <td style="text-align:right;"> 0.700 </td>
+   <td style="text-align:right;"> 0.800 </td>
+   <td style="text-align:right;"> 4.2 </td>
+   <td style="text-align:right;"> 0.0 </td>
+   <td style="text-align:right;"> 0.055 </td>
+   <td style="text-align:right;"> 0.090 </td>
+   <td style="text-align:right;"> 0.427 </td>
+   <td style="text-align:right;"> 0.105 </td>
+   <td style="text-align:right;"> 0.035 </td>
+   <td style="text-align:right;"> 480 </td>
+   <td style="text-align:left;"> CANDIES,SEMISWEET CHOC </td>
+   <td style="text-align:left;"> 19080 </td>
+   <td style="text-align:right;"> -4597.911 </td>
+   <td style="text-align:right;"> -0.1993645 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> ONIONS </td>
+   <td style="text-align:right;"> 1 </td>
+   <td style="text-align:right;"> 210.00 </td>
+   <td style="text-align:right;"> 210.00 </td>
+   <td style="text-align:right;"> 4.83 </td>
+   <td style="text-align:right;"> 0.05 </td>
+   <td style="text-align:right;"> 8 </td>
+   <td style="text-align:right;"> 0 </td>
+   <td style="text-align:right;"> 0.009 </td>
+   <td style="text-align:right;"> 0.71 </td>
+   <td style="text-align:right;"> 27 </td>
+   <td style="text-align:right;"> 0.34 </td>
+   <td style="text-align:right;"> 8 </td>
+   <td style="text-align:right;"> 2 </td>
+   <td style="text-align:right;"> 101 </td>
+   <td style="text-align:right;"> 0.09 </td>
+   <td style="text-align:right;"> 0.024 </td>
+   <td style="text-align:right;"> 0.040 </td>
+   <td style="text-align:right;"> 0.4 </td>
+   <td style="text-align:right;"> 5.1 </td>
+   <td style="text-align:right;"> 0.016 </td>
+   <td style="text-align:right;"> 0.018 </td>
+   <td style="text-align:right;"> 0.132 </td>
+   <td style="text-align:right;"> 0.078 </td>
+   <td style="text-align:right;"> 0.070 </td>
+   <td style="text-align:right;"> 28 </td>
+   <td style="text-align:left;"> ONIONS,FRZ,WHL,CKD,BLD,DRND,WO/SALT </td>
+   <td style="text-align:left;"> 11290 </td>
+   <td style="text-align:right;"> -4397.386 </td>
+   <td style="text-align:right;"> 0.1839856 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> PIZZA HUT 14&quot; PEPPERONI PIZZA </td>
+   <td style="text-align:right;"> 1 </td>
+   <td style="text-align:right;"> 113.00 </td>
+   <td style="text-align:right;"> 113.00 </td>
+   <td style="text-align:right;"> 5.69 </td>
+   <td style="text-align:right;"> 13.07 </td>
+   <td style="text-align:right;"> 676 </td>
+   <td style="text-align:right;"> 23 </td>
+   <td style="text-align:right;"> 4.823 </td>
+   <td style="text-align:right;"> 11.47 </td>
+   <td style="text-align:right;"> 147 </td>
+   <td style="text-align:right;"> 2.57 </td>
+   <td style="text-align:right;"> 22 </td>
+   <td style="text-align:right;"> 193 </td>
+   <td style="text-align:right;"> 187 </td>
+   <td style="text-align:right;"> 1.36 </td>
+   <td style="text-align:right;"> 0.104 </td>
+   <td style="text-align:right;"> 0.425 </td>
+   <td style="text-align:right;"> 15.5 </td>
+   <td style="text-align:right;"> 1.0 </td>
+   <td style="text-align:right;"> 0.420 </td>
+   <td style="text-align:right;"> 0.210 </td>
+   <td style="text-align:right;"> 3.750 </td>
+   <td style="text-align:right;"> 0.323 </td>
+   <td style="text-align:right;"> 0.090 </td>
+   <td style="text-align:right;"> 291 </td>
+   <td style="text-align:left;"> PIZZA HUT 14&quot; PEPPERONI PIZZA,PAN CRUST </td>
+   <td style="text-align:left;"> 21297 </td>
+   <td style="text-align:right;"> -4832.658 </td>
+   <td style="text-align:right;"> -0.6481376 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> BEANS </td>
+   <td style="text-align:right;"> 1 </td>
+   <td style="text-align:right;"> 104.00 </td>
+   <td style="text-align:right;"> 104.00 </td>
+   <td style="text-align:right;"> 8.77 </td>
+   <td style="text-align:right;"> 0.70 </td>
+   <td style="text-align:right;"> 13 </td>
+   <td style="text-align:right;"> 0 </td>
+   <td style="text-align:right;"> 0.085 </td>
+   <td style="text-align:right;"> 6.15 </td>
+   <td style="text-align:right;"> 15 </td>
+   <td style="text-align:right;"> 1.93 </td>
+   <td style="text-align:right;"> 101 </td>
+   <td style="text-align:right;"> 100 </td>
+   <td style="text-align:right;"> 307 </td>
+   <td style="text-align:right;"> 0.89 </td>
+   <td style="text-align:right;"> 0.356 </td>
+   <td style="text-align:right;"> 0.408 </td>
+   <td style="text-align:right;"> 0.6 </td>
+   <td style="text-align:right;"> 18.8 </td>
+   <td style="text-align:right;"> 0.390 </td>
+   <td style="text-align:right;"> 0.215 </td>
+   <td style="text-align:right;"> 1.220 </td>
+   <td style="text-align:right;"> 0.825 </td>
+   <td style="text-align:right;"> 0.191 </td>
+   <td style="text-align:right;"> 67 </td>
+   <td style="text-align:left;"> BEANS,NAVY,MATURE SEEDS,SPROUTED,RAW </td>
+   <td style="text-align:left;"> 11046 </td>
+   <td style="text-align:right;"> -4122.162 </td>
+   <td style="text-align:right;"> 0.7101393 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> GRAPE JUC </td>
+   <td style="text-align:right;"> 1 </td>
+   <td style="text-align:right;"> 253.00 </td>
+   <td style="text-align:right;"> 253.00 </td>
+   <td style="text-align:right;"> 4.53 </td>
+   <td style="text-align:right;"> 0.13 </td>
+   <td style="text-align:right;"> 5 </td>
+   <td style="text-align:right;"> 0 </td>
+   <td style="text-align:right;"> 0.025 </td>
+   <td style="text-align:right;"> 0.37 </td>
+   <td style="text-align:right;"> 11 </td>
+   <td style="text-align:right;"> 0.25 </td>
+   <td style="text-align:right;"> 10 </td>
+   <td style="text-align:right;"> 14 </td>
+   <td style="text-align:right;"> 104 </td>
+   <td style="text-align:right;"> 0.07 </td>
+   <td style="text-align:right;"> 0.018 </td>
+   <td style="text-align:right;"> 0.239 </td>
+   <td style="text-align:right;"> 0.0 </td>
+   <td style="text-align:right;"> 0.1 </td>
+   <td style="text-align:right;"> 0.017 </td>
+   <td style="text-align:right;"> 0.015 </td>
+   <td style="text-align:right;"> 0.133 </td>
+   <td style="text-align:right;"> 0.048 </td>
+   <td style="text-align:right;"> 0.032 </td>
+   <td style="text-align:right;"> 60 </td>
+   <td style="text-align:left;"> GRAPE JUC,CND OR BTLD,UNSWTND,WO/ ADDED VIT C </td>
+   <td style="text-align:left;"> 09135 </td>
+   <td style="text-align:right;"> -4343.103 </td>
+   <td style="text-align:right;"> 0.2877596 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> PIE </td>
+   <td style="text-align:right;"> 1 </td>
+   <td style="text-align:right;"> 28.35 </td>
+   <td style="text-align:right;"> 28.35 </td>
+   <td style="text-align:right;"> 1.75 </td>
+   <td style="text-align:right;"> 12.50 </td>
+   <td style="text-align:right;"> 211 </td>
+   <td style="text-align:right;"> 0 </td>
+   <td style="text-align:right;"> 3.050 </td>
+   <td style="text-align:right;"> 2.40 </td>
+   <td style="text-align:right;"> 7 </td>
+   <td style="text-align:right;"> 1.12 </td>
+   <td style="text-align:right;"> 7 </td>
+   <td style="text-align:right;"> 28 </td>
+   <td style="text-align:right;"> 79 </td>
+   <td style="text-align:right;"> 0.19 </td>
+   <td style="text-align:right;"> 0.053 </td>
+   <td style="text-align:right;"> 0.185 </td>
+   <td style="text-align:right;"> 7.8 </td>
+   <td style="text-align:right;"> 1.7 </td>
+   <td style="text-align:right;"> 0.148 </td>
+   <td style="text-align:right;"> 0.107 </td>
+   <td style="text-align:right;"> 1.230 </td>
+   <td style="text-align:right;"> 0.093 </td>
+   <td style="text-align:right;"> 0.032 </td>
+   <td style="text-align:right;"> 265 </td>
+   <td style="text-align:left;"> PIE,APPL,PREP FROM RECIPE </td>
+   <td style="text-align:left;"> 18302 </td>
+   <td style="text-align:right;"> -4710.654 </td>
+   <td style="text-align:right;"> -0.4148992 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> PORK </td>
+   <td style="text-align:right;"> 1 </td>
+   <td style="text-align:right;"> 85.00 </td>
+   <td style="text-align:right;"> 85.00 </td>
+   <td style="text-align:right;"> 2.46 </td>
+   <td style="text-align:right;"> 2.59 </td>
+   <td style="text-align:right;"> 63 </td>
+   <td style="text-align:right;"> 63 </td>
+   <td style="text-align:right;"> 0.906 </td>
+   <td style="text-align:right;"> 22.81 </td>
+   <td style="text-align:right;"> 9 </td>
+   <td style="text-align:right;"> 0.56 </td>
+   <td style="text-align:right;"> 23 </td>
+   <td style="text-align:right;"> 251 </td>
+   <td style="text-align:right;"> 354 </td>
+   <td style="text-align:right;"> 1.72 </td>
+   <td style="text-align:right;"> 0.069 </td>
+   <td style="text-align:right;"> 0.011 </td>
+   <td style="text-align:right;"> 37.4 </td>
+   <td style="text-align:right;"> 0.0 </td>
+   <td style="text-align:right;"> 0.610 </td>
+   <td style="text-align:right;"> 0.256 </td>
+   <td style="text-align:right;"> 7.348 </td>
+   <td style="text-align:right;"> 0.728 </td>
+   <td style="text-align:right;"> 0.611 </td>
+   <td style="text-align:right;"> 121 </td>
+   <td style="text-align:left;"> PORK,FRSH,LOIN,SIRLOIN (CHOPS OR ROASTS),BNLESS,LN,RAW </td>
+   <td style="text-align:left;"> 10214 </td>
+   <td style="text-align:right;"> -4192.317 </td>
+   <td style="text-align:right;"> 0.5760225 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> FAST FOODS </td>
+   <td style="text-align:right;"> 1 </td>
+   <td style="text-align:right;"> 226.00 </td>
+   <td style="text-align:right;"> 226.00 </td>
+   <td style="text-align:right;"> 5.02 </td>
+   <td style="text-align:right;"> 11.75 </td>
+   <td style="text-align:right;"> 350 </td>
+   <td style="text-align:right;"> 54 </td>
+   <td style="text-align:right;"> 4.654 </td>
+   <td style="text-align:right;"> 15.17 </td>
+   <td style="text-align:right;"> 45 </td>
+   <td style="text-align:right;"> 2.59 </td>
+   <td style="text-align:right;"> 22 </td>
+   <td style="text-align:right;"> 139 </td>
+   <td style="text-align:right;"> 252 </td>
+   <td style="text-align:right;"> 2.51 </td>
+   <td style="text-align:right;"> 0.097 </td>
+   <td style="text-align:right;"> 0.110 </td>
+   <td style="text-align:right;"> 11.3 </td>
+   <td style="text-align:right;"> 0.5 </td>
+   <td style="text-align:right;"> 0.160 </td>
+   <td style="text-align:right;"> 0.170 </td>
+   <td style="text-align:right;"> 3.350 </td>
+   <td style="text-align:right;"> 0.240 </td>
+   <td style="text-align:right;"> 0.240 </td>
+   <td style="text-align:right;"> 239 </td>
+   <td style="text-align:left;"> FAST FOODS,HAMBURGER; DOUBLE,LRG PATTY; W/ CONDMNT &amp; VEG </td>
+   <td style="text-align:left;"> 21114 </td>
+   <td style="text-align:right;"> -4517.685 </td>
+   <td style="text-align:right;"> -0.0459943 </td>
+  </tr>
+</tbody>
+</table>
 
 
 #### Solve nutrients
@@ -523,34 +3615,147 @@ our_solved_nutrients <- our_menu_solution %>% solve_nutrients()
 ```
 
 ```r
-our_solved_nutrients %>% kable()
+our_solved_nutrients %>% kable(format = "html")
 ```
 
-
-
-nutrient        is_must_restrict    required_value   solution_nutrient_value
---------------  -----------------  ---------------  ------------------------
-Lipid_Tot_g     TRUE                            65                 91.337680
-Sodium_mg       TRUE                          2400               4269.667000
-Cholestrl_mg    TRUE                           300                399.285000
-FA_Sat_g        TRUE                            20                 38.956894
-Protein_g       FALSE                           56                143.787350
-Calcium_mg      FALSE                         1000               1019.891500
-Iron_mg         FALSE                           18                 21.990730
-Magnesium_mg    FALSE                          400                432.931500
-Phosphorus_mg   FALSE                         1000               2032.328000
-Potassium_mg    FALSE                         3500               3677.960000
-Zinc_mg         FALSE                           15                 16.206145
-Copper_mg       FALSE                            2                  2.316085
-Manganese_mg    FALSE                            2                  3.516592
-Selenium_µg     FALSE                           70                173.897050
-Vit_C_mg        FALSE                           60                 70.397550
-Thiamin_mg      FALSE                            2                  2.861833
-Riboflavin_mg   FALSE                            2                  2.313175
-Niacin_mg       FALSE                           20                 34.651609
-Panto_Acid_mg   FALSE                           10                  5.334605
-Vit_B6_mg       FALSE                            2                  2.381441
-Energ_Kcal      FALSE                         2300               2681.570000
+<table>
+ <thead>
+  <tr>
+   <th style="text-align:left;"> nutrient </th>
+   <th style="text-align:left;"> is_must_restrict </th>
+   <th style="text-align:right;"> required_value </th>
+   <th style="text-align:right;"> solution_nutrient_value </th>
+  </tr>
+ </thead>
+<tbody>
+  <tr>
+   <td style="text-align:left;"> Lipid_Tot_g </td>
+   <td style="text-align:left;"> TRUE </td>
+   <td style="text-align:right;"> 65 </td>
+   <td style="text-align:right;"> 91.337680 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> Sodium_mg </td>
+   <td style="text-align:left;"> TRUE </td>
+   <td style="text-align:right;"> 2400 </td>
+   <td style="text-align:right;"> 4269.667000 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> Cholestrl_mg </td>
+   <td style="text-align:left;"> TRUE </td>
+   <td style="text-align:right;"> 300 </td>
+   <td style="text-align:right;"> 399.285000 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> FA_Sat_g </td>
+   <td style="text-align:left;"> TRUE </td>
+   <td style="text-align:right;"> 20 </td>
+   <td style="text-align:right;"> 38.956894 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> Protein_g </td>
+   <td style="text-align:left;"> FALSE </td>
+   <td style="text-align:right;"> 56 </td>
+   <td style="text-align:right;"> 143.787350 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> Calcium_mg </td>
+   <td style="text-align:left;"> FALSE </td>
+   <td style="text-align:right;"> 1000 </td>
+   <td style="text-align:right;"> 1019.891500 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> Iron_mg </td>
+   <td style="text-align:left;"> FALSE </td>
+   <td style="text-align:right;"> 18 </td>
+   <td style="text-align:right;"> 21.990730 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> Magnesium_mg </td>
+   <td style="text-align:left;"> FALSE </td>
+   <td style="text-align:right;"> 400 </td>
+   <td style="text-align:right;"> 432.931500 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> Phosphorus_mg </td>
+   <td style="text-align:left;"> FALSE </td>
+   <td style="text-align:right;"> 1000 </td>
+   <td style="text-align:right;"> 2032.328000 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> Potassium_mg </td>
+   <td style="text-align:left;"> FALSE </td>
+   <td style="text-align:right;"> 3500 </td>
+   <td style="text-align:right;"> 3677.960000 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> Zinc_mg </td>
+   <td style="text-align:left;"> FALSE </td>
+   <td style="text-align:right;"> 15 </td>
+   <td style="text-align:right;"> 16.206145 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> Copper_mg </td>
+   <td style="text-align:left;"> FALSE </td>
+   <td style="text-align:right;"> 2 </td>
+   <td style="text-align:right;"> 2.316085 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> Manganese_mg </td>
+   <td style="text-align:left;"> FALSE </td>
+   <td style="text-align:right;"> 2 </td>
+   <td style="text-align:right;"> 3.516592 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> Selenium_µg </td>
+   <td style="text-align:left;"> FALSE </td>
+   <td style="text-align:right;"> 70 </td>
+   <td style="text-align:right;"> 173.897050 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> Vit_C_mg </td>
+   <td style="text-align:left;"> FALSE </td>
+   <td style="text-align:right;"> 60 </td>
+   <td style="text-align:right;"> 70.397550 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> Thiamin_mg </td>
+   <td style="text-align:left;"> FALSE </td>
+   <td style="text-align:right;"> 2 </td>
+   <td style="text-align:right;"> 2.861833 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> Riboflavin_mg </td>
+   <td style="text-align:left;"> FALSE </td>
+   <td style="text-align:right;"> 2 </td>
+   <td style="text-align:right;"> 2.313175 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> Niacin_mg </td>
+   <td style="text-align:left;"> FALSE </td>
+   <td style="text-align:right;"> 20 </td>
+   <td style="text-align:right;"> 34.651609 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> Panto_Acid_mg </td>
+   <td style="text-align:left;"> FALSE </td>
+   <td style="text-align:right;"> 10 </td>
+   <td style="text-align:right;"> 5.334605 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> Vit_B6_mg </td>
+   <td style="text-align:left;"> FALSE </td>
+   <td style="text-align:right;"> 2 </td>
+   <td style="text-align:right;"> 2.381441 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> Energ_Kcal </td>
+   <td style="text-align:left;"> FALSE </td>
+   <td style="text-align:right;"> 2300 </td>
+   <td style="text-align:right;"> 2681.570000 </td>
+  </tr>
+</tbody>
+</table>
 
 
 
@@ -560,37 +3765,629 @@ Single swap
 
 
 ```r
-our_random_menu %>% do_single_swap() %>% kable()
+our_random_menu %>% do_single_swap() %>% kable(format = "html")
 ```
 
-
-
-shorter_desc                     solution_amounts   GmWt_1   serving_gmwt   cost   Lipid_Tot_g   Sodium_mg   Cholestrl_mg   FA_Sat_g   Protein_g   Calcium_mg   Iron_mg   Magnesium_mg   Phosphorus_mg   Potassium_mg   Zinc_mg   Copper_mg   Manganese_mg   Selenium_µg   Vit_C_mg   Thiamin_mg   Riboflavin_mg   Niacin_mg   Panto_Acid_mg   Vit_B6_mg   Energ_Kcal  Shrt_Desc                                                  NDB_No        score   scaled_score
-------------------------------  -----------------  -------  -------------  -----  ------------  ----------  -------------  ---------  ----------  -----------  --------  -------------  --------------  -------------  --------  ----------  -------------  ------------  ---------  -----------  --------------  ----------  --------------  ----------  -----------  ---------------------------------------------------------  -------  ----------  -------------
-RUTABAGAS                                       1   170.00         170.00   2.26          0.18           5              0      0.029        0.93           18      0.18             10              41            216      0.12       0.029          0.097           0.7       18.8        0.082           0.041       0.715           0.155       0.102           30  RUTABAGAS,CKD,BLD,DRND,WO/SALT                             11436     -2861.039      0.6147894
-SALMON                                          1    85.00          85.00   9.02          7.31          75             44      1.644       20.47          239      1.06             29             326            377      1.02       0.084          0.030          35.4        0.0        0.016           0.193       5.480           0.550       0.300          153  SALMON,SOCKEYE,CND,WO/SALT,DRND SOL W/BONE                 15182     -3913.498      1.1090489
-BROADBEANS                                      1   109.00         109.00   3.93          0.60          50              0      0.138        5.60           22      1.90             38              95            250      0.58       0.074          0.320           1.2       33.0        0.170           0.110       1.500           0.086       0.038           72  BROADBEANS,IMMAT SEEDS,RAW                                 11088     -4250.264      0.4652428
-GELATIN DSSRT                                   1    85.00          85.00   1.96          0.00         466              0      0.000        7.80            3      0.13              2             141              7      0.01       0.118          0.011           6.7        0.0        0.003           0.041       0.009           0.014       0.001          381  GELATIN DSSRT,DRY MIX                                      19172     -4938.439     -0.8503611
-COWPEAS                                         1   171.00         171.00   2.77          0.71         255              0      0.185        8.13           26      3.05             96             142            375      1.87       0.271          0.473           2.5        0.4        0.162           0.046       0.714           0.386       0.092          117  COWPEAS,CATJANG,MATURE SEEDS,CKD,BLD,W/SALT                16361     -2687.950      0.9456888
-CRACKERS                                        1    30.00          30.00   3.41         11.67        1167              0      3.333       10.00           67      4.80             22             162            141      0.90       0.118          0.517          26.2        0.0        1.087           0.750       7.170           0.528       0.044          418  CRACKERS,CHS,RED FAT                                       18965     -4906.367     -0.7890484
-PORK                                            1   113.00         113.00   8.52         32.93          94            100     11.311       22.83           20      1.15             19             192            280      2.58       0.038          0.013          38.0        0.0        0.341           0.488       7.522           0.984       0.508          393  PORK,GROUND,72% LN / 28% FAT,CKD,CRUMBLES                  10974     -2981.649      0.3842142
-SPICES                                          1     0.70           0.70   9.03          4.07          76              0      2.157       22.98         2240     89.80            711             274           2630      7.10       2.100          9.800           3.0        0.8        0.080           1.200       4.900           0.838       1.340          233  SPICES,BASIL,DRIED                                         02003     -4643.583     -0.2866766
-RAVIOLI                                         1   242.00         242.00   7.63          1.45         306              3      0.723        2.48           33      0.74             15              50            232      0.36       0.142          0.176           3.5        0.0        0.074           0.080       1.060           0.272       0.102           77  RAVIOLI,CHEESE-FILLED,CND                                  22899     -4617.693     -0.2371810
-LUXURY LOAF                                     1    28.00          28.00   4.64          4.80        1225             36      1.580       18.40           36      1.05             20             185            377      3.05       0.100          0.041          21.5        0.0        0.707           0.297       3.482           0.515       0.310          141  LUXURY LOAF,PORK                                           07060     -4852.980     -0.6869870
-BEVERAGES                                       1   240.00         240.00   7.47          1.04          63              0      0.000        0.42          188      0.30              7               8             50      0.63       0.017          0.033           0.1        0.0        0.015           0.177       0.075           0.009       0.003           38  BEVERAGES,ALMOND MILK,SWTND,VANILLA FLAVOR,RTD             14016     -2916.226      0.5092852
-ONIONS                                          1   210.00         210.00   4.83          0.05           8              0      0.009        0.71           27      0.34              8               2            101      0.09       0.024          0.040           0.4        5.1        0.016           0.018       0.132           0.078       0.070           28  ONIONS,FRZ,WHL,CKD,BLD,DRND,WO/SALT                        11290     -4397.386      0.1839856
-PIZZA HUT 14" PEPPERONI PIZZA                   1   113.00         113.00   5.69         13.07         676             23      4.823       11.47          147      2.57             22             193            187      1.36       0.104          0.425          15.5        1.0        0.420           0.210       3.750           0.323       0.090          291  PIZZA HUT 14" PEPPERONI PIZZA,PAN CRUST                    21297     -4832.658     -0.6481376
-BEANS                                           1   104.00         104.00   8.77          0.70          13              0      0.085        6.15           15      1.93            101             100            307      0.89       0.356          0.408           0.6       18.8        0.390           0.215       1.220           0.825       0.191           67  BEANS,NAVY,MATURE SEEDS,SPROUTED,RAW                       11046     -4122.162      0.7101393
-GRAPE JUC                                       1   253.00         253.00   4.53          0.13           5              0      0.025        0.37           11      0.25             10              14            104      0.07       0.018          0.239           0.0        0.1        0.017           0.015       0.133           0.048       0.032           60  GRAPE JUC,CND OR BTLD,UNSWTND,WO/ ADDED VIT C              09135     -4343.103      0.2877596
-PIE                                             1    28.35          28.35   1.75         12.50         211              0      3.050        2.40            7      1.12              7              28             79      0.19       0.053          0.185           7.8        1.7        0.148           0.107       1.230           0.093       0.032          265  PIE,APPL,PREP FROM RECIPE                                  18302     -4710.654     -0.4148992
-PORK                                            1    85.00          85.00   2.46          2.59          63             63      0.906       22.81            9      0.56             23             251            354      1.72       0.069          0.011          37.4        0.0        0.610           0.256       7.348           0.728       0.611          121  PORK,FRSH,LOIN,SIRLOIN (CHOPS OR ROASTS),BNLESS,LN,RAW     10214     -4192.317      0.5760225
-FAST FOODS                                      1   226.00         226.00   5.02         11.75         350             54      4.654       15.17           45      2.59             22             139            252      2.51       0.097          0.110          11.3        0.5        0.160           0.170       3.350           0.240       0.240          239  FAST FOODS,HAMBURGER; DOUBLE,LRG PATTY; W/ CONDMNT & VEG   21114     -4517.685     -0.0459943
+<table>
+ <thead>
+  <tr>
+   <th style="text-align:left;"> shorter_desc </th>
+   <th style="text-align:right;"> solution_amounts </th>
+   <th style="text-align:right;"> GmWt_1 </th>
+   <th style="text-align:right;"> serving_gmwt </th>
+   <th style="text-align:right;"> cost </th>
+   <th style="text-align:right;"> Lipid_Tot_g </th>
+   <th style="text-align:right;"> Sodium_mg </th>
+   <th style="text-align:right;"> Cholestrl_mg </th>
+   <th style="text-align:right;"> FA_Sat_g </th>
+   <th style="text-align:right;"> Protein_g </th>
+   <th style="text-align:right;"> Calcium_mg </th>
+   <th style="text-align:right;"> Iron_mg </th>
+   <th style="text-align:right;"> Magnesium_mg </th>
+   <th style="text-align:right;"> Phosphorus_mg </th>
+   <th style="text-align:right;"> Potassium_mg </th>
+   <th style="text-align:right;"> Zinc_mg </th>
+   <th style="text-align:right;"> Copper_mg </th>
+   <th style="text-align:right;"> Manganese_mg </th>
+   <th style="text-align:right;"> Selenium_µg </th>
+   <th style="text-align:right;"> Vit_C_mg </th>
+   <th style="text-align:right;"> Thiamin_mg </th>
+   <th style="text-align:right;"> Riboflavin_mg </th>
+   <th style="text-align:right;"> Niacin_mg </th>
+   <th style="text-align:right;"> Panto_Acid_mg </th>
+   <th style="text-align:right;"> Vit_B6_mg </th>
+   <th style="text-align:right;"> Energ_Kcal </th>
+   <th style="text-align:left;"> Shrt_Desc </th>
+   <th style="text-align:left;"> NDB_No </th>
+   <th style="text-align:right;"> score </th>
+   <th style="text-align:right;"> scaled_score </th>
+  </tr>
+ </thead>
+<tbody>
+  <tr>
+   <td style="text-align:left;"> RUTABAGAS </td>
+   <td style="text-align:right;"> 1 </td>
+   <td style="text-align:right;"> 170.00 </td>
+   <td style="text-align:right;"> 170.00 </td>
+   <td style="text-align:right;"> 7.72 </td>
+   <td style="text-align:right;"> 0.18 </td>
+   <td style="text-align:right;"> 5 </td>
+   <td style="text-align:right;"> 0 </td>
+   <td style="text-align:right;"> 0.029 </td>
+   <td style="text-align:right;"> 0.93 </td>
+   <td style="text-align:right;"> 18 </td>
+   <td style="text-align:right;"> 0.18 </td>
+   <td style="text-align:right;"> 10 </td>
+   <td style="text-align:right;"> 41 </td>
+   <td style="text-align:right;"> 216 </td>
+   <td style="text-align:right;"> 0.12 </td>
+   <td style="text-align:right;"> 0.029 </td>
+   <td style="text-align:right;"> 0.097 </td>
+   <td style="text-align:right;"> 0.7 </td>
+   <td style="text-align:right;"> 18.8 </td>
+   <td style="text-align:right;"> 0.082 </td>
+   <td style="text-align:right;"> 0.041 </td>
+   <td style="text-align:right;"> 0.715 </td>
+   <td style="text-align:right;"> 0.155 </td>
+   <td style="text-align:right;"> 0.102 </td>
+   <td style="text-align:right;"> 30 </td>
+   <td style="text-align:left;"> RUTABAGAS,CKD,BLD,DRND,WO/SALT </td>
+   <td style="text-align:left;"> 11436 </td>
+   <td style="text-align:right;"> -2861.039 </td>
+   <td style="text-align:right;"> 0.6147894 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> SALMON </td>
+   <td style="text-align:right;"> 1 </td>
+   <td style="text-align:right;"> 85.00 </td>
+   <td style="text-align:right;"> 85.00 </td>
+   <td style="text-align:right;"> 9.02 </td>
+   <td style="text-align:right;"> 7.31 </td>
+   <td style="text-align:right;"> 75 </td>
+   <td style="text-align:right;"> 44 </td>
+   <td style="text-align:right;"> 1.644 </td>
+   <td style="text-align:right;"> 20.47 </td>
+   <td style="text-align:right;"> 239 </td>
+   <td style="text-align:right;"> 1.06 </td>
+   <td style="text-align:right;"> 29 </td>
+   <td style="text-align:right;"> 326 </td>
+   <td style="text-align:right;"> 377 </td>
+   <td style="text-align:right;"> 1.02 </td>
+   <td style="text-align:right;"> 0.084 </td>
+   <td style="text-align:right;"> 0.030 </td>
+   <td style="text-align:right;"> 35.4 </td>
+   <td style="text-align:right;"> 0.0 </td>
+   <td style="text-align:right;"> 0.016 </td>
+   <td style="text-align:right;"> 0.193 </td>
+   <td style="text-align:right;"> 5.480 </td>
+   <td style="text-align:right;"> 0.550 </td>
+   <td style="text-align:right;"> 0.300 </td>
+   <td style="text-align:right;"> 153 </td>
+   <td style="text-align:left;"> SALMON,SOCKEYE,CND,WO/SALT,DRND SOL W/BONE </td>
+   <td style="text-align:left;"> 15182 </td>
+   <td style="text-align:right;"> -3913.498 </td>
+   <td style="text-align:right;"> 1.1090489 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> BROADBEANS </td>
+   <td style="text-align:right;"> 1 </td>
+   <td style="text-align:right;"> 109.00 </td>
+   <td style="text-align:right;"> 109.00 </td>
+   <td style="text-align:right;"> 3.93 </td>
+   <td style="text-align:right;"> 0.60 </td>
+   <td style="text-align:right;"> 50 </td>
+   <td style="text-align:right;"> 0 </td>
+   <td style="text-align:right;"> 0.138 </td>
+   <td style="text-align:right;"> 5.60 </td>
+   <td style="text-align:right;"> 22 </td>
+   <td style="text-align:right;"> 1.90 </td>
+   <td style="text-align:right;"> 38 </td>
+   <td style="text-align:right;"> 95 </td>
+   <td style="text-align:right;"> 250 </td>
+   <td style="text-align:right;"> 0.58 </td>
+   <td style="text-align:right;"> 0.074 </td>
+   <td style="text-align:right;"> 0.320 </td>
+   <td style="text-align:right;"> 1.2 </td>
+   <td style="text-align:right;"> 33.0 </td>
+   <td style="text-align:right;"> 0.170 </td>
+   <td style="text-align:right;"> 0.110 </td>
+   <td style="text-align:right;"> 1.500 </td>
+   <td style="text-align:right;"> 0.086 </td>
+   <td style="text-align:right;"> 0.038 </td>
+   <td style="text-align:right;"> 72 </td>
+   <td style="text-align:left;"> BROADBEANS,IMMAT SEEDS,RAW </td>
+   <td style="text-align:left;"> 11088 </td>
+   <td style="text-align:right;"> -4250.264 </td>
+   <td style="text-align:right;"> 0.4652428 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> GELATIN DSSRT </td>
+   <td style="text-align:right;"> 1 </td>
+   <td style="text-align:right;"> 85.00 </td>
+   <td style="text-align:right;"> 85.00 </td>
+   <td style="text-align:right;"> 1.96 </td>
+   <td style="text-align:right;"> 0.00 </td>
+   <td style="text-align:right;"> 466 </td>
+   <td style="text-align:right;"> 0 </td>
+   <td style="text-align:right;"> 0.000 </td>
+   <td style="text-align:right;"> 7.80 </td>
+   <td style="text-align:right;"> 3 </td>
+   <td style="text-align:right;"> 0.13 </td>
+   <td style="text-align:right;"> 2 </td>
+   <td style="text-align:right;"> 141 </td>
+   <td style="text-align:right;"> 7 </td>
+   <td style="text-align:right;"> 0.01 </td>
+   <td style="text-align:right;"> 0.118 </td>
+   <td style="text-align:right;"> 0.011 </td>
+   <td style="text-align:right;"> 6.7 </td>
+   <td style="text-align:right;"> 0.0 </td>
+   <td style="text-align:right;"> 0.003 </td>
+   <td style="text-align:right;"> 0.041 </td>
+   <td style="text-align:right;"> 0.009 </td>
+   <td style="text-align:right;"> 0.014 </td>
+   <td style="text-align:right;"> 0.001 </td>
+   <td style="text-align:right;"> 381 </td>
+   <td style="text-align:left;"> GELATIN DSSRT,DRY MIX </td>
+   <td style="text-align:left;"> 19172 </td>
+   <td style="text-align:right;"> -4938.439 </td>
+   <td style="text-align:right;"> -0.8503611 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> COWPEAS </td>
+   <td style="text-align:right;"> 1 </td>
+   <td style="text-align:right;"> 171.00 </td>
+   <td style="text-align:right;"> 171.00 </td>
+   <td style="text-align:right;"> 6.26 </td>
+   <td style="text-align:right;"> 0.71 </td>
+   <td style="text-align:right;"> 255 </td>
+   <td style="text-align:right;"> 0 </td>
+   <td style="text-align:right;"> 0.185 </td>
+   <td style="text-align:right;"> 8.13 </td>
+   <td style="text-align:right;"> 26 </td>
+   <td style="text-align:right;"> 3.05 </td>
+   <td style="text-align:right;"> 96 </td>
+   <td style="text-align:right;"> 142 </td>
+   <td style="text-align:right;"> 375 </td>
+   <td style="text-align:right;"> 1.87 </td>
+   <td style="text-align:right;"> 0.271 </td>
+   <td style="text-align:right;"> 0.473 </td>
+   <td style="text-align:right;"> 2.5 </td>
+   <td style="text-align:right;"> 0.4 </td>
+   <td style="text-align:right;"> 0.162 </td>
+   <td style="text-align:right;"> 0.046 </td>
+   <td style="text-align:right;"> 0.714 </td>
+   <td style="text-align:right;"> 0.386 </td>
+   <td style="text-align:right;"> 0.092 </td>
+   <td style="text-align:right;"> 117 </td>
+   <td style="text-align:left;"> COWPEAS,CATJANG,MATURE SEEDS,CKD,BLD,W/SALT </td>
+   <td style="text-align:left;"> 16361 </td>
+   <td style="text-align:right;"> -2687.950 </td>
+   <td style="text-align:right;"> 0.9456888 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> CRACKERS </td>
+   <td style="text-align:right;"> 1 </td>
+   <td style="text-align:right;"> 30.00 </td>
+   <td style="text-align:right;"> 30.00 </td>
+   <td style="text-align:right;"> 3.41 </td>
+   <td style="text-align:right;"> 11.67 </td>
+   <td style="text-align:right;"> 1167 </td>
+   <td style="text-align:right;"> 0 </td>
+   <td style="text-align:right;"> 3.333 </td>
+   <td style="text-align:right;"> 10.00 </td>
+   <td style="text-align:right;"> 67 </td>
+   <td style="text-align:right;"> 4.80 </td>
+   <td style="text-align:right;"> 22 </td>
+   <td style="text-align:right;"> 162 </td>
+   <td style="text-align:right;"> 141 </td>
+   <td style="text-align:right;"> 0.90 </td>
+   <td style="text-align:right;"> 0.118 </td>
+   <td style="text-align:right;"> 0.517 </td>
+   <td style="text-align:right;"> 26.2 </td>
+   <td style="text-align:right;"> 0.0 </td>
+   <td style="text-align:right;"> 1.087 </td>
+   <td style="text-align:right;"> 0.750 </td>
+   <td style="text-align:right;"> 7.170 </td>
+   <td style="text-align:right;"> 0.528 </td>
+   <td style="text-align:right;"> 0.044 </td>
+   <td style="text-align:right;"> 418 </td>
+   <td style="text-align:left;"> CRACKERS,CHS,RED FAT </td>
+   <td style="text-align:left;"> 18965 </td>
+   <td style="text-align:right;"> -4906.367 </td>
+   <td style="text-align:right;"> -0.7890484 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> PORK </td>
+   <td style="text-align:right;"> 1 </td>
+   <td style="text-align:right;"> 113.00 </td>
+   <td style="text-align:right;"> 113.00 </td>
+   <td style="text-align:right;"> 8.59 </td>
+   <td style="text-align:right;"> 32.93 </td>
+   <td style="text-align:right;"> 94 </td>
+   <td style="text-align:right;"> 100 </td>
+   <td style="text-align:right;"> 11.311 </td>
+   <td style="text-align:right;"> 22.83 </td>
+   <td style="text-align:right;"> 20 </td>
+   <td style="text-align:right;"> 1.15 </td>
+   <td style="text-align:right;"> 19 </td>
+   <td style="text-align:right;"> 192 </td>
+   <td style="text-align:right;"> 280 </td>
+   <td style="text-align:right;"> 2.58 </td>
+   <td style="text-align:right;"> 0.038 </td>
+   <td style="text-align:right;"> 0.013 </td>
+   <td style="text-align:right;"> 38.0 </td>
+   <td style="text-align:right;"> 0.0 </td>
+   <td style="text-align:right;"> 0.341 </td>
+   <td style="text-align:right;"> 0.488 </td>
+   <td style="text-align:right;"> 7.522 </td>
+   <td style="text-align:right;"> 0.984 </td>
+   <td style="text-align:right;"> 0.508 </td>
+   <td style="text-align:right;"> 393 </td>
+   <td style="text-align:left;"> PORK,GROUND,72% LN / 28% FAT,CKD,CRUMBLES </td>
+   <td style="text-align:left;"> 10974 </td>
+   <td style="text-align:right;"> -2981.649 </td>
+   <td style="text-align:right;"> 0.3842142 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> SPICES </td>
+   <td style="text-align:right;"> 1 </td>
+   <td style="text-align:right;"> 0.70 </td>
+   <td style="text-align:right;"> 0.70 </td>
+   <td style="text-align:right;"> 9.03 </td>
+   <td style="text-align:right;"> 4.07 </td>
+   <td style="text-align:right;"> 76 </td>
+   <td style="text-align:right;"> 0 </td>
+   <td style="text-align:right;"> 2.157 </td>
+   <td style="text-align:right;"> 22.98 </td>
+   <td style="text-align:right;"> 2240 </td>
+   <td style="text-align:right;"> 89.80 </td>
+   <td style="text-align:right;"> 711 </td>
+   <td style="text-align:right;"> 274 </td>
+   <td style="text-align:right;"> 2630 </td>
+   <td style="text-align:right;"> 7.10 </td>
+   <td style="text-align:right;"> 2.100 </td>
+   <td style="text-align:right;"> 9.800 </td>
+   <td style="text-align:right;"> 3.0 </td>
+   <td style="text-align:right;"> 0.8 </td>
+   <td style="text-align:right;"> 0.080 </td>
+   <td style="text-align:right;"> 1.200 </td>
+   <td style="text-align:right;"> 4.900 </td>
+   <td style="text-align:right;"> 0.838 </td>
+   <td style="text-align:right;"> 1.340 </td>
+   <td style="text-align:right;"> 233 </td>
+   <td style="text-align:left;"> SPICES,BASIL,DRIED </td>
+   <td style="text-align:left;"> 02003 </td>
+   <td style="text-align:right;"> -4643.583 </td>
+   <td style="text-align:right;"> -0.2866766 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> RAVIOLI </td>
+   <td style="text-align:right;"> 1 </td>
+   <td style="text-align:right;"> 242.00 </td>
+   <td style="text-align:right;"> 242.00 </td>
+   <td style="text-align:right;"> 7.63 </td>
+   <td style="text-align:right;"> 1.45 </td>
+   <td style="text-align:right;"> 306 </td>
+   <td style="text-align:right;"> 3 </td>
+   <td style="text-align:right;"> 0.723 </td>
+   <td style="text-align:right;"> 2.48 </td>
+   <td style="text-align:right;"> 33 </td>
+   <td style="text-align:right;"> 0.74 </td>
+   <td style="text-align:right;"> 15 </td>
+   <td style="text-align:right;"> 50 </td>
+   <td style="text-align:right;"> 232 </td>
+   <td style="text-align:right;"> 0.36 </td>
+   <td style="text-align:right;"> 0.142 </td>
+   <td style="text-align:right;"> 0.176 </td>
+   <td style="text-align:right;"> 3.5 </td>
+   <td style="text-align:right;"> 0.0 </td>
+   <td style="text-align:right;"> 0.074 </td>
+   <td style="text-align:right;"> 0.080 </td>
+   <td style="text-align:right;"> 1.060 </td>
+   <td style="text-align:right;"> 0.272 </td>
+   <td style="text-align:right;"> 0.102 </td>
+   <td style="text-align:right;"> 77 </td>
+   <td style="text-align:left;"> RAVIOLI,CHEESE-FILLED,CND </td>
+   <td style="text-align:left;"> 22899 </td>
+   <td style="text-align:right;"> -4617.693 </td>
+   <td style="text-align:right;"> -0.2371810 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> LUXURY LOAF </td>
+   <td style="text-align:right;"> 1 </td>
+   <td style="text-align:right;"> 28.00 </td>
+   <td style="text-align:right;"> 28.00 </td>
+   <td style="text-align:right;"> 4.64 </td>
+   <td style="text-align:right;"> 4.80 </td>
+   <td style="text-align:right;"> 1225 </td>
+   <td style="text-align:right;"> 36 </td>
+   <td style="text-align:right;"> 1.580 </td>
+   <td style="text-align:right;"> 18.40 </td>
+   <td style="text-align:right;"> 36 </td>
+   <td style="text-align:right;"> 1.05 </td>
+   <td style="text-align:right;"> 20 </td>
+   <td style="text-align:right;"> 185 </td>
+   <td style="text-align:right;"> 377 </td>
+   <td style="text-align:right;"> 3.05 </td>
+   <td style="text-align:right;"> 0.100 </td>
+   <td style="text-align:right;"> 0.041 </td>
+   <td style="text-align:right;"> 21.5 </td>
+   <td style="text-align:right;"> 0.0 </td>
+   <td style="text-align:right;"> 0.707 </td>
+   <td style="text-align:right;"> 0.297 </td>
+   <td style="text-align:right;"> 3.482 </td>
+   <td style="text-align:right;"> 0.515 </td>
+   <td style="text-align:right;"> 0.310 </td>
+   <td style="text-align:right;"> 141 </td>
+   <td style="text-align:left;"> LUXURY LOAF,PORK </td>
+   <td style="text-align:left;"> 07060 </td>
+   <td style="text-align:right;"> -4852.980 </td>
+   <td style="text-align:right;"> -0.6869870 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> BEVERAGES </td>
+   <td style="text-align:right;"> 1 </td>
+   <td style="text-align:right;"> 240.00 </td>
+   <td style="text-align:right;"> 240.00 </td>
+   <td style="text-align:right;"> 3.77 </td>
+   <td style="text-align:right;"> 1.04 </td>
+   <td style="text-align:right;"> 63 </td>
+   <td style="text-align:right;"> 0 </td>
+   <td style="text-align:right;"> 0.000 </td>
+   <td style="text-align:right;"> 0.42 </td>
+   <td style="text-align:right;"> 188 </td>
+   <td style="text-align:right;"> 0.30 </td>
+   <td style="text-align:right;"> 7 </td>
+   <td style="text-align:right;"> 8 </td>
+   <td style="text-align:right;"> 50 </td>
+   <td style="text-align:right;"> 0.63 </td>
+   <td style="text-align:right;"> 0.017 </td>
+   <td style="text-align:right;"> 0.033 </td>
+   <td style="text-align:right;"> 0.1 </td>
+   <td style="text-align:right;"> 0.0 </td>
+   <td style="text-align:right;"> 0.015 </td>
+   <td style="text-align:right;"> 0.177 </td>
+   <td style="text-align:right;"> 0.075 </td>
+   <td style="text-align:right;"> 0.009 </td>
+   <td style="text-align:right;"> 0.003 </td>
+   <td style="text-align:right;"> 38 </td>
+   <td style="text-align:left;"> BEVERAGES,ALMOND MILK,SWTND,VANILLA FLAVOR,RTD </td>
+   <td style="text-align:left;"> 14016 </td>
+   <td style="text-align:right;"> -2916.226 </td>
+   <td style="text-align:right;"> 0.5092852 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> ONIONS </td>
+   <td style="text-align:right;"> 1 </td>
+   <td style="text-align:right;"> 210.00 </td>
+   <td style="text-align:right;"> 210.00 </td>
+   <td style="text-align:right;"> 4.83 </td>
+   <td style="text-align:right;"> 0.05 </td>
+   <td style="text-align:right;"> 8 </td>
+   <td style="text-align:right;"> 0 </td>
+   <td style="text-align:right;"> 0.009 </td>
+   <td style="text-align:right;"> 0.71 </td>
+   <td style="text-align:right;"> 27 </td>
+   <td style="text-align:right;"> 0.34 </td>
+   <td style="text-align:right;"> 8 </td>
+   <td style="text-align:right;"> 2 </td>
+   <td style="text-align:right;"> 101 </td>
+   <td style="text-align:right;"> 0.09 </td>
+   <td style="text-align:right;"> 0.024 </td>
+   <td style="text-align:right;"> 0.040 </td>
+   <td style="text-align:right;"> 0.4 </td>
+   <td style="text-align:right;"> 5.1 </td>
+   <td style="text-align:right;"> 0.016 </td>
+   <td style="text-align:right;"> 0.018 </td>
+   <td style="text-align:right;"> 0.132 </td>
+   <td style="text-align:right;"> 0.078 </td>
+   <td style="text-align:right;"> 0.070 </td>
+   <td style="text-align:right;"> 28 </td>
+   <td style="text-align:left;"> ONIONS,FRZ,WHL,CKD,BLD,DRND,WO/SALT </td>
+   <td style="text-align:left;"> 11290 </td>
+   <td style="text-align:right;"> -4397.386 </td>
+   <td style="text-align:right;"> 0.1839856 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> PIZZA HUT 14&quot; PEPPERONI PIZZA </td>
+   <td style="text-align:right;"> 1 </td>
+   <td style="text-align:right;"> 113.00 </td>
+   <td style="text-align:right;"> 113.00 </td>
+   <td style="text-align:right;"> 5.69 </td>
+   <td style="text-align:right;"> 13.07 </td>
+   <td style="text-align:right;"> 676 </td>
+   <td style="text-align:right;"> 23 </td>
+   <td style="text-align:right;"> 4.823 </td>
+   <td style="text-align:right;"> 11.47 </td>
+   <td style="text-align:right;"> 147 </td>
+   <td style="text-align:right;"> 2.57 </td>
+   <td style="text-align:right;"> 22 </td>
+   <td style="text-align:right;"> 193 </td>
+   <td style="text-align:right;"> 187 </td>
+   <td style="text-align:right;"> 1.36 </td>
+   <td style="text-align:right;"> 0.104 </td>
+   <td style="text-align:right;"> 0.425 </td>
+   <td style="text-align:right;"> 15.5 </td>
+   <td style="text-align:right;"> 1.0 </td>
+   <td style="text-align:right;"> 0.420 </td>
+   <td style="text-align:right;"> 0.210 </td>
+   <td style="text-align:right;"> 3.750 </td>
+   <td style="text-align:right;"> 0.323 </td>
+   <td style="text-align:right;"> 0.090 </td>
+   <td style="text-align:right;"> 291 </td>
+   <td style="text-align:left;"> PIZZA HUT 14&quot; PEPPERONI PIZZA,PAN CRUST </td>
+   <td style="text-align:left;"> 21297 </td>
+   <td style="text-align:right;"> -4832.658 </td>
+   <td style="text-align:right;"> -0.6481376 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> BEANS </td>
+   <td style="text-align:right;"> 1 </td>
+   <td style="text-align:right;"> 104.00 </td>
+   <td style="text-align:right;"> 104.00 </td>
+   <td style="text-align:right;"> 8.77 </td>
+   <td style="text-align:right;"> 0.70 </td>
+   <td style="text-align:right;"> 13 </td>
+   <td style="text-align:right;"> 0 </td>
+   <td style="text-align:right;"> 0.085 </td>
+   <td style="text-align:right;"> 6.15 </td>
+   <td style="text-align:right;"> 15 </td>
+   <td style="text-align:right;"> 1.93 </td>
+   <td style="text-align:right;"> 101 </td>
+   <td style="text-align:right;"> 100 </td>
+   <td style="text-align:right;"> 307 </td>
+   <td style="text-align:right;"> 0.89 </td>
+   <td style="text-align:right;"> 0.356 </td>
+   <td style="text-align:right;"> 0.408 </td>
+   <td style="text-align:right;"> 0.6 </td>
+   <td style="text-align:right;"> 18.8 </td>
+   <td style="text-align:right;"> 0.390 </td>
+   <td style="text-align:right;"> 0.215 </td>
+   <td style="text-align:right;"> 1.220 </td>
+   <td style="text-align:right;"> 0.825 </td>
+   <td style="text-align:right;"> 0.191 </td>
+   <td style="text-align:right;"> 67 </td>
+   <td style="text-align:left;"> BEANS,NAVY,MATURE SEEDS,SPROUTED,RAW </td>
+   <td style="text-align:left;"> 11046 </td>
+   <td style="text-align:right;"> -4122.162 </td>
+   <td style="text-align:right;"> 0.7101393 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> GRAPE JUC </td>
+   <td style="text-align:right;"> 1 </td>
+   <td style="text-align:right;"> 253.00 </td>
+   <td style="text-align:right;"> 253.00 </td>
+   <td style="text-align:right;"> 4.53 </td>
+   <td style="text-align:right;"> 0.13 </td>
+   <td style="text-align:right;"> 5 </td>
+   <td style="text-align:right;"> 0 </td>
+   <td style="text-align:right;"> 0.025 </td>
+   <td style="text-align:right;"> 0.37 </td>
+   <td style="text-align:right;"> 11 </td>
+   <td style="text-align:right;"> 0.25 </td>
+   <td style="text-align:right;"> 10 </td>
+   <td style="text-align:right;"> 14 </td>
+   <td style="text-align:right;"> 104 </td>
+   <td style="text-align:right;"> 0.07 </td>
+   <td style="text-align:right;"> 0.018 </td>
+   <td style="text-align:right;"> 0.239 </td>
+   <td style="text-align:right;"> 0.0 </td>
+   <td style="text-align:right;"> 0.1 </td>
+   <td style="text-align:right;"> 0.017 </td>
+   <td style="text-align:right;"> 0.015 </td>
+   <td style="text-align:right;"> 0.133 </td>
+   <td style="text-align:right;"> 0.048 </td>
+   <td style="text-align:right;"> 0.032 </td>
+   <td style="text-align:right;"> 60 </td>
+   <td style="text-align:left;"> GRAPE JUC,CND OR BTLD,UNSWTND,WO/ ADDED VIT C </td>
+   <td style="text-align:left;"> 09135 </td>
+   <td style="text-align:right;"> -4343.103 </td>
+   <td style="text-align:right;"> 0.2877596 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> PIE </td>
+   <td style="text-align:right;"> 1 </td>
+   <td style="text-align:right;"> 28.35 </td>
+   <td style="text-align:right;"> 28.35 </td>
+   <td style="text-align:right;"> 1.75 </td>
+   <td style="text-align:right;"> 12.50 </td>
+   <td style="text-align:right;"> 211 </td>
+   <td style="text-align:right;"> 0 </td>
+   <td style="text-align:right;"> 3.050 </td>
+   <td style="text-align:right;"> 2.40 </td>
+   <td style="text-align:right;"> 7 </td>
+   <td style="text-align:right;"> 1.12 </td>
+   <td style="text-align:right;"> 7 </td>
+   <td style="text-align:right;"> 28 </td>
+   <td style="text-align:right;"> 79 </td>
+   <td style="text-align:right;"> 0.19 </td>
+   <td style="text-align:right;"> 0.053 </td>
+   <td style="text-align:right;"> 0.185 </td>
+   <td style="text-align:right;"> 7.8 </td>
+   <td style="text-align:right;"> 1.7 </td>
+   <td style="text-align:right;"> 0.148 </td>
+   <td style="text-align:right;"> 0.107 </td>
+   <td style="text-align:right;"> 1.230 </td>
+   <td style="text-align:right;"> 0.093 </td>
+   <td style="text-align:right;"> 0.032 </td>
+   <td style="text-align:right;"> 265 </td>
+   <td style="text-align:left;"> PIE,APPL,PREP FROM RECIPE </td>
+   <td style="text-align:left;"> 18302 </td>
+   <td style="text-align:right;"> -4710.654 </td>
+   <td style="text-align:right;"> -0.4148992 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> PORK </td>
+   <td style="text-align:right;"> 1 </td>
+   <td style="text-align:right;"> 85.00 </td>
+   <td style="text-align:right;"> 85.00 </td>
+   <td style="text-align:right;"> 2.46 </td>
+   <td style="text-align:right;"> 2.59 </td>
+   <td style="text-align:right;"> 63 </td>
+   <td style="text-align:right;"> 63 </td>
+   <td style="text-align:right;"> 0.906 </td>
+   <td style="text-align:right;"> 22.81 </td>
+   <td style="text-align:right;"> 9 </td>
+   <td style="text-align:right;"> 0.56 </td>
+   <td style="text-align:right;"> 23 </td>
+   <td style="text-align:right;"> 251 </td>
+   <td style="text-align:right;"> 354 </td>
+   <td style="text-align:right;"> 1.72 </td>
+   <td style="text-align:right;"> 0.069 </td>
+   <td style="text-align:right;"> 0.011 </td>
+   <td style="text-align:right;"> 37.4 </td>
+   <td style="text-align:right;"> 0.0 </td>
+   <td style="text-align:right;"> 0.610 </td>
+   <td style="text-align:right;"> 0.256 </td>
+   <td style="text-align:right;"> 7.348 </td>
+   <td style="text-align:right;"> 0.728 </td>
+   <td style="text-align:right;"> 0.611 </td>
+   <td style="text-align:right;"> 121 </td>
+   <td style="text-align:left;"> PORK,FRSH,LOIN,SIRLOIN (CHOPS OR ROASTS),BNLESS,LN,RAW </td>
+   <td style="text-align:left;"> 10214 </td>
+   <td style="text-align:right;"> -4192.317 </td>
+   <td style="text-align:right;"> 0.5760225 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> FAST FOODS </td>
+   <td style="text-align:right;"> 1 </td>
+   <td style="text-align:right;"> 226.00 </td>
+   <td style="text-align:right;"> 226.00 </td>
+   <td style="text-align:right;"> 5.02 </td>
+   <td style="text-align:right;"> 11.75 </td>
+   <td style="text-align:right;"> 350 </td>
+   <td style="text-align:right;"> 54 </td>
+   <td style="text-align:right;"> 4.654 </td>
+   <td style="text-align:right;"> 15.17 </td>
+   <td style="text-align:right;"> 45 </td>
+   <td style="text-align:right;"> 2.59 </td>
+   <td style="text-align:right;"> 22 </td>
+   <td style="text-align:right;"> 139 </td>
+   <td style="text-align:right;"> 252 </td>
+   <td style="text-align:right;"> 2.51 </td>
+   <td style="text-align:right;"> 0.097 </td>
+   <td style="text-align:right;"> 0.110 </td>
+   <td style="text-align:right;"> 11.3 </td>
+   <td style="text-align:right;"> 0.5 </td>
+   <td style="text-align:right;"> 0.160 </td>
+   <td style="text-align:right;"> 0.170 </td>
+   <td style="text-align:right;"> 3.350 </td>
+   <td style="text-align:right;"> 0.240 </td>
+   <td style="text-align:right;"> 0.240 </td>
+   <td style="text-align:right;"> 239 </td>
+   <td style="text-align:left;"> FAST FOODS,HAMBURGER; DOUBLE,LRG PATTY; W/ CONDMNT &amp; VEG </td>
+   <td style="text-align:left;"> 21114 </td>
+   <td style="text-align:right;"> -4517.685 </td>
+   <td style="text-align:right;"> -0.0459943 </td>
+  </tr>
+</tbody>
+</table>
 
 
 Wholesale swap
 
 ```r
-our_random_menu %>% wholesale_swap() %>% kable()
+our_random_menu %>% wholesale_swap() %>% kable(format = "html")
 ```
 
 ```
@@ -601,19 +4398,332 @@ our_random_menu %>% wholesale_swap() %>% kable()
 ## Swap candidate is good enough. Doing the wholesale swap.
 ```
 
-
-
-shorter_desc     solution_amounts   GmWt_1   serving_gmwt   cost   Lipid_Tot_g   Sodium_mg   Cholestrl_mg   FA_Sat_g   Protein_g   Calcium_mg   Iron_mg   Magnesium_mg   Phosphorus_mg   Potassium_mg   Zinc_mg   Copper_mg   Manganese_mg   Selenium_µg   Vit_C_mg   Thiamin_mg   Riboflavin_mg   Niacin_mg   Panto_Acid_mg   Vit_B6_mg   Energ_Kcal  Shrt_Desc                                                      NDB_No        score   scaled_score
---------------  -----------------  -------  -------------  -----  ------------  ----------  -------------  ---------  ----------  -----------  --------  -------------  --------------  -------------  --------  ----------  -------------  ------------  ---------  -----------  --------------  ----------  --------------  ----------  -----------  -------------------------------------------------------------  -------  ----------  -------------
-POTATOES                        1   245.00         245.00   2.14          3.68         335             12      2.255        2.87           57      0.57             19              63            378      0.40       0.163          0.166           1.6       10.6        0.069           0.092       1.053           0.514       0.178           88  POTATOES,SCALLPD,HOME-PREPARED W/BUTTER                        11372     -2927.267      0.4881786
-TURKEY BREAST                   1    85.00          85.00   6.73          3.46         397             42      0.980       22.16            9      0.66             21             214            248      1.53       0.041          0.015          25.7        0.0        0.053           0.133       9.067           0.489       0.320          126  TURKEY BREAST,PRE-BASTED,MEAT&SKN,CKD,RSTD                     05293     -3281.581     -0.1891749
-SNACKS                          1    28.35          28.35   5.17         49.60        1531            133     20.800       21.50           68      3.40             21             180            257      2.42       0.130          0.086            NA        6.8        0.141           0.436       4.540           0.328       0.205          550  SNACKS,BF STKS,SMOKED                                          19407     -3705.245     -0.9991068
-BEEF                            1    85.00          85.00   3.65          7.67          81             70      3.419       20.87           15      2.31             18             195            330      7.86       0.092          0.014          21.9        0.0        0.070           0.190       4.097           0.680       0.355          152  BEEF,CHUCK EYE COUNTRY-STYLE RIBS,BNLESS,LN,0" FAT,CHOIC,RAW   23072     -2987.803      0.3724493
-WHEAT FLR                       1       NA             NA   8.78          1.45           2             NA      0.268       11.50           20      5.06             30             112            138      0.84       0.161          0.679          27.5        0.0        0.736           0.445       5.953           0.405       0.032          363  WHEAT FLR,WHITE (INDUSTRIAL),11.5% PROT,UNBLEACHED,ENR         20636     -3374.000     -0.3658548
-OKARA                           1   122.00         122.00   7.81          1.73           9              0      0.193        3.52           80      1.30             26              60            213      0.56       0.200          0.404          10.6        0.0        0.020           0.020       0.100           0.088       0.115           76  OKARA                                                          16130     -2904.295      0.5320946
-CHICKEN                         1   140.00         140.00   3.23         13.60          82             88      3.790       27.30           15      1.26             23             182            223      1.94       0.066          0.020          23.9        0.0        0.063           0.168       8.487           1.030       0.400          239  CHICKEN,BROILERS OR FRYERS,MEAT&SKN,CKD,RSTD                   05009     -2925.658      0.4912538
-FISH                            1       NA             NA   8.00         12.95         870             67      2.440       23.19           55      0.55             29             270            390      0.77       0.148          0.037          30.5        0.0        0.043           0.201       8.610           0.822       0.378          209  FISH,SALMON,KING,W/ SKN,KIPPERED,(ALASKA NATIVE)               35168     -3374.000     -0.3658548
-KRAFT                           1    28.00          28.00   8.65          4.10        1532              4      0.800       12.60           63      4.32             NA             129            267        NA          NA             NA            NA        3.3        0.390           0.290       3.840              NA          NA          381  KRAFT,STOVE TOP STUFFING MIX CHICKEN FLAVOR                    18567     -3670.005     -0.9317363
+<table>
+ <thead>
+  <tr>
+   <th style="text-align:left;"> shorter_desc </th>
+   <th style="text-align:right;"> solution_amounts </th>
+   <th style="text-align:right;"> GmWt_1 </th>
+   <th style="text-align:right;"> serving_gmwt </th>
+   <th style="text-align:right;"> cost </th>
+   <th style="text-align:right;"> Lipid_Tot_g </th>
+   <th style="text-align:right;"> Sodium_mg </th>
+   <th style="text-align:right;"> Cholestrl_mg </th>
+   <th style="text-align:right;"> FA_Sat_g </th>
+   <th style="text-align:right;"> Protein_g </th>
+   <th style="text-align:right;"> Calcium_mg </th>
+   <th style="text-align:right;"> Iron_mg </th>
+   <th style="text-align:right;"> Magnesium_mg </th>
+   <th style="text-align:right;"> Phosphorus_mg </th>
+   <th style="text-align:right;"> Potassium_mg </th>
+   <th style="text-align:right;"> Zinc_mg </th>
+   <th style="text-align:right;"> Copper_mg </th>
+   <th style="text-align:right;"> Manganese_mg </th>
+   <th style="text-align:right;"> Selenium_µg </th>
+   <th style="text-align:right;"> Vit_C_mg </th>
+   <th style="text-align:right;"> Thiamin_mg </th>
+   <th style="text-align:right;"> Riboflavin_mg </th>
+   <th style="text-align:right;"> Niacin_mg </th>
+   <th style="text-align:right;"> Panto_Acid_mg </th>
+   <th style="text-align:right;"> Vit_B6_mg </th>
+   <th style="text-align:right;"> Energ_Kcal </th>
+   <th style="text-align:left;"> Shrt_Desc </th>
+   <th style="text-align:left;"> NDB_No </th>
+   <th style="text-align:right;"> score </th>
+   <th style="text-align:right;"> scaled_score </th>
+  </tr>
+ </thead>
+<tbody>
+  <tr>
+   <td style="text-align:left;"> POTATOES </td>
+   <td style="text-align:right;"> 1 </td>
+   <td style="text-align:right;"> 245.00 </td>
+   <td style="text-align:right;"> 245.00 </td>
+   <td style="text-align:right;"> 4.01 </td>
+   <td style="text-align:right;"> 3.68 </td>
+   <td style="text-align:right;"> 335 </td>
+   <td style="text-align:right;"> 12 </td>
+   <td style="text-align:right;"> 2.255 </td>
+   <td style="text-align:right;"> 2.87 </td>
+   <td style="text-align:right;"> 57 </td>
+   <td style="text-align:right;"> 0.57 </td>
+   <td style="text-align:right;"> 19 </td>
+   <td style="text-align:right;"> 63 </td>
+   <td style="text-align:right;"> 378 </td>
+   <td style="text-align:right;"> 0.40 </td>
+   <td style="text-align:right;"> 0.163 </td>
+   <td style="text-align:right;"> 0.166 </td>
+   <td style="text-align:right;"> 1.6 </td>
+   <td style="text-align:right;"> 10.6 </td>
+   <td style="text-align:right;"> 0.069 </td>
+   <td style="text-align:right;"> 0.092 </td>
+   <td style="text-align:right;"> 1.053 </td>
+   <td style="text-align:right;"> 0.514 </td>
+   <td style="text-align:right;"> 0.178 </td>
+   <td style="text-align:right;"> 88 </td>
+   <td style="text-align:left;"> POTATOES,SCALLPD,HOME-PREPARED W/BUTTER </td>
+   <td style="text-align:left;"> 11372 </td>
+   <td style="text-align:right;"> -2927.267 </td>
+   <td style="text-align:right;"> 0.4881786 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> TURKEY BREAST </td>
+   <td style="text-align:right;"> 1 </td>
+   <td style="text-align:right;"> 85.00 </td>
+   <td style="text-align:right;"> 85.00 </td>
+   <td style="text-align:right;"> 7.74 </td>
+   <td style="text-align:right;"> 3.46 </td>
+   <td style="text-align:right;"> 397 </td>
+   <td style="text-align:right;"> 42 </td>
+   <td style="text-align:right;"> 0.980 </td>
+   <td style="text-align:right;"> 22.16 </td>
+   <td style="text-align:right;"> 9 </td>
+   <td style="text-align:right;"> 0.66 </td>
+   <td style="text-align:right;"> 21 </td>
+   <td style="text-align:right;"> 214 </td>
+   <td style="text-align:right;"> 248 </td>
+   <td style="text-align:right;"> 1.53 </td>
+   <td style="text-align:right;"> 0.041 </td>
+   <td style="text-align:right;"> 0.015 </td>
+   <td style="text-align:right;"> 25.7 </td>
+   <td style="text-align:right;"> 0.0 </td>
+   <td style="text-align:right;"> 0.053 </td>
+   <td style="text-align:right;"> 0.133 </td>
+   <td style="text-align:right;"> 9.067 </td>
+   <td style="text-align:right;"> 0.489 </td>
+   <td style="text-align:right;"> 0.320 </td>
+   <td style="text-align:right;"> 126 </td>
+   <td style="text-align:left;"> TURKEY BREAST,PRE-BASTED,MEAT&amp;SKN,CKD,RSTD </td>
+   <td style="text-align:left;"> 05293 </td>
+   <td style="text-align:right;"> -3281.581 </td>
+   <td style="text-align:right;"> -0.1891749 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> SNACKS </td>
+   <td style="text-align:right;"> 1 </td>
+   <td style="text-align:right;"> 28.35 </td>
+   <td style="text-align:right;"> 28.35 </td>
+   <td style="text-align:right;"> 6.90 </td>
+   <td style="text-align:right;"> 49.60 </td>
+   <td style="text-align:right;"> 1531 </td>
+   <td style="text-align:right;"> 133 </td>
+   <td style="text-align:right;"> 20.800 </td>
+   <td style="text-align:right;"> 21.50 </td>
+   <td style="text-align:right;"> 68 </td>
+   <td style="text-align:right;"> 3.40 </td>
+   <td style="text-align:right;"> 21 </td>
+   <td style="text-align:right;"> 180 </td>
+   <td style="text-align:right;"> 257 </td>
+   <td style="text-align:right;"> 2.42 </td>
+   <td style="text-align:right;"> 0.130 </td>
+   <td style="text-align:right;"> 0.086 </td>
+   <td style="text-align:right;"> NA </td>
+   <td style="text-align:right;"> 6.8 </td>
+   <td style="text-align:right;"> 0.141 </td>
+   <td style="text-align:right;"> 0.436 </td>
+   <td style="text-align:right;"> 4.540 </td>
+   <td style="text-align:right;"> 0.328 </td>
+   <td style="text-align:right;"> 0.205 </td>
+   <td style="text-align:right;"> 550 </td>
+   <td style="text-align:left;"> SNACKS,BF STKS,SMOKED </td>
+   <td style="text-align:left;"> 19407 </td>
+   <td style="text-align:right;"> -3705.245 </td>
+   <td style="text-align:right;"> -0.9991068 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> BEEF </td>
+   <td style="text-align:right;"> 1 </td>
+   <td style="text-align:right;"> 85.00 </td>
+   <td style="text-align:right;"> 85.00 </td>
+   <td style="text-align:right;"> 8.03 </td>
+   <td style="text-align:right;"> 7.67 </td>
+   <td style="text-align:right;"> 81 </td>
+   <td style="text-align:right;"> 70 </td>
+   <td style="text-align:right;"> 3.419 </td>
+   <td style="text-align:right;"> 20.87 </td>
+   <td style="text-align:right;"> 15 </td>
+   <td style="text-align:right;"> 2.31 </td>
+   <td style="text-align:right;"> 18 </td>
+   <td style="text-align:right;"> 195 </td>
+   <td style="text-align:right;"> 330 </td>
+   <td style="text-align:right;"> 7.86 </td>
+   <td style="text-align:right;"> 0.092 </td>
+   <td style="text-align:right;"> 0.014 </td>
+   <td style="text-align:right;"> 21.9 </td>
+   <td style="text-align:right;"> 0.0 </td>
+   <td style="text-align:right;"> 0.070 </td>
+   <td style="text-align:right;"> 0.190 </td>
+   <td style="text-align:right;"> 4.097 </td>
+   <td style="text-align:right;"> 0.680 </td>
+   <td style="text-align:right;"> 0.355 </td>
+   <td style="text-align:right;"> 152 </td>
+   <td style="text-align:left;"> BEEF,CHUCK EYE COUNTRY-STYLE RIBS,BNLESS,LN,0&quot; FAT,CHOIC,RAW </td>
+   <td style="text-align:left;"> 23072 </td>
+   <td style="text-align:right;"> -2987.803 </td>
+   <td style="text-align:right;"> 0.3724493 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> WHEAT FLR </td>
+   <td style="text-align:right;"> 1 </td>
+   <td style="text-align:right;"> NA </td>
+   <td style="text-align:right;"> NA </td>
+   <td style="text-align:right;"> 9.73 </td>
+   <td style="text-align:right;"> 1.45 </td>
+   <td style="text-align:right;"> 2 </td>
+   <td style="text-align:right;"> NA </td>
+   <td style="text-align:right;"> 0.268 </td>
+   <td style="text-align:right;"> 11.50 </td>
+   <td style="text-align:right;"> 20 </td>
+   <td style="text-align:right;"> 5.06 </td>
+   <td style="text-align:right;"> 30 </td>
+   <td style="text-align:right;"> 112 </td>
+   <td style="text-align:right;"> 138 </td>
+   <td style="text-align:right;"> 0.84 </td>
+   <td style="text-align:right;"> 0.161 </td>
+   <td style="text-align:right;"> 0.679 </td>
+   <td style="text-align:right;"> 27.5 </td>
+   <td style="text-align:right;"> 0.0 </td>
+   <td style="text-align:right;"> 0.736 </td>
+   <td style="text-align:right;"> 0.445 </td>
+   <td style="text-align:right;"> 5.953 </td>
+   <td style="text-align:right;"> 0.405 </td>
+   <td style="text-align:right;"> 0.032 </td>
+   <td style="text-align:right;"> 363 </td>
+   <td style="text-align:left;"> WHEAT FLR,WHITE (INDUSTRIAL),11.5% PROT,UNBLEACHED,ENR </td>
+   <td style="text-align:left;"> 20636 </td>
+   <td style="text-align:right;"> -3374.000 </td>
+   <td style="text-align:right;"> -0.3658548 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> OKARA </td>
+   <td style="text-align:right;"> 1 </td>
+   <td style="text-align:right;"> 122.00 </td>
+   <td style="text-align:right;"> 122.00 </td>
+   <td style="text-align:right;"> 9.38 </td>
+   <td style="text-align:right;"> 1.73 </td>
+   <td style="text-align:right;"> 9 </td>
+   <td style="text-align:right;"> 0 </td>
+   <td style="text-align:right;"> 0.193 </td>
+   <td style="text-align:right;"> 3.52 </td>
+   <td style="text-align:right;"> 80 </td>
+   <td style="text-align:right;"> 1.30 </td>
+   <td style="text-align:right;"> 26 </td>
+   <td style="text-align:right;"> 60 </td>
+   <td style="text-align:right;"> 213 </td>
+   <td style="text-align:right;"> 0.56 </td>
+   <td style="text-align:right;"> 0.200 </td>
+   <td style="text-align:right;"> 0.404 </td>
+   <td style="text-align:right;"> 10.6 </td>
+   <td style="text-align:right;"> 0.0 </td>
+   <td style="text-align:right;"> 0.020 </td>
+   <td style="text-align:right;"> 0.020 </td>
+   <td style="text-align:right;"> 0.100 </td>
+   <td style="text-align:right;"> 0.088 </td>
+   <td style="text-align:right;"> 0.115 </td>
+   <td style="text-align:right;"> 76 </td>
+   <td style="text-align:left;"> OKARA </td>
+   <td style="text-align:left;"> 16130 </td>
+   <td style="text-align:right;"> -2904.295 </td>
+   <td style="text-align:right;"> 0.5320946 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> CHICKEN </td>
+   <td style="text-align:right;"> 1 </td>
+   <td style="text-align:right;"> 140.00 </td>
+   <td style="text-align:right;"> 140.00 </td>
+   <td style="text-align:right;"> 1.78 </td>
+   <td style="text-align:right;"> 13.60 </td>
+   <td style="text-align:right;"> 82 </td>
+   <td style="text-align:right;"> 88 </td>
+   <td style="text-align:right;"> 3.790 </td>
+   <td style="text-align:right;"> 27.30 </td>
+   <td style="text-align:right;"> 15 </td>
+   <td style="text-align:right;"> 1.26 </td>
+   <td style="text-align:right;"> 23 </td>
+   <td style="text-align:right;"> 182 </td>
+   <td style="text-align:right;"> 223 </td>
+   <td style="text-align:right;"> 1.94 </td>
+   <td style="text-align:right;"> 0.066 </td>
+   <td style="text-align:right;"> 0.020 </td>
+   <td style="text-align:right;"> 23.9 </td>
+   <td style="text-align:right;"> 0.0 </td>
+   <td style="text-align:right;"> 0.063 </td>
+   <td style="text-align:right;"> 0.168 </td>
+   <td style="text-align:right;"> 8.487 </td>
+   <td style="text-align:right;"> 1.030 </td>
+   <td style="text-align:right;"> 0.400 </td>
+   <td style="text-align:right;"> 239 </td>
+   <td style="text-align:left;"> CHICKEN,BROILERS OR FRYERS,MEAT&amp;SKN,CKD,RSTD </td>
+   <td style="text-align:left;"> 05009 </td>
+   <td style="text-align:right;"> -2925.658 </td>
+   <td style="text-align:right;"> 0.4912538 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> FISH </td>
+   <td style="text-align:right;"> 1 </td>
+   <td style="text-align:right;"> NA </td>
+   <td style="text-align:right;"> NA </td>
+   <td style="text-align:right;"> 6.40 </td>
+   <td style="text-align:right;"> 12.95 </td>
+   <td style="text-align:right;"> 870 </td>
+   <td style="text-align:right;"> 67 </td>
+   <td style="text-align:right;"> 2.440 </td>
+   <td style="text-align:right;"> 23.19 </td>
+   <td style="text-align:right;"> 55 </td>
+   <td style="text-align:right;"> 0.55 </td>
+   <td style="text-align:right;"> 29 </td>
+   <td style="text-align:right;"> 270 </td>
+   <td style="text-align:right;"> 390 </td>
+   <td style="text-align:right;"> 0.77 </td>
+   <td style="text-align:right;"> 0.148 </td>
+   <td style="text-align:right;"> 0.037 </td>
+   <td style="text-align:right;"> 30.5 </td>
+   <td style="text-align:right;"> 0.0 </td>
+   <td style="text-align:right;"> 0.043 </td>
+   <td style="text-align:right;"> 0.201 </td>
+   <td style="text-align:right;"> 8.610 </td>
+   <td style="text-align:right;"> 0.822 </td>
+   <td style="text-align:right;"> 0.378 </td>
+   <td style="text-align:right;"> 209 </td>
+   <td style="text-align:left;"> FISH,SALMON,KING,W/ SKN,KIPPERED,(ALASKA NATIVE) </td>
+   <td style="text-align:left;"> 35168 </td>
+   <td style="text-align:right;"> -3374.000 </td>
+   <td style="text-align:right;"> -0.3658548 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> KRAFT </td>
+   <td style="text-align:right;"> 1 </td>
+   <td style="text-align:right;"> 28.00 </td>
+   <td style="text-align:right;"> 28.00 </td>
+   <td style="text-align:right;"> 8.07 </td>
+   <td style="text-align:right;"> 4.10 </td>
+   <td style="text-align:right;"> 1532 </td>
+   <td style="text-align:right;"> 4 </td>
+   <td style="text-align:right;"> 0.800 </td>
+   <td style="text-align:right;"> 12.60 </td>
+   <td style="text-align:right;"> 63 </td>
+   <td style="text-align:right;"> 4.32 </td>
+   <td style="text-align:right;"> NA </td>
+   <td style="text-align:right;"> 129 </td>
+   <td style="text-align:right;"> 267 </td>
+   <td style="text-align:right;"> NA </td>
+   <td style="text-align:right;"> NA </td>
+   <td style="text-align:right;"> NA </td>
+   <td style="text-align:right;"> NA </td>
+   <td style="text-align:right;"> 3.3 </td>
+   <td style="text-align:right;"> 0.390 </td>
+   <td style="text-align:right;"> 0.290 </td>
+   <td style="text-align:right;"> 3.840 </td>
+   <td style="text-align:right;"> NA </td>
+   <td style="text-align:right;"> NA </td>
+   <td style="text-align:right;"> 381 </td>
+   <td style="text-align:left;"> KRAFT,STOVE TOP STUFFING MIX CHICKEN FLAVOR </td>
+   <td style="text-align:left;"> 18567 </td>
+   <td style="text-align:right;"> -3670.005 </td>
+   <td style="text-align:right;"> -0.9317363 </td>
+  </tr>
+</tbody>
+</table>
 
 
 ### Full Solving
@@ -621,28 +4731,527 @@ KRAFT                           1    28.00          28.00   8.65          4.10  
 
 ```r
 fully_solved <- build_menu() %>% solve_full(verbose = FALSE)
-fully_solved %>% kable()
+fully_solved %>% kable(format = "html")
 ```
 
-
-
-shorter_desc      solution_amounts       GmWt_1   serving_gmwt        cost   Lipid_Tot_g   Sodium_mg   Cholestrl_mg   FA_Sat_g   Protein_g   Calcium_mg   Iron_mg   Magnesium_mg   Phosphorus_mg   Potassium_mg   Zinc_mg   Copper_mg   Manganese_mg   Selenium_µg   Vit_C_mg   Thiamin_mg   Riboflavin_mg   Niacin_mg   Panto_Acid_mg   Vit_B6_mg   Energ_Kcal  Shrt_Desc                                                      NDB_No        score   scaled_score
----------------  -----------------  -----------  -------------  ----------  ------------  ----------  -------------  ---------  ----------  -----------  --------  -------------  --------------  -------------  --------  ----------  -------------  ------------  ---------  -----------  --------------  ----------  --------------  ----------  -----------  -------------------------------------------------------------  -------  ----------  -------------
-LAMB                             1    114.00000          114.0    8.510000          4.73          73             76      1.857       23.42            2      2.27             26             210            311      2.32       0.128          0.006           8.1        0.0        0.147           0.380       8.490           0.880       0.556          136  LAMB,AUSTRALIAN,IMP,FRSH,TENDERLOIN,BNLESS,LN,1/8" FAT,RAW     17443     -2872.275      0.5933092
-CHI FORMU                        1     31.00000           31.0    5.410000          4.70          36              2      1.256        2.80           92      1.32             19              80            124      0.56       0.106          0.144           3.0        9.6        0.256           0.200       0.960           0.960       0.248           99  CHI FORMU,ABBT NUTR,PEDIASU,RTF,W/ IRON & FIB (FORMER ROSS)    03870     -3283.729     -0.1932802
-PUMPKIN LEAVES                   1    360.87918           39.0   15.175432          0.40          11              0      0.207        3.15           39      2.22             38             104            436      0.20       0.133          0.355           0.9       11.0        0.094           0.128       0.920           0.042       0.207           19  PUMPKIN LEAVES,RAW                                             11418     -3130.351      0.0999373
-TANGERINES                       1   2958.09865          252.0   90.973272          0.10           6              0      0.012        0.45            7      0.37              8              10             78      0.24       0.044          0.032           0.4       19.8        0.053           0.044       0.445           0.125       0.042           61  TANGERINES,(MANDARIN ORANGES),CND,LT SYRUP PK                  09220     -3074.289      0.2071124
-CEREALS RTE                      1     39.30006           27.0    7.132233          4.50         639              0      1.000        8.80          370     16.70             89             222            230     13.90       0.253          2.320          18.5       22.2        1.400           1.600      18.500           0.749       1.852          378  CEREALS RTE,GENERAL MILLS,BERRY BURST CHEERIOS,TRIPLE BERRY    08239     -3273.216     -0.1731829
-EGG CUSTARDS                     1    141.00000          141.0    1.490000          2.83          87             49      1.475        4.13          146      0.33             17             137            214      0.61       0.012          0.016           4.9        0.2        0.056           0.235       0.135           0.683       0.066          112  EGG CUSTARDS,DRY MIX,PREP W/ 2% MILK                           19205     -2831.054      0.6721117
-PUDDINGS                         1    140.00000          140.0    7.760000          2.90         156              9      1.643        2.80           99      0.04              9              74            119      0.33       0.025          0.005           3.3        0.0        0.036           0.149       0.078           0.326       0.028          113  PUDDINGS,VANILLA,DRY MIX,REG,PREP W/ WHL MILK                  19207     -3179.996      0.0050279
-INF FORMULA                      1      9.60000            9.6    7.950000         27.65         154              0     11.430       15.36          998     10.20             46             666            768      3.84       0.461          0.026           9.2       61.0        0.512           0.768       5.376           2.304       0.307          512  INF FORMULA, ABB NUTR, SIMIL, GO & GR, PDR, W/ ARA & DHA       33871     -3144.150      0.0735572
-SEA BASS                         1    129.00000          129.0    7.590000          2.00          68             41      0.511       18.43           10      0.29             41             194            256      0.40       0.019          0.015          36.5        0.0        0.110           0.120       1.600           0.750       0.400           97  SEA BASS,MXD SP,RAW                                            15091     -2795.921      0.7392762
-WHEAT FLR                        1    125.00000          125.0    2.590000          0.98           2              0      0.155       10.33           15      1.17             22             108            107      0.70       0.144          0.682          33.9        0.0        0.120           0.040       1.250           0.438       0.044          364  WHEAT FLR,WHITE,ALL-PURPOSE,UNENR                              20481     -3001.896      0.3455075
-BEANS                            1    179.00000          179.0    8.910000          0.64         238              0      0.166        8.97           73      2.84             68             169            463      1.09       0.149          0.510           1.3        0.0        0.236           0.059       0.272           0.251       0.127          142  BEANS,SML WHITE,MATURE SEEDS,CKD,BLD,W/SALT                    16346     -2389.504      1.5162376
-MILK                             1    245.00000          245.0    1.140000          1.98          59              8      1.232        3.95          143      0.06             15             112            182      0.41       0.011          0.002           2.6        1.1        0.045           0.194       0.101           0.339       0.046           56  MILK,RED FAT,FLUID,2% MILKFAT,W/ NONFAT MILK SOL,WO/ VIT A     01152     -2416.917      1.4638299
-BEANS                            1    169.00000          169.0    9.960000          0.49           2              0      0.126        9.06           52      2.30             65             165            508      0.96       0.271          0.548           1.4        0.0        0.257           0.063       0.570           0.299       0.175          149  BEANS,PINK,MATURE SEEDS,CKD,BLD,WO/SALT                        16041     -2016.445      2.2294253
-BEEF                             1     85.00000           85.0    3.950000          9.04          64             64      3.544       21.22            9      1.96             21             152            275      4.89       0.073          0.073          21.1        0.0        0.100           0.269       5.080           0.540       0.488          166  BEEF,RIB EYE STK/RST,BONE-IN,LIP-ON,LN,1/8" FAT,ALL GRDS,RAW   23150     -3057.622      0.2389742
-DESSERTS                         1    141.00000          141.0    3.140000          3.43         351              0      0.685        1.75           35      0.82              8              28             78      0.18       0.071          0.130           3.5        2.2        0.083           0.081       0.846           0.092       0.040          161  DESSERTS,APPL CRISP,PREPARED-FROM-RECIPE                       19186     -3650.814     -0.8950487
+<table>
+ <thead>
+  <tr>
+   <th style="text-align:left;"> shorter_desc </th>
+   <th style="text-align:right;"> solution_amounts </th>
+   <th style="text-align:right;"> GmWt_1 </th>
+   <th style="text-align:right;"> serving_gmwt </th>
+   <th style="text-align:right;"> cost </th>
+   <th style="text-align:right;"> Lipid_Tot_g </th>
+   <th style="text-align:right;"> Sodium_mg </th>
+   <th style="text-align:right;"> Cholestrl_mg </th>
+   <th style="text-align:right;"> FA_Sat_g </th>
+   <th style="text-align:right;"> Protein_g </th>
+   <th style="text-align:right;"> Calcium_mg </th>
+   <th style="text-align:right;"> Iron_mg </th>
+   <th style="text-align:right;"> Magnesium_mg </th>
+   <th style="text-align:right;"> Phosphorus_mg </th>
+   <th style="text-align:right;"> Potassium_mg </th>
+   <th style="text-align:right;"> Zinc_mg </th>
+   <th style="text-align:right;"> Copper_mg </th>
+   <th style="text-align:right;"> Manganese_mg </th>
+   <th style="text-align:right;"> Selenium_µg </th>
+   <th style="text-align:right;"> Vit_C_mg </th>
+   <th style="text-align:right;"> Thiamin_mg </th>
+   <th style="text-align:right;"> Riboflavin_mg </th>
+   <th style="text-align:right;"> Niacin_mg </th>
+   <th style="text-align:right;"> Panto_Acid_mg </th>
+   <th style="text-align:right;"> Vit_B6_mg </th>
+   <th style="text-align:right;"> Energ_Kcal </th>
+   <th style="text-align:left;"> Shrt_Desc </th>
+   <th style="text-align:left;"> NDB_No </th>
+   <th style="text-align:right;"> score </th>
+   <th style="text-align:right;"> scaled_score </th>
+  </tr>
+ </thead>
+<tbody>
+  <tr>
+   <td style="text-align:left;"> LAMB </td>
+   <td style="text-align:right;"> 1 </td>
+   <td style="text-align:right;"> 114.00000 </td>
+   <td style="text-align:right;"> 114.0 </td>
+   <td style="text-align:right;"> 1.540000 </td>
+   <td style="text-align:right;"> 4.73 </td>
+   <td style="text-align:right;"> 73 </td>
+   <td style="text-align:right;"> 76 </td>
+   <td style="text-align:right;"> 1.857 </td>
+   <td style="text-align:right;"> 23.42 </td>
+   <td style="text-align:right;"> 2 </td>
+   <td style="text-align:right;"> 2.27 </td>
+   <td style="text-align:right;"> 26 </td>
+   <td style="text-align:right;"> 210 </td>
+   <td style="text-align:right;"> 311 </td>
+   <td style="text-align:right;"> 2.32 </td>
+   <td style="text-align:right;"> 0.128 </td>
+   <td style="text-align:right;"> 0.006 </td>
+   <td style="text-align:right;"> 8.1 </td>
+   <td style="text-align:right;"> 0.0 </td>
+   <td style="text-align:right;"> 0.147 </td>
+   <td style="text-align:right;"> 0.380 </td>
+   <td style="text-align:right;"> 8.490 </td>
+   <td style="text-align:right;"> 0.880 </td>
+   <td style="text-align:right;"> 0.556 </td>
+   <td style="text-align:right;"> 136 </td>
+   <td style="text-align:left;"> LAMB,AUSTRALIAN,IMP,FRSH,TENDERLOIN,BNLESS,LN,1/8&quot; FAT,RAW </td>
+   <td style="text-align:left;"> 17443 </td>
+   <td style="text-align:right;"> -2872.275 </td>
+   <td style="text-align:right;"> 0.5933092 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> CHI FORMU </td>
+   <td style="text-align:right;"> 1 </td>
+   <td style="text-align:right;"> 31.00000 </td>
+   <td style="text-align:right;"> 31.0 </td>
+   <td style="text-align:right;"> 8.040000 </td>
+   <td style="text-align:right;"> 4.70 </td>
+   <td style="text-align:right;"> 36 </td>
+   <td style="text-align:right;"> 2 </td>
+   <td style="text-align:right;"> 1.256 </td>
+   <td style="text-align:right;"> 2.80 </td>
+   <td style="text-align:right;"> 92 </td>
+   <td style="text-align:right;"> 1.32 </td>
+   <td style="text-align:right;"> 19 </td>
+   <td style="text-align:right;"> 80 </td>
+   <td style="text-align:right;"> 124 </td>
+   <td style="text-align:right;"> 0.56 </td>
+   <td style="text-align:right;"> 0.106 </td>
+   <td style="text-align:right;"> 0.144 </td>
+   <td style="text-align:right;"> 3.0 </td>
+   <td style="text-align:right;"> 9.6 </td>
+   <td style="text-align:right;"> 0.256 </td>
+   <td style="text-align:right;"> 0.200 </td>
+   <td style="text-align:right;"> 0.960 </td>
+   <td style="text-align:right;"> 0.960 </td>
+   <td style="text-align:right;"> 0.248 </td>
+   <td style="text-align:right;"> 99 </td>
+   <td style="text-align:left;"> CHI FORMU,ABBT NUTR,PEDIASU,RTF,W/ IRON &amp; FIB (FORMER ROSS) </td>
+   <td style="text-align:left;"> 03870 </td>
+   <td style="text-align:right;"> -3283.729 </td>
+   <td style="text-align:right;"> -0.1932802 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> PUMPKIN LEAVES </td>
+   <td style="text-align:right;"> 1 </td>
+   <td style="text-align:right;"> 360.87918 </td>
+   <td style="text-align:right;"> 39.0 </td>
+   <td style="text-align:right;"> 76.987558 </td>
+   <td style="text-align:right;"> 0.40 </td>
+   <td style="text-align:right;"> 11 </td>
+   <td style="text-align:right;"> 0 </td>
+   <td style="text-align:right;"> 0.207 </td>
+   <td style="text-align:right;"> 3.15 </td>
+   <td style="text-align:right;"> 39 </td>
+   <td style="text-align:right;"> 2.22 </td>
+   <td style="text-align:right;"> 38 </td>
+   <td style="text-align:right;"> 104 </td>
+   <td style="text-align:right;"> 436 </td>
+   <td style="text-align:right;"> 0.20 </td>
+   <td style="text-align:right;"> 0.133 </td>
+   <td style="text-align:right;"> 0.355 </td>
+   <td style="text-align:right;"> 0.9 </td>
+   <td style="text-align:right;"> 11.0 </td>
+   <td style="text-align:right;"> 0.094 </td>
+   <td style="text-align:right;"> 0.128 </td>
+   <td style="text-align:right;"> 0.920 </td>
+   <td style="text-align:right;"> 0.042 </td>
+   <td style="text-align:right;"> 0.207 </td>
+   <td style="text-align:right;"> 19 </td>
+   <td style="text-align:left;"> PUMPKIN LEAVES,RAW </td>
+   <td style="text-align:left;"> 11418 </td>
+   <td style="text-align:right;"> -3130.351 </td>
+   <td style="text-align:right;"> 0.0999373 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> TANGERINES </td>
+   <td style="text-align:right;"> 1 </td>
+   <td style="text-align:right;"> 2958.09865 </td>
+   <td style="text-align:right;"> 252.0 </td>
+   <td style="text-align:right;"> 29.111447 </td>
+   <td style="text-align:right;"> 0.10 </td>
+   <td style="text-align:right;"> 6 </td>
+   <td style="text-align:right;"> 0 </td>
+   <td style="text-align:right;"> 0.012 </td>
+   <td style="text-align:right;"> 0.45 </td>
+   <td style="text-align:right;"> 7 </td>
+   <td style="text-align:right;"> 0.37 </td>
+   <td style="text-align:right;"> 8 </td>
+   <td style="text-align:right;"> 10 </td>
+   <td style="text-align:right;"> 78 </td>
+   <td style="text-align:right;"> 0.24 </td>
+   <td style="text-align:right;"> 0.044 </td>
+   <td style="text-align:right;"> 0.032 </td>
+   <td style="text-align:right;"> 0.4 </td>
+   <td style="text-align:right;"> 19.8 </td>
+   <td style="text-align:right;"> 0.053 </td>
+   <td style="text-align:right;"> 0.044 </td>
+   <td style="text-align:right;"> 0.445 </td>
+   <td style="text-align:right;"> 0.125 </td>
+   <td style="text-align:right;"> 0.042 </td>
+   <td style="text-align:right;"> 61 </td>
+   <td style="text-align:left;"> TANGERINES,(MANDARIN ORANGES),CND,LT SYRUP PK </td>
+   <td style="text-align:left;"> 09220 </td>
+   <td style="text-align:right;"> -3074.289 </td>
+   <td style="text-align:right;"> 0.2071124 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> CEREALS RTE </td>
+   <td style="text-align:right;"> 1 </td>
+   <td style="text-align:right;"> 39.30006 </td>
+   <td style="text-align:right;"> 27.0 </td>
+   <td style="text-align:right;"> 7.874567 </td>
+   <td style="text-align:right;"> 4.50 </td>
+   <td style="text-align:right;"> 639 </td>
+   <td style="text-align:right;"> 0 </td>
+   <td style="text-align:right;"> 1.000 </td>
+   <td style="text-align:right;"> 8.80 </td>
+   <td style="text-align:right;"> 370 </td>
+   <td style="text-align:right;"> 16.70 </td>
+   <td style="text-align:right;"> 89 </td>
+   <td style="text-align:right;"> 222 </td>
+   <td style="text-align:right;"> 230 </td>
+   <td style="text-align:right;"> 13.90 </td>
+   <td style="text-align:right;"> 0.253 </td>
+   <td style="text-align:right;"> 2.320 </td>
+   <td style="text-align:right;"> 18.5 </td>
+   <td style="text-align:right;"> 22.2 </td>
+   <td style="text-align:right;"> 1.400 </td>
+   <td style="text-align:right;"> 1.600 </td>
+   <td style="text-align:right;"> 18.500 </td>
+   <td style="text-align:right;"> 0.749 </td>
+   <td style="text-align:right;"> 1.852 </td>
+   <td style="text-align:right;"> 378 </td>
+   <td style="text-align:left;"> CEREALS RTE,GENERAL MILLS,BERRY BURST CHEERIOS,TRIPLE BERRY </td>
+   <td style="text-align:left;"> 08239 </td>
+   <td style="text-align:right;"> -3273.216 </td>
+   <td style="text-align:right;"> -0.1731829 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> EGG CUSTARDS </td>
+   <td style="text-align:right;"> 1 </td>
+   <td style="text-align:right;"> 141.00000 </td>
+   <td style="text-align:right;"> 141.0 </td>
+   <td style="text-align:right;"> 6.590000 </td>
+   <td style="text-align:right;"> 2.83 </td>
+   <td style="text-align:right;"> 87 </td>
+   <td style="text-align:right;"> 49 </td>
+   <td style="text-align:right;"> 1.475 </td>
+   <td style="text-align:right;"> 4.13 </td>
+   <td style="text-align:right;"> 146 </td>
+   <td style="text-align:right;"> 0.33 </td>
+   <td style="text-align:right;"> 17 </td>
+   <td style="text-align:right;"> 137 </td>
+   <td style="text-align:right;"> 214 </td>
+   <td style="text-align:right;"> 0.61 </td>
+   <td style="text-align:right;"> 0.012 </td>
+   <td style="text-align:right;"> 0.016 </td>
+   <td style="text-align:right;"> 4.9 </td>
+   <td style="text-align:right;"> 0.2 </td>
+   <td style="text-align:right;"> 0.056 </td>
+   <td style="text-align:right;"> 0.235 </td>
+   <td style="text-align:right;"> 0.135 </td>
+   <td style="text-align:right;"> 0.683 </td>
+   <td style="text-align:right;"> 0.066 </td>
+   <td style="text-align:right;"> 112 </td>
+   <td style="text-align:left;"> EGG CUSTARDS,DRY MIX,PREP W/ 2% MILK </td>
+   <td style="text-align:left;"> 19205 </td>
+   <td style="text-align:right;"> -2831.054 </td>
+   <td style="text-align:right;"> 0.6721117 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> PUDDINGS </td>
+   <td style="text-align:right;"> 1 </td>
+   <td style="text-align:right;"> 140.00000 </td>
+   <td style="text-align:right;"> 140.0 </td>
+   <td style="text-align:right;"> 4.490000 </td>
+   <td style="text-align:right;"> 2.90 </td>
+   <td style="text-align:right;"> 156 </td>
+   <td style="text-align:right;"> 9 </td>
+   <td style="text-align:right;"> 1.643 </td>
+   <td style="text-align:right;"> 2.80 </td>
+   <td style="text-align:right;"> 99 </td>
+   <td style="text-align:right;"> 0.04 </td>
+   <td style="text-align:right;"> 9 </td>
+   <td style="text-align:right;"> 74 </td>
+   <td style="text-align:right;"> 119 </td>
+   <td style="text-align:right;"> 0.33 </td>
+   <td style="text-align:right;"> 0.025 </td>
+   <td style="text-align:right;"> 0.005 </td>
+   <td style="text-align:right;"> 3.3 </td>
+   <td style="text-align:right;"> 0.0 </td>
+   <td style="text-align:right;"> 0.036 </td>
+   <td style="text-align:right;"> 0.149 </td>
+   <td style="text-align:right;"> 0.078 </td>
+   <td style="text-align:right;"> 0.326 </td>
+   <td style="text-align:right;"> 0.028 </td>
+   <td style="text-align:right;"> 113 </td>
+   <td style="text-align:left;"> PUDDINGS,VANILLA,DRY MIX,REG,PREP W/ WHL MILK </td>
+   <td style="text-align:left;"> 19207 </td>
+   <td style="text-align:right;"> -3179.996 </td>
+   <td style="text-align:right;"> 0.0050279 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> INF FORMULA </td>
+   <td style="text-align:right;"> 1 </td>
+   <td style="text-align:right;"> 9.60000 </td>
+   <td style="text-align:right;"> 9.6 </td>
+   <td style="text-align:right;"> 2.430000 </td>
+   <td style="text-align:right;"> 27.65 </td>
+   <td style="text-align:right;"> 154 </td>
+   <td style="text-align:right;"> 0 </td>
+   <td style="text-align:right;"> 11.430 </td>
+   <td style="text-align:right;"> 15.36 </td>
+   <td style="text-align:right;"> 998 </td>
+   <td style="text-align:right;"> 10.20 </td>
+   <td style="text-align:right;"> 46 </td>
+   <td style="text-align:right;"> 666 </td>
+   <td style="text-align:right;"> 768 </td>
+   <td style="text-align:right;"> 3.84 </td>
+   <td style="text-align:right;"> 0.461 </td>
+   <td style="text-align:right;"> 0.026 </td>
+   <td style="text-align:right;"> 9.2 </td>
+   <td style="text-align:right;"> 61.0 </td>
+   <td style="text-align:right;"> 0.512 </td>
+   <td style="text-align:right;"> 0.768 </td>
+   <td style="text-align:right;"> 5.376 </td>
+   <td style="text-align:right;"> 2.304 </td>
+   <td style="text-align:right;"> 0.307 </td>
+   <td style="text-align:right;"> 512 </td>
+   <td style="text-align:left;"> INF FORMULA, ABB NUTR, SIMIL, GO &amp; GR, PDR, W/ ARA &amp; DHA </td>
+   <td style="text-align:left;"> 33871 </td>
+   <td style="text-align:right;"> -3144.150 </td>
+   <td style="text-align:right;"> 0.0735572 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> SEA BASS </td>
+   <td style="text-align:right;"> 1 </td>
+   <td style="text-align:right;"> 129.00000 </td>
+   <td style="text-align:right;"> 129.0 </td>
+   <td style="text-align:right;"> 3.960000 </td>
+   <td style="text-align:right;"> 2.00 </td>
+   <td style="text-align:right;"> 68 </td>
+   <td style="text-align:right;"> 41 </td>
+   <td style="text-align:right;"> 0.511 </td>
+   <td style="text-align:right;"> 18.43 </td>
+   <td style="text-align:right;"> 10 </td>
+   <td style="text-align:right;"> 0.29 </td>
+   <td style="text-align:right;"> 41 </td>
+   <td style="text-align:right;"> 194 </td>
+   <td style="text-align:right;"> 256 </td>
+   <td style="text-align:right;"> 0.40 </td>
+   <td style="text-align:right;"> 0.019 </td>
+   <td style="text-align:right;"> 0.015 </td>
+   <td style="text-align:right;"> 36.5 </td>
+   <td style="text-align:right;"> 0.0 </td>
+   <td style="text-align:right;"> 0.110 </td>
+   <td style="text-align:right;"> 0.120 </td>
+   <td style="text-align:right;"> 1.600 </td>
+   <td style="text-align:right;"> 0.750 </td>
+   <td style="text-align:right;"> 0.400 </td>
+   <td style="text-align:right;"> 97 </td>
+   <td style="text-align:left;"> SEA BASS,MXD SP,RAW </td>
+   <td style="text-align:left;"> 15091 </td>
+   <td style="text-align:right;"> -2795.921 </td>
+   <td style="text-align:right;"> 0.7392762 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> WHEAT FLR </td>
+   <td style="text-align:right;"> 1 </td>
+   <td style="text-align:right;"> 125.00000 </td>
+   <td style="text-align:right;"> 125.0 </td>
+   <td style="text-align:right;"> 2.420000 </td>
+   <td style="text-align:right;"> 0.98 </td>
+   <td style="text-align:right;"> 2 </td>
+   <td style="text-align:right;"> 0 </td>
+   <td style="text-align:right;"> 0.155 </td>
+   <td style="text-align:right;"> 10.33 </td>
+   <td style="text-align:right;"> 15 </td>
+   <td style="text-align:right;"> 1.17 </td>
+   <td style="text-align:right;"> 22 </td>
+   <td style="text-align:right;"> 108 </td>
+   <td style="text-align:right;"> 107 </td>
+   <td style="text-align:right;"> 0.70 </td>
+   <td style="text-align:right;"> 0.144 </td>
+   <td style="text-align:right;"> 0.682 </td>
+   <td style="text-align:right;"> 33.9 </td>
+   <td style="text-align:right;"> 0.0 </td>
+   <td style="text-align:right;"> 0.120 </td>
+   <td style="text-align:right;"> 0.040 </td>
+   <td style="text-align:right;"> 1.250 </td>
+   <td style="text-align:right;"> 0.438 </td>
+   <td style="text-align:right;"> 0.044 </td>
+   <td style="text-align:right;"> 364 </td>
+   <td style="text-align:left;"> WHEAT FLR,WHITE,ALL-PURPOSE,UNENR </td>
+   <td style="text-align:left;"> 20481 </td>
+   <td style="text-align:right;"> -3001.896 </td>
+   <td style="text-align:right;"> 0.3455075 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> BEANS </td>
+   <td style="text-align:right;"> 1 </td>
+   <td style="text-align:right;"> 179.00000 </td>
+   <td style="text-align:right;"> 179.0 </td>
+   <td style="text-align:right;"> 4.840000 </td>
+   <td style="text-align:right;"> 0.64 </td>
+   <td style="text-align:right;"> 238 </td>
+   <td style="text-align:right;"> 0 </td>
+   <td style="text-align:right;"> 0.166 </td>
+   <td style="text-align:right;"> 8.97 </td>
+   <td style="text-align:right;"> 73 </td>
+   <td style="text-align:right;"> 2.84 </td>
+   <td style="text-align:right;"> 68 </td>
+   <td style="text-align:right;"> 169 </td>
+   <td style="text-align:right;"> 463 </td>
+   <td style="text-align:right;"> 1.09 </td>
+   <td style="text-align:right;"> 0.149 </td>
+   <td style="text-align:right;"> 0.510 </td>
+   <td style="text-align:right;"> 1.3 </td>
+   <td style="text-align:right;"> 0.0 </td>
+   <td style="text-align:right;"> 0.236 </td>
+   <td style="text-align:right;"> 0.059 </td>
+   <td style="text-align:right;"> 0.272 </td>
+   <td style="text-align:right;"> 0.251 </td>
+   <td style="text-align:right;"> 0.127 </td>
+   <td style="text-align:right;"> 142 </td>
+   <td style="text-align:left;"> BEANS,SML WHITE,MATURE SEEDS,CKD,BLD,W/SALT </td>
+   <td style="text-align:left;"> 16346 </td>
+   <td style="text-align:right;"> -2389.504 </td>
+   <td style="text-align:right;"> 1.5162376 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> MILK </td>
+   <td style="text-align:right;"> 1 </td>
+   <td style="text-align:right;"> 245.00000 </td>
+   <td style="text-align:right;"> 245.0 </td>
+   <td style="text-align:right;"> 7.340000 </td>
+   <td style="text-align:right;"> 1.98 </td>
+   <td style="text-align:right;"> 59 </td>
+   <td style="text-align:right;"> 8 </td>
+   <td style="text-align:right;"> 1.232 </td>
+   <td style="text-align:right;"> 3.95 </td>
+   <td style="text-align:right;"> 143 </td>
+   <td style="text-align:right;"> 0.06 </td>
+   <td style="text-align:right;"> 15 </td>
+   <td style="text-align:right;"> 112 </td>
+   <td style="text-align:right;"> 182 </td>
+   <td style="text-align:right;"> 0.41 </td>
+   <td style="text-align:right;"> 0.011 </td>
+   <td style="text-align:right;"> 0.002 </td>
+   <td style="text-align:right;"> 2.6 </td>
+   <td style="text-align:right;"> 1.1 </td>
+   <td style="text-align:right;"> 0.045 </td>
+   <td style="text-align:right;"> 0.194 </td>
+   <td style="text-align:right;"> 0.101 </td>
+   <td style="text-align:right;"> 0.339 </td>
+   <td style="text-align:right;"> 0.046 </td>
+   <td style="text-align:right;"> 56 </td>
+   <td style="text-align:left;"> MILK,RED FAT,FLUID,2% MILKFAT,W/ NONFAT MILK SOL,WO/ VIT A </td>
+   <td style="text-align:left;"> 01152 </td>
+   <td style="text-align:right;"> -2416.917 </td>
+   <td style="text-align:right;"> 1.4638299 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> BEANS </td>
+   <td style="text-align:right;"> 1 </td>
+   <td style="text-align:right;"> 169.00000 </td>
+   <td style="text-align:right;"> 169.0 </td>
+   <td style="text-align:right;"> 5.520000 </td>
+   <td style="text-align:right;"> 0.49 </td>
+   <td style="text-align:right;"> 2 </td>
+   <td style="text-align:right;"> 0 </td>
+   <td style="text-align:right;"> 0.126 </td>
+   <td style="text-align:right;"> 9.06 </td>
+   <td style="text-align:right;"> 52 </td>
+   <td style="text-align:right;"> 2.30 </td>
+   <td style="text-align:right;"> 65 </td>
+   <td style="text-align:right;"> 165 </td>
+   <td style="text-align:right;"> 508 </td>
+   <td style="text-align:right;"> 0.96 </td>
+   <td style="text-align:right;"> 0.271 </td>
+   <td style="text-align:right;"> 0.548 </td>
+   <td style="text-align:right;"> 1.4 </td>
+   <td style="text-align:right;"> 0.0 </td>
+   <td style="text-align:right;"> 0.257 </td>
+   <td style="text-align:right;"> 0.063 </td>
+   <td style="text-align:right;"> 0.570 </td>
+   <td style="text-align:right;"> 0.299 </td>
+   <td style="text-align:right;"> 0.175 </td>
+   <td style="text-align:right;"> 149 </td>
+   <td style="text-align:left;"> BEANS,PINK,MATURE SEEDS,CKD,BLD,WO/SALT </td>
+   <td style="text-align:left;"> 16041 </td>
+   <td style="text-align:right;"> -2016.445 </td>
+   <td style="text-align:right;"> 2.2294253 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> BEEF </td>
+   <td style="text-align:right;"> 1 </td>
+   <td style="text-align:right;"> 85.00000 </td>
+   <td style="text-align:right;"> 85.0 </td>
+   <td style="text-align:right;"> 4.560000 </td>
+   <td style="text-align:right;"> 9.04 </td>
+   <td style="text-align:right;"> 64 </td>
+   <td style="text-align:right;"> 64 </td>
+   <td style="text-align:right;"> 3.544 </td>
+   <td style="text-align:right;"> 21.22 </td>
+   <td style="text-align:right;"> 9 </td>
+   <td style="text-align:right;"> 1.96 </td>
+   <td style="text-align:right;"> 21 </td>
+   <td style="text-align:right;"> 152 </td>
+   <td style="text-align:right;"> 275 </td>
+   <td style="text-align:right;"> 4.89 </td>
+   <td style="text-align:right;"> 0.073 </td>
+   <td style="text-align:right;"> 0.073 </td>
+   <td style="text-align:right;"> 21.1 </td>
+   <td style="text-align:right;"> 0.0 </td>
+   <td style="text-align:right;"> 0.100 </td>
+   <td style="text-align:right;"> 0.269 </td>
+   <td style="text-align:right;"> 5.080 </td>
+   <td style="text-align:right;"> 0.540 </td>
+   <td style="text-align:right;"> 0.488 </td>
+   <td style="text-align:right;"> 166 </td>
+   <td style="text-align:left;"> BEEF,RIB EYE STK/RST,BONE-IN,LIP-ON,LN,1/8&quot; FAT,ALL GRDS,RAW </td>
+   <td style="text-align:left;"> 23150 </td>
+   <td style="text-align:right;"> -3057.622 </td>
+   <td style="text-align:right;"> 0.2389742 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> DESSERTS </td>
+   <td style="text-align:right;"> 1 </td>
+   <td style="text-align:right;"> 141.00000 </td>
+   <td style="text-align:right;"> 141.0 </td>
+   <td style="text-align:right;"> 8.460000 </td>
+   <td style="text-align:right;"> 3.43 </td>
+   <td style="text-align:right;"> 351 </td>
+   <td style="text-align:right;"> 0 </td>
+   <td style="text-align:right;"> 0.685 </td>
+   <td style="text-align:right;"> 1.75 </td>
+   <td style="text-align:right;"> 35 </td>
+   <td style="text-align:right;"> 0.82 </td>
+   <td style="text-align:right;"> 8 </td>
+   <td style="text-align:right;"> 28 </td>
+   <td style="text-align:right;"> 78 </td>
+   <td style="text-align:right;"> 0.18 </td>
+   <td style="text-align:right;"> 0.071 </td>
+   <td style="text-align:right;"> 0.130 </td>
+   <td style="text-align:right;"> 3.5 </td>
+   <td style="text-align:right;"> 2.2 </td>
+   <td style="text-align:right;"> 0.083 </td>
+   <td style="text-align:right;"> 0.081 </td>
+   <td style="text-align:right;"> 0.846 </td>
+   <td style="text-align:right;"> 0.092 </td>
+   <td style="text-align:right;"> 0.040 </td>
+   <td style="text-align:right;"> 161 </td>
+   <td style="text-align:left;"> DESSERTS,APPL CRISP,PREPARED-FROM-RECIPE </td>
+   <td style="text-align:left;"> 19186 </td>
+   <td style="text-align:right;"> -3650.814 </td>
+   <td style="text-align:right;"> -0.8950487 </td>
+  </tr>
+</tbody>
+</table>
 
 
 ### Simulating Solving
@@ -680,19 +5289,11 @@ simulate_menus <- function(n_sims = 10, min_food_amount = 0.5, verbose = FALSE) 
 
 
 ```r
-simulate_menus()
+simulate_menus(verbose = FALSE)
 ```
 
 ```
-## Cost is $387.15.
-```
-
-```
-## No optimal solution found :'(
-```
-
-```
-## Cost is $157.15.
+## Cost is $454.63.
 ```
 
 ```
@@ -700,7 +5301,7 @@ simulate_menus()
 ```
 
 ```
-## Cost is $47.58.
+## Cost is $56.04.
 ```
 
 ```
@@ -708,7 +5309,7 @@ simulate_menus()
 ```
 
 ```
-## Cost is $180.36.
+## Cost is $56.06.
 ```
 
 ```
@@ -716,7 +5317,7 @@ simulate_menus()
 ```
 
 ```
-## Cost is $222.55.
+## Cost is $170.53.
 ```
 
 ```
@@ -724,7 +5325,15 @@ simulate_menus()
 ```
 
 ```
-## Cost is $206.2.
+## Cost is $244.35.
+```
+
+```
+## No optimal solution found :'(
+```
+
+```
+## Cost is $98.86.
 ```
 
 ```
@@ -732,7 +5341,7 @@ simulate_menus()
 ```
 
 ```
-## Cost is $248.6.
+## Cost is $133.71.
 ```
 
 ```
@@ -740,7 +5349,7 @@ simulate_menus()
 ```
 
 ```
-## Cost is $88.22.
+## Cost is $99.43.
 ```
 
 ```
@@ -748,7 +5357,7 @@ simulate_menus()
 ```
 
 ```
-## Cost is $41.9.
+## Cost is $53.44.
 ```
 
 ```
@@ -756,7 +5365,7 @@ simulate_menus()
 ```
 
 ```
-## Cost is $117.17.
+## Cost is $149.91.
 ```
 
 ```
@@ -806,35 +5415,107 @@ simulate_spectrum <- function(n_intervals = 10, n_sims = 2, from = -1, to = 1,
 
 
 ```r
-simulate_spectrum() %>% kable()
+simulate_spectrum() %>% kable(format = "html")
 ```
 
-
-
- min_amount   status
------------  -------
-       -1.0        0
-       -1.0        0
-       -0.8        0
-       -0.8        0
-       -0.6        0
-       -0.6        0
-       -0.4        1
-       -0.4        0
-       -0.2        1
-       -0.2        0
-        0.0        0
-        0.0        0
-        0.2        0
-        0.2        0
-        0.4        1
-        0.4        0
-        0.6        1
-        0.6        1
-        0.8        1
-        0.8        1
-        1.0        1
-        1.0        1
+<table>
+ <thead>
+  <tr>
+   <th style="text-align:right;"> min_amount </th>
+   <th style="text-align:right;"> status </th>
+  </tr>
+ </thead>
+<tbody>
+  <tr>
+   <td style="text-align:right;"> -1.0 </td>
+   <td style="text-align:right;"> 0 </td>
+  </tr>
+  <tr>
+   <td style="text-align:right;"> -1.0 </td>
+   <td style="text-align:right;"> 0 </td>
+  </tr>
+  <tr>
+   <td style="text-align:right;"> -0.8 </td>
+   <td style="text-align:right;"> 0 </td>
+  </tr>
+  <tr>
+   <td style="text-align:right;"> -0.8 </td>
+   <td style="text-align:right;"> 0 </td>
+  </tr>
+  <tr>
+   <td style="text-align:right;"> -0.6 </td>
+   <td style="text-align:right;"> 0 </td>
+  </tr>
+  <tr>
+   <td style="text-align:right;"> -0.6 </td>
+   <td style="text-align:right;"> 0 </td>
+  </tr>
+  <tr>
+   <td style="text-align:right;"> -0.4 </td>
+   <td style="text-align:right;"> 1 </td>
+  </tr>
+  <tr>
+   <td style="text-align:right;"> -0.4 </td>
+   <td style="text-align:right;"> 0 </td>
+  </tr>
+  <tr>
+   <td style="text-align:right;"> -0.2 </td>
+   <td style="text-align:right;"> 1 </td>
+  </tr>
+  <tr>
+   <td style="text-align:right;"> -0.2 </td>
+   <td style="text-align:right;"> 0 </td>
+  </tr>
+  <tr>
+   <td style="text-align:right;"> 0.0 </td>
+   <td style="text-align:right;"> 0 </td>
+  </tr>
+  <tr>
+   <td style="text-align:right;"> 0.0 </td>
+   <td style="text-align:right;"> 0 </td>
+  </tr>
+  <tr>
+   <td style="text-align:right;"> 0.2 </td>
+   <td style="text-align:right;"> 0 </td>
+  </tr>
+  <tr>
+   <td style="text-align:right;"> 0.2 </td>
+   <td style="text-align:right;"> 0 </td>
+  </tr>
+  <tr>
+   <td style="text-align:right;"> 0.4 </td>
+   <td style="text-align:right;"> 1 </td>
+  </tr>
+  <tr>
+   <td style="text-align:right;"> 0.4 </td>
+   <td style="text-align:right;"> 0 </td>
+  </tr>
+  <tr>
+   <td style="text-align:right;"> 0.6 </td>
+   <td style="text-align:right;"> 1 </td>
+  </tr>
+  <tr>
+   <td style="text-align:right;"> 0.6 </td>
+   <td style="text-align:right;"> 1 </td>
+  </tr>
+  <tr>
+   <td style="text-align:right;"> 0.8 </td>
+   <td style="text-align:right;"> 1 </td>
+  </tr>
+  <tr>
+   <td style="text-align:right;"> 0.8 </td>
+   <td style="text-align:right;"> 1 </td>
+  </tr>
+  <tr>
+   <td style="text-align:right;"> 1.0 </td>
+   <td style="text-align:right;"> 1 </td>
+  </tr>
+  <tr>
+   <td style="text-align:right;"> 1.0 </td>
+   <td style="text-align:right;"> 1 </td>
+  </tr>
+</tbody>
+</table>
 
 
 
@@ -1050,26 +5731,71 @@ dfize <- function(lst, remove_bad_urls = TRUE) {
 
 ```r
 a_couple_recipes_df <- dfize(a_couple_recipes)
-a_couple_recipes_df %>% kable()
+a_couple_recipes_df %>% kable(format = "html")
 ```
 
-
-
-ingredients                                                                             recipe_name                                                            
---------------------------------------------------------------------------------------  -----------------------------------------------------------------------
-1 (12 inch) pre-baked pizza crust                                                       Johnsonville® Three Cheese Italian Style Chicken Sausage Skillet Pizza 
-1 1/2 cups shredded mozzarella cheese                                                   Johnsonville® Three Cheese Italian Style Chicken Sausage Skillet Pizza 
-1 (14 ounce) jar pizza sauce                                                            Johnsonville® Three Cheese Italian Style Chicken Sausage Skillet Pizza 
-1 (12 ounce) package Johnsonville® Three Cheese Italian Style Chicken Sausage, sliced   Johnsonville® Three Cheese Italian Style Chicken Sausage Skillet Pizza 
-1 (3.5 ounce) package sliced pepperoni                                                  Johnsonville® Three Cheese Italian Style Chicken Sausage Skillet Pizza 
-3 teaspoons peanut oil, divided                                                         Ginger Fried Rice                                                      
-4 large eggs, beaten                                                                    Ginger Fried Rice                                                      
-1 bunch scallions, chopped                                                              Ginger Fried Rice                                                      
-2 tablespoons minced fresh ginger                                                       Ginger Fried Rice                                                      
-3 cups cold cooked long-grain brown rice                                                Ginger Fried Rice                                                      
-1 cup frozen peas                                                                       Ginger Fried Rice                                                      
-1 cup mung bean sprouts (see Note)                                                      Ginger Fried Rice                                                      
-3 tablespoons prepared stir-fry or oyster sauce                                         Ginger Fried Rice                                                      
+<table>
+ <thead>
+  <tr>
+   <th style="text-align:left;"> ingredients </th>
+   <th style="text-align:left;"> recipe_name </th>
+  </tr>
+ </thead>
+<tbody>
+  <tr>
+   <td style="text-align:left;"> 1 (12 inch) pre-baked pizza crust </td>
+   <td style="text-align:left;"> Johnsonville® Three Cheese Italian Style Chicken Sausage Skillet Pizza </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> 1 1/2 cups shredded mozzarella cheese </td>
+   <td style="text-align:left;"> Johnsonville® Three Cheese Italian Style Chicken Sausage Skillet Pizza </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> 1 (14 ounce) jar pizza sauce </td>
+   <td style="text-align:left;"> Johnsonville® Three Cheese Italian Style Chicken Sausage Skillet Pizza </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> 1 (12 ounce) package Johnsonville® Three Cheese Italian Style Chicken Sausage, sliced </td>
+   <td style="text-align:left;"> Johnsonville® Three Cheese Italian Style Chicken Sausage Skillet Pizza </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> 1 (3.5 ounce) package sliced pepperoni </td>
+   <td style="text-align:left;"> Johnsonville® Three Cheese Italian Style Chicken Sausage Skillet Pizza </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> 3 teaspoons peanut oil, divided </td>
+   <td style="text-align:left;"> Ginger Fried Rice </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> 4 large eggs, beaten </td>
+   <td style="text-align:left;"> Ginger Fried Rice </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> 1 bunch scallions, chopped </td>
+   <td style="text-align:left;"> Ginger Fried Rice </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> 2 tablespoons minced fresh ginger </td>
+   <td style="text-align:left;"> Ginger Fried Rice </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> 3 cups cold cooked long-grain brown rice </td>
+   <td style="text-align:left;"> Ginger Fried Rice </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> 1 cup frozen peas </td>
+   <td style="text-align:left;"> Ginger Fried Rice </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> 1 cup mung bean sprouts (see Note) </td>
+   <td style="text-align:left;"> Ginger Fried Rice </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> 3 tablespoons prepared stir-fry or oyster sauce </td>
+   <td style="text-align:left;"> Ginger Fried Rice </td>
+  </tr>
+</tbody>
+</table>
 
 
 Great, so we've got a tidy dataframe that we can start to get some useful data out of.
@@ -1090,24 +5816,51 @@ Here is a fake recipe to illustrate some of those cases. (Certainly falls into E
 
 
 ```r
-some_recipes_tester %>% kable()
+some_recipes_tester %>% kable(format = "html")
 ```
 
-
-
-|ingredients                                            |
-|:------------------------------------------------------|
-|1.2 ounces or maybe pounds of something with a decimal |
-|3 (14 ounce) cans o' beef broth                        |
-|around 4 or 5 eels                                     |
-|5-6 cans spam                                          |
-|11 - 46 tbsp of sugar                                  |
-|1/3 to 1/2 of a ham                                    |
-|5 1/2 pounds of apples                                 |
-|4g cinnamon                                            |
-|about 17 fluid ounces of wine                          |
-|4-5 cans of 1/2 caf coffee                             |
-|3 7oz figs with 1/3 rind                               |
+<table>
+ <thead>
+  <tr>
+   <th style="text-align:left;"> ingredients </th>
+  </tr>
+ </thead>
+<tbody>
+  <tr>
+   <td style="text-align:left;"> 1.2 ounces or maybe pounds of something with a decimal </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> 3 (14 ounce) cans o' beef broth </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> around 4 or 5 eels </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> 5-6 cans spam </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> 11 - 46 tbsp of sugar </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> 1/3 to 1/2 of a ham </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> 5 1/2 pounds of apples </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> 4g cinnamon </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> about 17 fluid ounces of wine </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> 4-5 cans of 1/2 caf coffee </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> 3 7oz figs with 1/3 rind </td>
+  </tr>
+</tbody>
+</table>
 
 
 Rather than start doing something conditional random field-level smart to get around these problems, to start off I started writing a few rules of thumb.
@@ -1319,24 +6072,87 @@ Let's see what that looks like in practice.
 
 
 ```r
-some_recipes_tester %>% get_portion_values() %>% kable()
+some_recipes_tester %>% get_portion_values() %>% kable(format = "html")
 ```
 
-
-
-ingredients                                               range_portion   mult_add_portion   portion
--------------------------------------------------------  --------------  -----------------  --------
-1.2 ounces or maybe pounds of something with a decimal             0.00                0.0      1.20
-3 (14 ounce) cans o' beef broth                                    0.00               42.0     42.00
-around 4 or 5 eels                                                 4.50                0.0      4.50
-5-6 cans spam                                                      5.50                0.0      5.50
-11 - 46 tbsp of sugar                                             28.50                0.0     28.50
-1/3 to 1/2 of a ham                                                0.42                0.0      0.42
-5 1/2 pounds of apples                                             0.00                5.5      5.50
-4g cinnamon                                                        0.00                0.0      4.00
-about 17 fluid ounces of wine                                      0.00                0.0     17.00
-4-5 cans of 1/2 caf coffee                                         4.50                0.0      4.50
-3 7oz figs with 1/3 rind                                           0.00               21.0     21.00
+<table>
+ <thead>
+  <tr>
+   <th style="text-align:left;"> ingredients </th>
+   <th style="text-align:right;"> range_portion </th>
+   <th style="text-align:right;"> mult_add_portion </th>
+   <th style="text-align:right;"> portion </th>
+  </tr>
+ </thead>
+<tbody>
+  <tr>
+   <td style="text-align:left;"> 1.2 ounces or maybe pounds of something with a decimal </td>
+   <td style="text-align:right;"> 0.00 </td>
+   <td style="text-align:right;"> 0.0 </td>
+   <td style="text-align:right;"> 1.20 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> 3 (14 ounce) cans o' beef broth </td>
+   <td style="text-align:right;"> 0.00 </td>
+   <td style="text-align:right;"> 42.0 </td>
+   <td style="text-align:right;"> 42.00 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> around 4 or 5 eels </td>
+   <td style="text-align:right;"> 4.50 </td>
+   <td style="text-align:right;"> 0.0 </td>
+   <td style="text-align:right;"> 4.50 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> 5-6 cans spam </td>
+   <td style="text-align:right;"> 5.50 </td>
+   <td style="text-align:right;"> 0.0 </td>
+   <td style="text-align:right;"> 5.50 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> 11 - 46 tbsp of sugar </td>
+   <td style="text-align:right;"> 28.50 </td>
+   <td style="text-align:right;"> 0.0 </td>
+   <td style="text-align:right;"> 28.50 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> 1/3 to 1/2 of a ham </td>
+   <td style="text-align:right;"> 0.42 </td>
+   <td style="text-align:right;"> 0.0 </td>
+   <td style="text-align:right;"> 0.42 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> 5 1/2 pounds of apples </td>
+   <td style="text-align:right;"> 0.00 </td>
+   <td style="text-align:right;"> 5.5 </td>
+   <td style="text-align:right;"> 5.50 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> 4g cinnamon </td>
+   <td style="text-align:right;"> 0.00 </td>
+   <td style="text-align:right;"> 0.0 </td>
+   <td style="text-align:right;"> 4.00 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> about 17 fluid ounces of wine </td>
+   <td style="text-align:right;"> 0.00 </td>
+   <td style="text-align:right;"> 0.0 </td>
+   <td style="text-align:right;"> 17.00 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> 4-5 cans of 1/2 caf coffee </td>
+   <td style="text-align:right;"> 4.50 </td>
+   <td style="text-align:right;"> 0.0 </td>
+   <td style="text-align:right;"> 4.50 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> 3 7oz figs with 1/3 rind </td>
+   <td style="text-align:right;"> 0.00 </td>
+   <td style="text-align:right;"> 21.0 </td>
+   <td style="text-align:right;"> 21.00 </td>
+  </tr>
+</tbody>
+</table>
 
 Looks pretty solid.
 
@@ -1353,16 +6169,26 @@ measures_collapsed
 
 Then if there are multiple portions that match, we'll take the last one.
 
-We'll also add `approximate` to our dataframe which is just a boolean value indicating whether this item is exact or approximate. If the item contains one of `approximate` then we give it a TRUE.
+We'll also add `approximate` to our dataframe which is just a boolean value indicating whether this item is exact or approximate. If the item contains one of `approximate` (about ,around ,as desired ,as needed ,optional ,or so ,to taste) then we give it a TRUE.
 
 
 ```r
-approximate
+str_detect("8 or so cloves of garlic", approximate)
 ```
 
 ```
-## [1] "about|around|as desired|as needed|optional|or so|to taste"
+## [1] TRUE
 ```
+
+
+```r
+str_detect("8 cloves of garlic", approximate)
+```
+
+```
+## [1] FALSE
+```
+
 
 
 
@@ -1431,24 +6257,111 @@ get_portions <- function(df, add_abbrevs = FALSE, pare_portion_info = FALSE) {
 
 
 ```r
-some_recipes_tester %>% get_portions() %>% add_abbrevs() %>% kable()
+some_recipes_tester %>% get_portions(pare_portion_info = TRUE) %>% add_abbrevs() %>% kable(format = "html")
 ```
 
-
-
-ingredients                                              raw_portion_num   portion_name   approximate    range_portion   mult_add_portion   portion  portion_abbrev 
--------------------------------------------------------  ----------------  -------------  ------------  --------------  -----------------  --------  ---------------
-1.2 ounces or maybe pounds of something with a decimal   1.2               pound          FALSE                   0.00                0.0      1.20  lb             
-3 (14 ounce) cans o' beef broth                          3, 14             ounce          FALSE                   0.00               42.0     42.00  oz             
-around 4 or 5 eels                                       4, 5                             TRUE                    4.50                0.0      4.50                 
-5-6 cans spam                                            5, 6                             FALSE                   5.50                0.0      5.50                 
-11 - 46 tbsp of sugar                                    11, 46                           FALSE                  28.50                0.0     28.50                 
-1/3 to 1/2 of a ham                                      1/3, 1/2                         FALSE                   0.42                0.0      0.42                 
-5 1/2 pounds of apples                                   5, 1/2            pound          FALSE                   0.00                5.5      5.50  lb             
-4g cinnamon                                              4                 g              FALSE                   0.00                0.0      4.00  g              
-about 17 fluid ounces of wine                            17                ounce          TRUE                    0.00                0.0     17.00  oz             
-4-5 cans of 1/2 caf coffee                               4, 5, 1/2                        FALSE                   4.50                0.0      4.50                 
-3 7oz figs with 1/3 rind                                 3, 7, 1/3         oz             FALSE                   0.00               21.0     21.00  oz             
+<table>
+ <thead>
+  <tr>
+   <th style="text-align:left;"> ingredients </th>
+   <th style="text-align:left;"> raw_portion_num </th>
+   <th style="text-align:left;"> portion_name </th>
+   <th style="text-align:left;"> approximate </th>
+   <th style="text-align:right;"> portion </th>
+   <th style="text-align:left;"> portion_abbrev </th>
+  </tr>
+ </thead>
+<tbody>
+  <tr>
+   <td style="text-align:left;"> 1.2 ounces or maybe pounds of something with a decimal </td>
+   <td style="text-align:left;"> 1.2 </td>
+   <td style="text-align:left;"> pound </td>
+   <td style="text-align:left;"> FALSE </td>
+   <td style="text-align:right;"> 1.20 </td>
+   <td style="text-align:left;"> lb </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> 3 (14 ounce) cans o' beef broth </td>
+   <td style="text-align:left;"> 3, 14 </td>
+   <td style="text-align:left;"> ounce </td>
+   <td style="text-align:left;"> FALSE </td>
+   <td style="text-align:right;"> 42.00 </td>
+   <td style="text-align:left;"> oz </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> around 4 or 5 eels </td>
+   <td style="text-align:left;"> 4, 5 </td>
+   <td style="text-align:left;">  </td>
+   <td style="text-align:left;"> TRUE </td>
+   <td style="text-align:right;"> 4.50 </td>
+   <td style="text-align:left;">  </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> 5-6 cans spam </td>
+   <td style="text-align:left;"> 5, 6 </td>
+   <td style="text-align:left;">  </td>
+   <td style="text-align:left;"> FALSE </td>
+   <td style="text-align:right;"> 5.50 </td>
+   <td style="text-align:left;">  </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> 11 - 46 tbsp of sugar </td>
+   <td style="text-align:left;"> 11, 46 </td>
+   <td style="text-align:left;">  </td>
+   <td style="text-align:left;"> FALSE </td>
+   <td style="text-align:right;"> 28.50 </td>
+   <td style="text-align:left;">  </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> 1/3 to 1/2 of a ham </td>
+   <td style="text-align:left;"> 1/3, 1/2 </td>
+   <td style="text-align:left;">  </td>
+   <td style="text-align:left;"> FALSE </td>
+   <td style="text-align:right;"> 0.42 </td>
+   <td style="text-align:left;">  </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> 5 1/2 pounds of apples </td>
+   <td style="text-align:left;"> 5, 1/2 </td>
+   <td style="text-align:left;"> pound </td>
+   <td style="text-align:left;"> FALSE </td>
+   <td style="text-align:right;"> 5.50 </td>
+   <td style="text-align:left;"> lb </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> 4g cinnamon </td>
+   <td style="text-align:left;"> 4 </td>
+   <td style="text-align:left;"> g </td>
+   <td style="text-align:left;"> FALSE </td>
+   <td style="text-align:right;"> 4.00 </td>
+   <td style="text-align:left;"> g </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> about 17 fluid ounces of wine </td>
+   <td style="text-align:left;"> 17 </td>
+   <td style="text-align:left;"> ounce </td>
+   <td style="text-align:left;"> TRUE </td>
+   <td style="text-align:right;"> 17.00 </td>
+   <td style="text-align:left;"> oz </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> 4-5 cans of 1/2 caf coffee </td>
+   <td style="text-align:left;"> 4, 5, 1/2 </td>
+   <td style="text-align:left;">  </td>
+   <td style="text-align:left;"> FALSE </td>
+   <td style="text-align:right;"> 4.50 </td>
+   <td style="text-align:left;">  </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> 3 7oz figs with 1/3 rind </td>
+   <td style="text-align:left;"> 3, 7, 1/3 </td>
+   <td style="text-align:left;"> oz </td>
+   <td style="text-align:left;"> FALSE </td>
+   <td style="text-align:right;"> 21.00 </td>
+   <td style="text-align:left;"> oz </td>
+  </tr>
+</tbody>
+</table>
 
 
 We've got some units! Next step will be to convert all units into grams. 
@@ -1457,7 +6370,175 @@ We've got some units! Next step will be to convert all units into grams.
 
 
 
+```r
+# Get a dataframe of all units (need plurals for abbrev_dict ones)
+all_units <- c(units, abbrev_dict$name, abbrev_dict$key, "inch")
+all_units_df <- list(word = all_units) %>% as_tibble()
+
+
+# Get a sample (can't be random because we need foods that come from the same menus) and 
+# unnest words
+grab_words <- function(df, row_start = 1, row_stop = 100, n_grams = 1) {
+  df <- df %>% 
+    slice(row_start:row_stop) %>% 
+    group_by(recipe_name) %>% 
+    mutate(ingredient_num = row_number()) %>% 
+    ungroup() %>% 
+    unnest_tokens(word, ingredients, token = "ngrams", n = n_grams) %>% 
+    select(recipe_name, word, everything())
+  
+  return(df)
+}
+
+unigrams <- grab_words(more_recipes_df)
+bigrams <- grab_words(more_recipes_df, n_grams = 2)
+
+
+# Logical for whether an word is a number or not
+# we could have as easily done this w a regex
+find_nums <- function(df) {
+  df <- df %>% mutate(
+    num = suppressWarnings(as.numeric(word)),    # we could have as easily done this w a regex
+    is_num = case_when(
+      !is.na(num) ~ TRUE,
+      is.na(num) ~ FALSE
+    )
+  ) %>% select(-num)
+  
+  return(df)
+}
+
+# Filter out numbers
+unigrams <- unigrams %>%
+  find_nums() %>%
+  filter(is_num == FALSE) %>% 
+  select(-is_num)
+
+
+# Looking at pairs of words within a recipe (not neccessarily bigrams), which paris tend to co-occur?
+# i.e., higher frequency within the same recipe
+per_rec_freq <- unigrams %>% 
+  anti_join(stop_words) %>% 
+  anti_join(all_units_df) %>% 
+  group_by(recipe_name) %>% 
+  add_count(word, sort = TRUE) %>%    # Count of number of times this word appears in this recipe
+  rename(n_this_rec = n) %>% 
+  ungroup() %>% 
+  add_count(word, sort = TRUE) %>%    # Count of number of times this word appears in all recipes
+  rename(n_all_rec = n) %>%
+  select(recipe_name, word, n_this_rec, n_all_rec)
+```
+
+```
+## Joining, by = "word"
+## Joining, by = "word"
+```
+
+```r
+# Get the total number of words per recipe
+per_rec_totals <- per_rec_freq %>% 
+  group_by(recipe_name) %>%
+  summarise(total_this_recipe = sum(n_this_rec))
+
+# Get the total number of times a word is used across all the recipes
+all_rec_totals <- per_rec_freq %>% 
+  ungroup() %>% 
+  summarise(total_this_recipe = sum(n_this_rec))
+  
+# Join that on the sums we've found
+per_rec_freq_out <- per_rec_freq %>% 
+  mutate(
+    total_overall = sum(n_this_rec)
+  ) %>% 
+  left_join(per_rec_totals) %>% 
+  left_join(all_rec_totals)
+```
+
+```
+## Joining, by = "recipe_name"
+```
+
+```
+## Joining, by = "total_this_recipe"
+```
+
+```r
+# See tfidf
+per_rec_freq %>% 
+  bind_tf_idf(word, recipe_name, n_this_rec) %>% 
+  arrange(desc(tf_idf))
+```
+
+```
+## # A tibble: 260 x 7
+##                    recipe_name         word n_this_rec n_all_rec
+##                          <chr>        <chr>      <int>     <int>
+##  1 Tangy Cream Cheese Frosting       sifted          1         1
+##  2 Tangy Cream Cheese Frosting philadelphia          1         1
+##  3 Tangy Cream Cheese Frosting        greek          1         1
+##  4         Blueberry Turnovers     crescent          1         1
+##  5         Blueberry Turnovers        rolls          1         1
+##  6         Blueberry Turnovers  blueberries          1         1
+##  7         Blueberry Turnovers     frosting          1         1
+##  8 Tangy Cream Cheese Frosting        cream          1         2
+##  9 Tangy Cream Cheese Frosting       yogurt          1         2
+## 10         Honey-Dijon Chicken        dijon          1         1
+## # ... with 250 more rows, and 3 more variables: tf <dbl>, idf <dbl>,
+## #   tf_idf <dbl>
+```
+
+```r
+# --------- Pairwise ---------
+
+# Get the pairwise correlation between words in each recipe
+pairwise_per_rec <- per_rec_freq %>% 
+  group_by(recipe_name) %>%      # <---- Not sure if we should be grouping here
+  pairwise_cor(word, recipe_name, sort = TRUE) 
+
+# Graph the correlations between a few words and their highest correlated neighbors
+pairwise_per_rec %>%
+  filter(item1 %in% c("cheese", "garlic", "onion", "sugar")) %>% 
+  filter(correlation > .5) %>%
+  graph_from_data_frame() %>%
+  ggraph(layout = "fr") +
+  geom_edge_link(aes(edge_alpha = correlation), show.legend = FALSE) +
+  geom_node_point(color = "lightblue", size = 5) +
+  geom_node_text(aes(label = name), repel = TRUE) +
+  theme_void()
+```
+
+![](writeup_files/figure-html/unnamed-chunk-4-1.png)<!-- -->
 
 
 
 
+
+
+[^1]: If we tried to unnest this right now we'd get an error. 
+
+```r
+foods %>% unnest()
+```
+
+
+That's because missing values are coded as `--`. That's an issue for two of these columns, `gm` and `value`, which get coded as numeric if there are no mising values and character otherwise. 
+
+Since a single column in a dataframe can only have values of one type, before unnesting our `nutrients` list column, we'll want to make sure all values of `gm` and `value` are of the same type across all rows. 
+
+I'm sure there's a more elegant `purrr` solution or a better way to set types when we're taking our list to tibble, but a quick and dirty fix here is to go through and make sure these values are all character.
+
+
+```r
+for (i in 1:length(foods$nutrients)) {
+  for (j in 1:nrow(foods$nutrients[[1]])) {
+    foods$nutrients[[i]]$gm[j] <- as.character(foods$nutrients[[i]]$gm[j])
+    foods$nutrients[[i]]$value[j] <- as.character(foods$nutrients[[i]]$value[j])
+  }
+}
+```
+
+
+```r
+# unnest it
+foods <- foods %>% unnest()
+```

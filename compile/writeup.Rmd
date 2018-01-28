@@ -4,16 +4,8 @@ author:
   name: Amanda Dobbyn
   email: amanda.e.dobbyn@gmail.com
   twitter: dobbleobble
-# output:
-#   html_notebook:
-#     toc: false
-#     theme: yeti
-#   pdf_document:
-#     keep_tex: true
-#     toc: false
-#   github_document:
-#     toc: false
 output:
+  # html_notebook:
   html_document:
     keep_md: true
     toc: false
@@ -26,6 +18,8 @@ output:
 editor_options: 
   chunk_output_type: inline
 ---
+
+***
 
 ```{r setup, include=FALSE}
 library(knitr)
@@ -40,7 +34,6 @@ knitr::opts_knit$set(root.dir=normalizePath('../'))
 # devtools::install_github("aedobbyn/dobtools")
 library(dobtools)
 library(testthat)
-library(stringr)
 library(feather)
 library(tidyverse)
 library(Rglpk)
@@ -49,13 +42,14 @@ library(widyr)
 library(igraph)
 library(ggraph)
 library(assertthat)
+library(stringr)
 
 source("./other/api/key.R")
 ```
 
 ```{r load_scripts}
 dirs <- c("prep", "build", "score", "scrape", "solve", "simulate")
-paths <- str_c("./scripts/", dirs)
+paths <- stringr::str_c("./scripts/", dirs)
 
 # Import all .R scripts from all the dirs above 
 for (p in paths) {
@@ -106,41 +100,15 @@ In the browser, you could paste that same thing in to see:
 ![](img/json_resp_long.jpg)
 
 ```{r foods}
-foods %>% kable(format = "html")
+head(foods)
 ```
 
-We've got one row per food and a nested list-col of nutrients.
+We've got one row per food and a nested list-col of nutrients [^1].
 
 ```{r foods_str}
 str(foods$nutrients[1:3])
 ```
 
-
-If we tried to unnest this right now we'd get an error. 
-```{r unnest_foods_error, eval=FALSE}
-foods %>% unnest()
-```
-
-
-That's because missing values are coded as `--`. That's an issue for two of these columns, `gm` and `value`, which get coded as numeric if there are no mising values and character otherwise. 
-
-Since a single column in a dataframe can only have values of one type, before unnesting our `nutrients` list column, we'll want to make sure all values of `gm` and `value` are of the same type across all rows. 
-
-I'm sure there's a more elegant `purrr` solution or a better way to set types when we're taking our list to tibble, but a quick and dirty fix here is to go through and make sure these values are all character.
-
-```{r make_character, warning=FALSE, message=FALSE}
-for (i in 1:length(foods$nutrients)) {
-  for (j in 1:nrow(foods$nutrients[[1]])) {
-    foods$nutrients[[i]]$gm[j] <- as.character(foods$nutrients[[i]]$gm[j])
-    foods$nutrients[[i]]$value[j] <- as.character(foods$nutrients[[i]]$value[j])
-  }
-}
-```
-
-```{r unnest_foods}
-# unnest it
-foods <- foods %>% unnest()
-```
 
 Now we can take these `--`s and change them into `NA`s.
 
@@ -165,14 +133,18 @@ Great, we've successfully unnested. As I mentioned before, we'll use our nice AB
 ```{r read_in_abbre}
 abbrev_raw <- readxl::read_excel("./data/raw/ABBREV.xlsx") %>% as_tibble()
 
-abbrev_raw %>% kable(format = "html")
+abbrev_raw[1:20, ] %>% kable(format = "html")
+```
+
+```{r dim_abbrev_raw}
+dim(abbrev_raw)
 ```
 
 
 
-You can read in depth the prep I did on this file in `/scripts/prep`. Mainly this involved a bit of cleaning like stripping out parentheses from column names, e.g., `Vit_C_(mg)` becomes `Vit_C_mg`. In there you'll also find a dataframe called `all_nut_and_mr_df` where I define the nutritional constraints on menus. If a nutrient is among the "must restricts," that is, `r str_c(mr_df$must_restrict, collapse = ", ")` then that value is a daily upper bound. Otherwise, it's a lower bound. 
+You can read in depth the prep I did on this file in `/scripts/prep`. Mainly this involved a bit of cleaning like stripping out parentheses from column names, e.g., `Vit_C_(mg)` becomes `Vit_C_mg`. 
 
-So for example, you're supposed to have at least 18mg of Iron and no more than 2400mg of Sodium per day. (As someone who puts salt on everything indiscriminately I'd be shocked if I've ever been under that threshold.)
+In there you'll also find a dataframe called `all_nut_and_mr_df` where I define the nutritional constraints on menus. If a nutrient is among the "must restricts," that is, `r stringr::str_c(mr_df$must_restrict, collapse = ", ")`, then its corresponding value is a daily *upper* bound. Otherwise, the nutrient is a "positive nutrient" and its vlaue is a lower bound. For example, you're supposed to have at least 18mg of Iron and no more than 2400mg of Sodium per day. (As someone who puts salt on everything indiscriminately I'd be shocked if I've ever been under that threshold.)
 
 ```{r all_nut_and_mr_df}
 all_nut_and_mr_df %>% kable(format = "html")
@@ -187,7 +159,7 @@ scaled <- abbrev %>%
     vars(nutrient_names, "Energ_Kcal"), dobtools::z_score   # <-- equivalent to scale(), but simpler
   )
 
-scaled
+scaled[1:20, ] %>% kable()
 ```
 
 Then we do a few mutates to `abbrev` using the function below. This is a function we can use on any menu dataframe, not just `abbrev`, which is why it's called `do_menu_mutates()`. Turns out that the short descriptions of foods in the `Shrt_Desc` column actually aren't so short so we'll create a `shorter_desc` column by taking only the values in `Shrt_Desc` up to the first comma. That turns "BUTTER,WHIPPED,W/ SALT" into just "BUTTER".
@@ -235,7 +207,23 @@ We'll do these mutates and score each item (see `/scripts/score/rank_foods.R` fo
 
 ```{r do_mutates_add_ranked}
 abbrev <- abbrev %>% do_menu_mutates() %>% add_ranked_foods() 
-abbrev %>% kable(format = "html")
+abbrev[1:20, ] %>% kable(format = "html")
+```
+
+
+**Per 100g vs. Raw**
+
+Note how our column titles have aways end with `_g` or `_mg`. That's because this column is giving us the value of each nutrient, *per 100g of this food*. The value we've got in that column isn't the raw value. Our contraints, though, are in raw terms. We'll need a way to know whether we've gotten our 1000mg of Calcium from the foods in our menu, each of which list how much Calcium they provide per 100g of that food.
+
+In order to get to the raw value of a nutrient, for each food in our menu we'll multiply the 100g value of that nutrient by the weight of the food in grams, or its `GmWt_1`.
+
+$TotalNutrientVal = \sum_{i=1}^{k} Per100gVal_{i} * GmWt_{i}$ 
+
+
+Two helper functions `get_per_g_vals()` and `get_raw_vals()` in `/scripts/solve` allow us to go back and forth between raw and per 100g values. We'll try to keep everything in per 100g whenever possible, as that's the format our raw data is in. Our main solving function does accept both formats, however.
+
+```{r do_get_raw_vals}
+abbrev %>% sample_n(10) %>% get_raw_vals() %>% kable(format = "html")
 ```
 
 
@@ -244,9 +232,9 @@ abbrev %>% kable(format = "html")
 
 ### Building
 
-Now to build a menu. The only constraint we have to worry about here is that menus have to contain at least 2300 calories. Our strategy is simple; pick one serving of a food at random from our dataset and, if it doesn't yet exist in our menu, add it. We do this until we're no longer under 2300 calories. 
+Now that we've got our data, on to building a menu. The only constraint we'll worry about for now is that menus have to contain at least 2300 calories. Our strategy is simple; pick one serving of a food at random from our dataset and, if it doesn't yet exist in our menu, add it. We do this until we're no longer under 2300 calories. 
 
-That's implemented in `add_calories()` below, which we'll as a helper inside `build_menu()`. The reason I've spun `add_calories()` out into its own function is so that we can easily add more foods to existing menus. It takes `menu` as its first argument, unlike `build_menu()` which takes a dataframe of possible foods to choose from as its first argument. That makes it more convenient to call `add_calories()` from inside `build_menu()` and use `build_menu()` primarily to create totally new menus.
+That's implemented in `add_calories()` below, which we'll as a helper inside the main building function, `build_menu()`. The reason I've spun `add_calories()` out into its own function is so that we can easily add more foods to existing menus. Unlike `build_menu()` which takes a dataframe of possible foods to choose from as its first argument, `add_calories()` takes `menu` as its first argument, making it convenient to pipe a menu in that needs more calories.
 
 ```{r add_calories}
 add_calories <- function(menu = NULL, df = abbrev, seed = NULL, ...) {
@@ -322,6 +310,7 @@ build_menu <- function(df = abbrev, menu = NULL, seed = NULL, from_better_cutoff
 
 ```{r do_build_menu}
 our_random_menu <- build_menu()
+our_random_menu %>% kable(format = "html")
 ```
 
 Alright nice -- we've got random menu that's at least compliant on calories. Is it compliant on nutrients and must restricts?
@@ -356,7 +345,7 @@ test_mr_compliance <- function(orig_menu, capitalize_colname = TRUE) {
 }
 ```
 
-Same idea for positives. Then to test whether we're compliant overall, we'll see whether we pass all of these tsts. If not, we're not compliant.
+Same idea for positives. Then to test whether we're compliant overall, we'll see whether we pass all of these tests. If not, we're not compliant.
 
 ```{r test_all_compliance}
 test_all_compliance <- function(orig_menu) {
@@ -676,14 +665,126 @@ our_solved_nutrients %>% kable(format = "html")
 
 ### Swapping
 
-Single swap
+Our menus often aren't solvable. That is, at the minimum portion size we set, there's no way we can change portion sizes in such a way that we stay under all the maximum values for each must restrict and under the minimums for all positive nutrients as well as have enough calories.
+
+In these cases, we'll need to change up our lineup.
+
+###Single swap
+
+The idea with a single swap is to see which must restricts are not satisfied 
+
+```{r smart_swap_single}
+smart_swap_single <- function(menu, max_offender, cutoff = 0.5, df = abbrev, verbose = FALSE) {
+  
+  swap_count <- 0
+
+    for (m in seq_along(mr_df$must_restrict)) {   
+      nut_to_restrict <- mr_df$must_restrict[m]    # grab the name of the nutrient we're restricting
+      message(paste0("------- The nutrient we're restricting is ", nut_to_restrict, ". It has to be below ", mr_df$value[m])) 
+      to_restrict <- (sum(menu[[nut_to_restrict]] * menu$GmWt_1, na.rm = TRUE))/100   # get the amount of that must restrict nutrient in our original menu
+      message(paste0("The original total value of that nutrient in our menu is ", to_restrict)) 
+      
+      if (to_restrict > mr_df$value[m]) {     # if the amount of the must restrict in our current menu is above the max value it should be according to mr_df
+        swap_count <- swap_count + 1
+        
+        max_offender <- which(menu[[nut_to_restrict]] == max(menu[[nut_to_restrict]]))   # Find the food that's the worst offender in this respect
+        
+        message(paste0("The worst offender in this respect is ", menu[max_offender, ]$Shrt_Desc))
+        
+        menu[max_offender, ] <- replace_food_w_better(menu, max_offender, 
+                                                           nutrient_to_restrict = nut_to_restrict, cutoff = cutoff)
+        
+        to_restrict <- (sum(menu[[nut_to_restrict]] * menu$GmWt_1, na.rm = TRUE))/100   # recalculate the must restrict nutrient content
+        message(paste0("Our new value of this must restrict is ", to_restrict)) 
+      } else {
+        message("We're all good on this nutrient.") 
+      }
+    }
+  
+  if (verbose == TRUE) {
+    print(paste0(swap_count, " swaps were completed."))
+  }
+  
+  return(menu)
+}
+
+do_single_swap <- function(menu, solve_if_unsolved = TRUE, verbose = FALSE,
+                        new_solution_amount = 1){  # What should the solution amount of the newly swapped in foods be?
+  
+  if (verbose == FALSE) {
+    out <- suppressWarnings(suppressMessages(menu %>% 
+      smart_swap_single(menu))) 
+  } else {
+    out <- menu
+      smart_swap_single(menu) 
+  }
+
+  return(out)
+}
+```
+
 
 ```{r}
 our_random_menu %>% do_single_swap() %>% kable(format = "html")
 ```
 
 
-Wholesale swap
+#### Wholesale swap
+
+```{r wholesale_swap}
+wholesale_swap <- function(menu, df = abbrev, percent_to_swap = 0.5) {
+  
+  # Get foods with the lowest solution amounts
+  min_solution_amount <- min(menu$solution_amounts)
+  worst_foods <- menu %>% 
+    filter(solution_amounts == min_solution_amount)
+  
+  if (nrow(worst_foods) >= 2) {
+    to_swap_out <- worst_foods %>% sample_frac(percent_to_swap)
+    message(paste0("Swapping out a random ", percent_to_swap*100, "% of foods: ", 
+                   str_c(to_swap_out$shorter_desc, collapse = ", ")))
+    
+  } else if (nrow(worst_foods) == 1)  {
+    message("Only one worst food. Swapping this guy out.")
+    to_swap_out <- worst_foods
+    
+  } else {
+    message("No worst foods")
+  }
+  
+  get_swap_candidates <- function(df, to_swap_out) {
+    candidate <- df %>% 
+      filter(! (NDB_No %in% menu)) %>%    # We can't swap in a food that already exists in our menu
+      sample_n(., size = nrow(to_swap_out)) %>% 
+      mutate(solution_amounts = 1)    # Give us one serving of each of these new foods
+    return(candidate)
+  }
+  swap_candidate <- get_swap_candidates(df = df, to_swap_out = to_swap_out)
+  
+  if (score_menu(swap_candidate) < score_menu(to_swap_out)) {
+    message("Swap candidate not good enough; reswapping.")
+    swap_candidate <- get_swap_candidates(df = df, to_swap_out = to_swap_out)
+    
+  } else {
+      message("Swap candidate is good enough. Doing the wholesale swap.")
+      return(swap_candidate)
+  }
+  
+  newly_swapped_in <- get_swap_candidates(df, to_swap_out)
+  
+  message(paste0("Replacing with: ", 
+                 str_c(newly_swapped_in$shorter_desc, collapse = ", ")))
+  
+  out <- menu %>% 
+    filter(!NDB_No %in% worst_foods) %>% 
+    bind_rows(newly_swapped_in)
+  
+  return(out)
+}
+
+```
+
+
 ```{r}
 our_random_menu %>% wholesale_swap() %>% kable(format = "html")
 ```
@@ -728,8 +829,8 @@ simulate_menus <- function(n_sims = 10, min_food_amount = 0.5, verbose = FALSE) 
 ```
 
 
-```{r}
-simulate_menus()
+```{r do_simulate_menus}
+simulate_menus(verbose = FALSE)
 ```
 
 
@@ -1164,11 +1265,16 @@ measures_collapsed
 
 Then if there are multiple portions that match, we'll take the last one.
 
-We'll also add `approximate` to our dataframe which is just a boolean value indicating whether this item is exact or approximate. If the item contains one of `approximate` then we give it a TRUE.
+We'll also add `approximate` to our dataframe which is just a boolean value indicating whether this item is exact or approximate. If the item contains one of `approximate` (`r str_c(approximate_raw, collapse = " ,")`) then we give it a TRUE.
 
-```{r approximate}
-approximate
+```{r test_approximate_true}
+str_detect("8 or so cloves of garlic", approximate)
 ```
+
+```{r test_approximate_false}
+str_detect("8 cloves of garlic", approximate)
+```
+
 
 
 ```{r get_portion_text}
@@ -1233,7 +1339,7 @@ get_portions <- function(df, add_abbrevs = FALSE, pare_portion_info = FALSE) {
 
 
 ```{r do_get_portions_and_abbrevs}
-some_recipes_tester %>% get_portions() %>% add_abbrevs() %>% kable(format = "html")
+some_recipes_tester %>% get_portions(pare_portion_info = TRUE) %>% add_abbrevs() %>% kable(format = "html")
 ```
 
 
@@ -1353,3 +1459,28 @@ pairwise_per_rec %>%
 
 
 
+[^1]: If we tried to unnest this right now we'd get an error. 
+```{r unnest_foods_error, eval=FALSE}
+foods %>% unnest()
+```
+
+
+That's because missing values are coded as `--`. That's an issue for two of these columns, `gm` and `value`, which get coded as numeric if there are no mising values and character otherwise. 
+
+Since a single column in a dataframe can only have values of one type, before unnesting our `nutrients` list column, we'll want to make sure all values of `gm` and `value` are of the same type across all rows. 
+
+I'm sure there's a more elegant `purrr` solution or a better way to set types when we're taking our list to tibble, but a quick and dirty fix here is to go through and make sure these values are all character.
+
+```{r make_character, warning=FALSE, message=FALSE}
+for (i in 1:length(foods$nutrients)) {
+  for (j in 1:nrow(foods$nutrients[[1]])) {
+    foods$nutrients[[i]]$gm[j] <- as.character(foods$nutrients[[i]]$gm[j])
+    foods$nutrients[[i]]$value[j] <- as.character(foods$nutrients[[i]]$value[j])
+  }
+}
+```
+
+```{r unnest_foods}
+# unnest it
+foods <- foods %>% unnest()
+```
