@@ -69,6 +69,60 @@ more_recipes_df <- read_feather("./data/derived/more_recipes_df.feather")
 ```
 
 
+The USDA does have an open API so you can create an API key and grab foods from them with requests along the lines of the below. The [API documentation](https://ndb.nal.usda.gov/ndb/doc/apilist/API-FOOD-REPORTV2.md) walks through the format for requesting data. 
+
+The default number of results per request is 50 so we specify 1500 as our `max`. In this example I set `subset` to 1 in order to grab the most common foods. (Otherwise 1:1500 query only gets you from a to beef `r emo::ji("laughing")`.) If you do want to grab all foods, you can send requests of 1500 iteratively specifying `offset`, which refers to the number of the first row you want, and then glue them together.
+
+We've specified just 4 nutrients we want here
+
+```{r json_req}
+food_raw <- jsonlite::fromJSON(paste0("http://api.nal.usda.gov/ndb/nutrients/?format=json&api_key=", 
+                       key, "&subset=1&max=1500&nutrients=205&nutrients=204&nutrients=208&nutrients=269"),
+                flatten = TRUE)
+
+foods <- as_tibble(food_raw$report$foods)
+```
+
+```{r foods}
+foods %>% kable()
+```
+
+```{r}
+foods$nutrients[1, ]
+```
+
+
+Before unnesting our `nutrients` list column, we'll want to take `gm` and `value` from character
+
+```{r}
+# make all gm elements in the nutrients list-column characters so that we can unnest
+# this list-column
+for (i in 1:length(foods$nutrients)) {
+  for (j in 1:4) {
+    foods$nutrients[[i]]$gm[j] <- as.character(foods$nutrients[[i]]$gm[j])
+    foods$nutrients[[i]]$value[j] <- as.character(foods$nutrients[[i]]$value[j])
+  }
+}
+
+# unnest it
+foods <- foods %>% unnest()
+```
+
+Missing values are coded as `--` so we'll change those into `NA`s.
+
+```{r}
+# code NAs
+foods <- foods %>% 
+  mutate(
+    gm = ifelse(gm == "--", NA, gm),
+    value = ifelse(value == "--", NA, value)
+  )
+
+```
+
+
+
+
 # Creating and Solving Menus
 
 ### Building
