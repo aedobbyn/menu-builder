@@ -56,14 +56,15 @@ paths <- str_c("./scripts/", dirs)
 
 # Import all .R scripts from all the dirs above 
 for (p in paths) {
-  suppressPackageStartupMessages(dobtools::import_scripts(p))
+  suppressMessages(suppressPackageStartupMessages(dobtools::import_scripts(p)))
 }
 ```
 
-```{r read_in}
+```{r read_in, include=FALSE}
 # some_recipes_df <- read_feather("./data/derived/some_recipes_df.feather")
 status_spectrum <- read_feather("./data/derived/status_spectrum.feather")
 rec_spectrum <- read_feather("./data/derived/rec_spectrum.feather")
+more_recipes_raw <- readRDS("./data/derived/more_recipes_raw.rds")
 more_recipes_df <- read_feather("./data/derived/more_recipes_df.feather")
 ```
 
@@ -218,6 +219,7 @@ our_random_menu %>% test_all_compliance
 #### Scoring
 
 Now I want an objective and preferably single scalar metric by which to judge menus. We want a metric that takes into account the following things:
+
 * You don't get extra credit for going above the daily minimum on positive nutrients
     * This reflects the fact that your body can only absorb up to a certain amount of a vitamin
 * You do, however, keep getting penalized for going farther and farther above the minimum on `must_restricts`
@@ -237,10 +239,10 @@ So the farther above our max we are on must restricts, the higher our score will
 mr_score <- function(orig_menu) {
   total_mr_score <- 0
   
-  for (m in seq_along(mr_df$must_restrict)) {    # for each row in the df of positives
-    mr_considering <- mr_df$must_restrict[m]    # grab the name of the nutrient we're examining
+  for (m in seq_along(mr_df$must_restrict)) {    
+    mr_considering <- mr_df$must_restrict[m]    
     val_mr_considering <- (sum((orig_menu[[mr_considering]] * orig_menu$GmWt_1), 
-                                na.rm = TRUE))/100   # get the total amount of that nutrient in our original menu
+                                na.rm = TRUE))/100   
     
     mr_score <- mr_df$value[m] - val_mr_considering  # max amount it's supposed to be - amount it is
 
@@ -451,8 +453,9 @@ solve_menu <- function(sol, verbose = TRUE) {
 
 ```
 
-```{r}
+```{r our_solved_menu}
 our_solved_menu <- our_menu_solution %>% solve_menu()
+our_solved_menu %>% kable()
 ```
 
 
@@ -493,8 +496,9 @@ solve_nutrients <- function(sol, verbose = TRUE) {
 
 ```
 
-```{r}
+```{r our_solved_nutrients}
 our_solved_nutrients <- our_menu_solution %>% solve_nutrients()
+our_solved_nutrients %>% kable()
 ```
 
 
@@ -504,20 +508,21 @@ our_solved_nutrients <- our_menu_solution %>% solve_nutrients()
 Single swap
 
 ```{r}
-our_random_menu %>% do_single_swap()
+our_random_menu %>% do_single_swap() %>% kable()
 ```
 
 
 Wholesale swap
 ```{r}
-our_random_menu %>% wholesale_swap()
+our_random_menu %>% wholesale_swap() %>% kable()
 ```
 
 
 ### Full Solving
 
-```{r}
-build_menu() %>% solve_full()
+```{r fully_solved, message=FALSE}
+fully_solved <- build_menu() %>% solve_full(verbose = FALSE)
+fully_solved %>% kable()
 ```
 
 
@@ -592,8 +597,8 @@ simulate_spectrum <- function(n_intervals = 10, n_sims = 2, from = -1, to = 1,
 
 
 
-```{r}
-simulate_spectrum()
+```{r do_simulate_spectrum}
+simulate_spectrum() %>% kable()
 ```
 
 
@@ -672,7 +677,9 @@ get_recipe_content <- function(page) {
 
 Cool, so we've got three functions now, one for reading the content from a URL and turning it into a `page` and two for taking that `page` and grabbing the parts of it that we want We'll use those functions in `get_recipes()` which will take a vector of URLs and return us a list of recipes. We also include parameters for how long to wait in between requests (`sleep`) so as to avoid getting booted from allrecipes.com and whether we want the "Bad URL"s included in our results list or not. If `verbose` is TRUE we'll get a message of count of the number of 404s we had and the number of duped recipes. 
 
+
 **Note on dupes**
+
 Dupes come up because multiple IDs can point to the same recipe, that is, two different URLs could resolve to the same page. I figured there were two routes we could go to see whether a recipe is a dupe or not; one, just go off of the recipe name or two, go off of the recipe name and content. By going off of the name, we don't go through the trouble of pulling in duped recipe content if we think we've got a dupe; we just skip it. Going off of content and checking whether the recipe content exists in our list so far would be safer (we'd only skip the recipes that we definitely already have), but slower because we have to both `get_recipe_name()` and `get_recipe_content()`. I went with the faster way; in `get_recipes()` we just check the recipe name we're on against all the recipe names in our list with `if (!recipe_name %in% names(out))`.
 
 
@@ -735,8 +742,10 @@ get_recipes <- function(urls, sleep = 5, verbose = TRUE, append_bad_URLs = TRUE)
 
 Let's give it a shot with a couple URLs.
 
-```{r some_recipes}
-a_couple_recipes <- get_recipes(urls[4:5]) 
+```{r a_couple_recipes}
+# a_couple_recipes <- get_recipes(urls[4:5]) 
+a_couple_recipes <- more_recipes_raw[1:2]
+a_couple_recipes
 ```
 
 
@@ -765,6 +774,7 @@ dfize <- function(lst, remove_bad_urls = TRUE) {
 
 ```{r some_recipes}
 a_couple_recipes_df <- dfize(a_couple_recipes)
+a_couple_recipes_df %>% kable()
 ```
 
 
@@ -774,21 +784,18 @@ One of the goals here is to see what portion of a menu tends to be devoted to, s
 
 But, as it happens, protion sizes don't usually consist of just one number. There are a few hurdles: 
 
-1) complex fractions
-* 2 1/3 cups of flour
-    * Should become: 2.3333 cups of flour
-2) multiple items of the same item
-* 4 (12oz) bottles of beer
-    * Should become: 48 oz of beer
-3) ranges
-* 6-7 tomatoes
-    * Should become: 6.5 tomatoes
+1) Complex fractions
+* `2 1/3 cups` of flour should become: `2.3333` cups of flour
+2) Multiple items of the same item
+* `4 (12oz)` bottles of beer should become: 48 oz of beer
+3) Ranges
+* `6-7` tomatoes should become: `6.5` tomatoes
 
 
 Here is a fake recipe to illustrate some of those cases. (Certainly falls into Eat, Pray, Barf territory.)
 
 ```{r some_recipes_tester}
-some_recipes_tester
+some_recipes_tester %>% kable()
 ```
 
 
@@ -807,7 +814,7 @@ frac_to_dec <- function(e) {
 }
 ```
 
-`eval()` only only evaluates the last string in a vector, not multiple, so as a workaround I put it into a helper that will turn all fractions into decimal strings:
+`eval()`, which is what does the work inside `frac_to_dec)` only only evaluates the last string in a vector, not multiple, so as a workaround I put it into a helper that will turn all fractions into decimal strings:
 
 ```{r map_frac_to_dec}
 map_frac_to_dec <- function(e) {
@@ -847,6 +854,16 @@ multiply_or_add_portions <- function(e) {
 }
 ```
 
+```{r do_add_portions}
+multiply_or_add_portions(c(4, 0.5))
+```
+
+```{r do_multiply_portions}
+multiply_or_add_portions(c(4, 5))
+```
+
+
+
 A few regexs we'll need: 
 
 ```{r regs}
@@ -861,8 +878,8 @@ multiplier_reg_looser <- "[0-9]+\ +[0-9]"
 ```
 
 
-If we've got something that needs to be multiplied, like "4 (12 oz) hams" or a fraction like "2/3 pound of butter",
-then multiply or add those numbers as appropriate. The `only_mult_after_paren` parameter is something I put in that is specific to Allrecipes. On Allrecipes, it seems that if we do have multiples, they'll always be of the form "<number_of_things> (<quantity_of_single_thing>)". There are always parentheses around <quantity_of_single_thing>. If we're only using Allrecipes data, that gives us some more security that we're only multiplying quantities that actually should be multiplied. If we want to make this extensible in the future we'd want to set `only_mult_after_paren` to FALSE to account for cases like "7 4oz cans of broth".
+If we've got something that needs to be multiplied, like "4 (12 oz) hams" or a fraction like "1 2/3 pound of butter",
+then multiply or add those numbers as appropriate. The `only_mult_after_paren` parameter is something I put in that is specific to Allrecipes. On Allrecipes, it seems that if we do have multiples, they'll always be of the form "*number_of_things* (*quantity_of_single_thing*)". There are always parentheses around *quantity_of_single_thing*. If we're only using Allrecipes data, that gives us some more security that we're only multiplying quantities that actually should be multiplied. If we want to make this extensible in the future we'd want to set `only_mult_after_paren` to FALSE to account for cases like "7 4oz cans of broth".
 
 This function will allow us to add a new column to our dataframe called `mult_add_portion`. If we've done any multiplying or adding of numbers, we'll have a value greater than 0 there, and 0 otherwise.
 
@@ -897,7 +914,7 @@ get_mult_add_portion <- function(e, only_mult_after_paren = FALSE) {
 
 Finally, ranges. If two numbers are separated by an "or" or a "-" like "4-5 teaspoons of sugar" we know that this is a range. We'll take the average of those two numbers.
 
-We'll add a new column to our dataframe called `range_portion` for the result of any range calculations. If we don't have a range, just like `mult_add_portion`, this becomes 0.
+We'll add a new column to our dataframe called `range_portion` for the result of any range calculations. If we don't have a range, just like `mult_add_portion`, we set this value to 0.
 
 ```{r range_regexes}
 to_reg <- "([0-9])(( to ))(([0-9]))"
@@ -930,22 +947,32 @@ get_ranges <- function(e) {
 ```
 
 
+Let's make sure we get the average.
+
+```{r do_get_ranges}
+get_ranges("7 to 21 peaches")
+```
+
+
 
 At the end of the day, we want to end up with a single number describing how much of our recipe item we want. So, let's put all that together into one function. Either `range_portion` or `mult_add_portion` will always be 0, so we add them together to get our final portion size. If we neither need to get a range nor multiply or add numbers, we'll just take whatever the first number is in there.
 
-```{r get_final_portion}
-get_final_portion <- function(e, range_portion, mult_add_portion, ...) {
-  if (range_portion == 0 & mult_add_portion == 0) {
-    out <- str_extract_all(e, portions_reg) %>% 
-      map(map_frac_to_dec) %>%   
-      map(as.numeric) %>% map_dbl(first)
 
-  } else {
-    out <- range_portion + mult_add_portion   # One of these should be 0, so the sum should be just whichever one is non-zero
-  }
-  return(out)
+```{r get_portion_values}
+get_portion_values <- function(df, only_mult_after_paren = FALSE) {
+  df <- df %>% 
+    mutate(
+      range_portion = map_dbl(ingredients, get_ranges),
+      mult_add_portion = map_dbl(ingredients, get_mult_add_portion, only_mult_after_paren = only_mult_after_paren),
+      portion = ifelse(range_portion == 0 & mult_add_portion == 0,
+                       str_extract_all(ingredients, portions_reg) %>%
+                         map(map_frac_to_dec) %>%
+                         map(as.numeric) %>%
+                         map_dbl(first),
+                       range_portion + mult_add_portion)   # Otherwise, take either the range or the multiplied value
+    )
+  return(df)
 }
-
 ```
 
 
@@ -953,7 +980,7 @@ Let's see what that looks like in practice.
 
 
 ```{r do_get_portions}
-some_recipes_tester %>% get_portions() 
+some_recipes_tester %>% get_portion_values() %>% kable()
 ```
 
 Looks pretty solid.
@@ -1017,8 +1044,25 @@ add_abbrevs <- function(df) {
 ```
 
 
-```{r do_get_portions}
-some_recipes_tester %>% get_portions() %>% add_abbrevs()
+All together now. Get the portion text and values. If we only want our best guess as to the portion size, that is, `final_portion_size`, we'll chuck `range_portion` and `mult_add_portion`.
+
+```{r get_portions}
+get_portions <- function(df, add_abbrevs = FALSE, pare_portion_info = FALSE) {
+  df %<>% get_portion_text() 
+  if (add_abbrevs == TRUE) {
+    df %<>% add_abbrevs()
+  }
+  df %<>% get_portion_values()
+  if (pare_portion_info == TRUE) {
+    df %<>% select(-range_portion, -mult_add_portion)
+  }
+  return(df)
+}
+```
+
+
+```{r do_get_portions_and_abbrevs}
+some_recipes_tester %>% get_portions() %>% add_abbrevs() %>% kable()
 ```
 
 
