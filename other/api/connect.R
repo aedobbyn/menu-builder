@@ -6,8 +6,7 @@ library(tidyverse)
 library(jsonlite)
 library(tidyjson)
 
-key = "2fj5UPgl5SjzhpJ43fsGD9Olxi6UgjNXrtoVJ2Wm"
-key2 = "JpZKpLFyYzRToNxCrcKSDHy6aJZKDdzo65MNZ1AH"
+source("./other/api/key.R")
 
 
 # get all foods

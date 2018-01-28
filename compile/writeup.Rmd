@@ -50,6 +50,8 @@ library(igraph)
 library(ggraph)
 library(assertthat)
 
+source("./other/api/key.R")
+
 #### Load all scripts ####
 dirs <- c("prep", "build", "score", "scrape", "solve", "simulate")
 paths <- str_c("./scripts/", dirs)
@@ -69,11 +71,17 @@ more_recipes_df <- read_feather("./data/derived/more_recipes_df.feather")
 ```
 
 
-The USDA does have an open API so you can create an API key and grab foods from them with requests along the lines of the below. The [API documentation](https://ndb.nal.usda.gov/ndb/doc/apilist/API-FOOD-REPORTV2.md) walks through the format for requesting data. 
+The data we'll be using here is conveniently located in an Excel file called ABBREV.xlsx on the USDA website. As the name suggests, this is an abbreviated version of all the foods in their database. 
+
+If you do want the full list, they provide an AccessDB SQL dump as well. The USDA also does have an open API so you can create an API key and grab foods from them with requests along the lines of a quick example I'll go through. The [API documentation](https://ndb.nal.usda.gov/ndb/doc/apilist/API-FOOD-REPORTV2.md) walks through the format for requesting data in more detail. 
+
+### Getting from A to Beef
+
+The base URL you'll want is `http://api.nal.usda.gov/ndb/`.
 
 The default number of results per request is 50 so we specify 1500 as our `max`. In this example I set `subset` to 1 in order to grab the most common foods. (Otherwise 1:1500 query only gets you from a to beef `r emo::ji("laughing")`.) If you do want to grab all foods, you can send requests of 1500 iteratively specifying `offset`, which refers to the number of the first row you want, and then glue them together.
 
-We've specified just 4 nutrients we want here
+We've specified just 4 nutrient values we want here: calories, sugar, lipids, and carbohydrates.
 
 ```{r json_req}
 food_raw <- jsonlite::fromJSON(paste0("http://api.nal.usda.gov/ndb/nutrients/?format=json&api_key=", 
@@ -87,39 +95,70 @@ foods <- as_tibble(food_raw$report$foods)
 foods %>% kable()
 ```
 
-```{r}
-foods$nutrients[1, ]
+We've got one row per food and a nested list-col of nutrients.
+
+```{r foods_str}
+str(foods$nutrients[1:3])
 ```
 
 
-Before unnesting our `nutrients` list column, we'll want to take `gm` and `value` from character
+If we tried to unnest this right now we'd get an error. 
+```{r unnest_foods_error}
+foods %>% unnest()
+```
 
-```{r}
-# make all gm elements in the nutrients list-column characters so that we can unnest
-# this list-column
+
+That's because missing values are coded as `--`. That's an issue for two of these columns, `gm` and `value`, which get coded as numeric if there are no mising values and character otherwise. 
+
+Since a single column in a dataframe can only have values of one type, before unnesting our `nutrients` list column, we'll want to make sure all values of `gm` and `value` are of the same type across all rows. 
+
+I'm sure there's a more elegant `purrr` solution or a better way to set types when we're taking our list to tibble, but a quick and dirty fix here is to go through and make sure these values are all character.
+
+```{r make_character}
 for (i in 1:length(foods$nutrients)) {
-  for (j in 1:4) {
+  for (j in 1:nrow(foods$nutrients[[1]])) {
     foods$nutrients[[i]]$gm[j] <- as.character(foods$nutrients[[i]]$gm[j])
     foods$nutrients[[i]]$value[j] <- as.character(foods$nutrients[[i]]$value[j])
   }
 }
+```
 
+```{r unnest_foods}
 # unnest it
 foods <- foods %>% unnest()
 ```
 
-Missing values are coded as `--` so we'll change those into `NA`s.
+Now we can take these `--`s and change them into `NA`s.
 
-```{r}
-# code NAs
+```{r code_NAs, warning=FALSE}
 foods <- foods %>% 
   mutate(
     gm = ifelse(gm == "--", NA, gm),
     value = ifelse(value == "--", NA, value)
   )
 
+foods$value <- as.numeric(foods$value)
+foods$gm <- as.numeric(foods$gm)
 ```
 
+```{r warning=FALSE}
+foods %>% kable()
+```
+
+
+Great, we've successfully unnested. As I mentioned before, we'll use our nice ABBREV.xlsx rather than using data pulled from the API. So:
+
+```{r read_in_abbre}
+abbrev <- readxl::read_excel("./data/raw/ABBREV.xlsx") %>% as_tibble()
+
+abbrev %>% kable()
+```
+
+You can read in depth the prep I did on this file in `/scripts/prep`. Mainly this involved a bit of cleaning on the column names like stripping out parentheses. In there you'll also find 
+
+```{r all_nut_and_mr_df}
+all_nut_and_mr_df
+```
 
 
 
