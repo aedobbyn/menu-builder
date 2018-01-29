@@ -103,10 +103,37 @@ In the browser, you could paste that same thing in to see:
 head(foods)
 ```
 
-We've got one row per food and a nested list-col of nutrients [^1].
+We've got one row per food and a nested list-col of nutrients.
+
 
 ```{r foods_str}
 str(foods$nutrients[1:3])
+```
+
+
+If we tried to unnest this right now we'd get an error. 
+```{r unnest_foods_error, eval=FALSE}
+foods %>% unnest()
+```
+
+
+That's because missing values are coded as `--`. That's an issue for two of these columns, `gm` and `value`, which get coded as numeric if there are no mising values and character otherwise. 
+
+Since a single column in a dataframe can only have values of one type, before unnesting our `nutrients` list column, we'll want to make sure all values of `gm` and `value` are of the same type across all rows. 
+
+I'm sure there's a more elegant `purrr` solution or a better way to set types when we're taking our list to tibble, but a quick and dirty fix here is to go through and make sure these values are all character.
+
+```{r make_character, warning=FALSE, message=FALSE}
+for (i in 1:length(foods$nutrients)) {
+  for (j in 1:nrow(foods$nutrients[[1]])) {
+    foods$nutrients[[i]]$gm[j] <- as.character(foods$nutrients[[i]]$gm[j])
+    foods$nutrients[[i]]$value[j] <- as.character(foods$nutrients[[i]]$value[j])
+  }
+}
+```
+
+```{r unnest_foods}
+foods <- foods %>% unnest()
 ```
 
 
@@ -126,7 +153,6 @@ foods$gm <- as.numeric(foods$gm)
 ```{r warning=FALSE}
 foods[1:20, ] %>% kable(format = "html")
 ```
-
 
 Great, we've successfully unnested. As I mentioned before, we'll use our nice ABBREV.xlsx rather than using data pulled from the API. So:
 
@@ -667,11 +693,13 @@ our_solved_nutrients %>% kable(format = "html")
 
 Our menus often aren't solvable. That is, at the minimum portion size we set, there's no way we can change portion sizes in such a way that we stay under all the maximum values for each must restrict and under the minimums for all positive nutrients as well as have enough calories.
 
-In these cases, we'll need to change up our lineup.
+In these cases, we'll need to change up our lineup. 
 
 ###Single swap
 
-The idea with a single swap is to see which must restricts are not satisfied 
+I only use single swapping for the cases where we're above the max threshold on must restricts, but you could imagine implementing the same funcitons to deal with positives.
+
+The idea with a single swap is to see which must restricts are not satisfied, find the food that is the `max_offender` on that must restrict (i.e., contributes the most in absolute terms to the value of the must restrict) and then swap it out. We try to `replace_food_w_better()`, that is, swap it out for a food from a pool of better foods on that dimension. We define better as foods that score above a user-specified z-score `cutoff` on that must_restrict. If there are no foods that satisfy that cutoff, we choose a food at random from the pool of all possible foods.
 
 ```{r smart_swap_single}
 smart_swap_single <- function(menu, max_offender, cutoff = 0.5, df = abbrev, verbose = FALSE) {
@@ -723,13 +751,16 @@ do_single_swap <- function(menu, solve_if_unsolved = TRUE, verbose = FALSE,
 }
 ```
 
+In practice, that looks like:
 
-```{r}
+```{r do_single_swap}
 our_random_menu %>% do_single_swap() %>% kable(format = "html")
 ```
 
 
 #### Wholesale swap
+
+The wholesale swap takes a different approach. It uses knowledge we've gained from solving to keep the foods that the solver wanted more of and offer the rest up for swapping. The intuition here is that foods that the solver increased the portion sizes of are more valuable to the menu as a whole. We sample a `percent_to_swap` of the foods that the solver assigned the lowest portion size to, shamefully dubbed the `worst_foods`.
 
 ```{r wholesale_swap}
 wholesale_swap <- function(menu, df = abbrev, percent_to_swap = 0.5) {
@@ -1059,7 +1090,7 @@ But, as it happens, protion sizes don't usually consist of just one number. Ther
 1) Complex fractions
 * `2 1/3 cups` of flour should become: `2.3333` cups of flour
 2) Multiple items of the same item
-* `4 (12oz)` bottles of beer should become: 48 oz of beer
+* `4 (12oz)` bottles of beer should become: `48` oz of beer
 3) Ranges
 * `6-7` tomatoes should become: `6.5` tomatoes
 
@@ -1107,9 +1138,9 @@ map_frac_to_dec(c("1/2", "1/8", "1/3"))
 
 Cool, so for a given ingredient we'll need to look for numbers that are occur next to other numbers, and then and add complex fractions and multiply multiples. 
 
-We'll use this function to look two numbers separated by a " " or a " (". If the second number evaluates to a decimal less than 1, we've got a complex fraction. For example, if we're extracting digits and turning all fractions among them into decimals if we consider "4 1/2 loaves of bread" we'd end up with "4" and "0.5". We know "0.5" is less than 1, so we've got a complex fraction on our hands. We need to add 4 + 0.5 to end up with 4.5 loaves of bread.
+We'll use this function to look two numbers separated by a `" "` or a `" ("`. If the second number evaluates to a decimal less than 1, we've got a complex fraction. For example, if we're extracting digits and turning all fractions among them into decimals if we consider `"4 1/2 loaves of bread"` we'd end up with `"4"` and `"0.5"`. We know `0.5` is less than `1`, so we've got a complex fraction on our hands. We need to add `4 + 0.5` to end up with `4.5` loaves of bread.
 
-It's true that this function doesn't address the issue of having both a complex fraction and multiples in a recipe. That would look like "3 (1 1/2 inch) blocks of cheese." I haven't run into that issue too much but it certainly could use a workaround.
+It's true that this function doesn't address the issue of having both a complex fraction and multiples in a recipe. That would look like `"3 (2 1/4 inch)` blocks of cheese." I haven't run into that issue too much but it certainly could use a workaround.
 
 ```{r multiply_or_add_portions}
 multiply_or_add_portions <- function(e) {
@@ -1126,14 +1157,14 @@ multiply_or_add_portions <- function(e) {
 }
 ```
 
-```{r do_add_portions}
+
+```{r}
 multiply_or_add_portions(c(4, 0.5))
 ```
 
-```{r do_multiply_portions}
+```{r}
 multiply_or_add_portions(c(4, 5))
 ```
-
 
 
 A few regexs we'll need: 
@@ -1177,6 +1208,16 @@ get_mult_add_portion <- function(e, only_mult_after_paren = FALSE) {
   }
   return(out)
 }
+```
+
+
+```{r do_add_portions}
+get_mult_add_portion("4 1/2 steaks") 
+```
+
+
+```{r do_multiply_portions}
+get_mult_add_portion("4 (5 lb melons)") 
 ```
 
 
@@ -1298,7 +1339,7 @@ get_portion_text <- function(df) {
 ```
 
 
-Last thing for us for now on this subject (though there's a lot more to do here!) will be to add abbreviations. This will let us standardize things like "ounces" and "oz" which actually refer to the same thing. 
+Last thing for us for now on this subject (though there's a lot more to do here!) will be to add abbreviations. This will let us standardize things like `"ounces"` and `"oz"` which actually refer to the same thing. 
 
 All `add_abbrevs()` will do is let us mutate our dataframe with a new column for the abbreviation of our portion size, if we've got a recognized portion size.
 
@@ -1318,6 +1359,12 @@ add_abbrevs <- function(df) {
   out <- df %>% bind_cols(list(portion_abbrev = out) %>% as_tibble())
   return(out)
 }
+```
+
+
+```{r do_add_abbrevs}
+tibble(ingredients = "10 pounds salt, or to taste") %>% 
+  get_portion_text() %>% add_abbrevs() %>% kable(format = "html")
 ```
 
 
@@ -1458,29 +1505,3 @@ pairwise_per_rec %>%
 
 
 
-
-[^1]: If we tried to unnest this right now we'd get an error. 
-```{r unnest_foods_error, eval=FALSE}
-foods %>% unnest()
-```
-
-
-That's because missing values are coded as `--`. That's an issue for two of these columns, `gm` and `value`, which get coded as numeric if there are no mising values and character otherwise. 
-
-Since a single column in a dataframe can only have values of one type, before unnesting our `nutrients` list column, we'll want to make sure all values of `gm` and `value` are of the same type across all rows. 
-
-I'm sure there's a more elegant `purrr` solution or a better way to set types when we're taking our list to tibble, but a quick and dirty fix here is to go through and make sure these values are all character.
-
-```{r make_character, warning=FALSE, message=FALSE}
-for (i in 1:length(foods$nutrients)) {
-  for (j in 1:nrow(foods$nutrients[[1]])) {
-    foods$nutrients[[i]]$gm[j] <- as.character(foods$nutrients[[i]]$gm[j])
-    foods$nutrients[[i]]$value[j] <- as.character(foods$nutrients[[i]]$value[j])
-  }
-}
-```
-
-```{r unnest_foods}
-# unnest it
-foods <- foods %>% unnest()
-```
