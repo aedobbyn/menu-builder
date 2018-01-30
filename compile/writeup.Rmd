@@ -185,7 +185,7 @@ scaled <- abbrev %>%
     vars(nutrient_names, "Energ_Kcal"), dobtools::z_score   # <-- equivalent to scale(), but simpler
   )
 
-scaled[1:20, ] %>% kable()
+scaled[1:20, ] %>% kable(format = "html")
 ```
 
 Then we do a few mutates to `abbrev` using the function below. This is a function we can use on any menu dataframe, not just `abbrev`, which is why it's called `do_menu_mutates()`. Turns out that the short descriptions of foods in the `Shrt_Desc` column actually aren't so short so we'll create a `shorter_desc` column by taking only the values in `Shrt_Desc` up to the first comma. That turns "BUTTER,WHIPPED,W/ SALT" into just "BUTTER".
@@ -490,9 +490,42 @@ our_random_menu %>% score_menu()
 
 #### Getting a Solution
 
-The algorithm we use for solving is the [GNU linear program solver](https://cran.r-project.org/web/packages/Rglpk/Rglpk.pdf).
+Solving our menus is the next step. We've got a fixes set of constraints and an objective function: to minimize cost.
 
-Our goal is to return a solution that is a list of a few things we're intersted in: the cost of our final menu, the original menu, and the multiplier on each food's portion size.
+Given these conditions, it makes sense to use a simple linear programming algorithm. The implementation we use for solving is the [GNU linear program solver](https://cran.r-project.org/web/packages/Rglpk/Rglpk.pdf) which has an R interface via the `Rglpk` package.
+
+The `Rglpk_solve_LP()` function is going to do the work for us. What `solve_it()` below will do is grab the elements of a menu that we need for this function, pass them to the solver in the format it needs, and return a solution that is a list of a few things we're intersted in: the cost of our final menu, the original menu, and the multiplier on each food's portion size.
+
+Kind of a lot going on in `solve_it()`, which I'll walk through below. If you're only interested in what we get out of it, feel free to skip this section `r emo_ji("grin")`.
+
+**Making solve_it()**
+
+What we first have to do is get the raw values of every nutrient, if our nutrients are in per 100g form. (If they're already in raw form, we're all set.) We know they're in raw form already if the `df_is_per_100g` flag is FALSE. Whichever form we get our menu data in, we'll transform it to the other form in order to return that in our list at the end.
+
+`Rglpk_solve_LP()` needs something to optimize for, which for us will be `df[["cost"]]`. We'll tell it we want to minimize that. 
+
+Next we need to set up a series of constraint inequalities. On the left hand side of each inequality will be the raw values of each nutrient we've got in our menu. That will be followed by a directionality, either `">"` if the value of that nutrient is a positive or a `"<"` if it is a must restrict. Last we'll supply the upper or lower bound for that particular nutrient, which we supply in `bounds`. If we're thinking about Riboflavin in our menu and we've got `n` items in our menu each with some amount of Riboflavin, that would look like:
+
+$\sum_{i=1}^{n} OurRawRiboflavin_{i} > MinRequiredDailyRiboflavinAmount$ 
+
+
+Now to construct the constraint matrix which I'm cleverly calling `constraint_matrix` for all the nutritional constraints that need to be met. We'll make this by essentially transposing our menu's nutrient columns; whereas in a typical menu dataframe we have one row per food and one column per nutrient, we'll turn this into a matrix with one row per constraint and one column per food. (In practice we do this by creating a matrix and specifying `byrow = TRUE` in the `matrix` call of `construct_matrix()`.) We can print out the constraint matrix by turning `v_v_verbose` on.
+
+Cool, so now we can read a given row in this matrix pertaining to a certain nutrient left to right as adding up the value of that nutrient contained in all of our menu foods. That gives us the sum total of that nutrient in the menu.
+
+What we'd need next if we keep reading from left to right is the directionality which the solver accepts as a vector of `">"`s and `"<"`s. Farthest to the right, we'll need the min or max value of that nutrient, which we'll supply in the vector `rhs` for "right hand side" of the equation.
+
+We'll specify minimum and serving sizes per food by creating `bounds` from `min_food_amount` and `max_food_amount`. This acts as the other half of the constraint on the solver; not only do we need a certain amount of each nutrient, we also need a certain amount of each food.
+
+Finally, we can specify that we want only full serving sizes by setting `only_full_servings` to TRUE. If we do that, we'll tell the solver that the `types` must be integer, `"I"` rather than continuous, `"C"`.
+
+If we turn `verbose` on we'll know whether a solution could be found or not, and what the cost of the solved menu is.  
+**Return**
+
+The native return value of the call to `Rglpk_solve_LP()` is a list. `solve_it()` will take that list and append a few more things to it.
+
+Firt, if we're handed a 
+
 
 ```{r solve_it}
 solve_it <- function(df, nut_df = nutrient_df, df_is_per_100g = TRUE, only_full_servings = FALSE, 
@@ -586,14 +619,17 @@ solve_it <- function(df, nut_df = nutrient_df, df_is_per_100g = TRUE, only_full_
 ```
 
 
-```{r time_solve_it}
-system.time(our_random_menu %>% solve_it())
-```
-
-
 ```{r our_menu_solution}
 our_menu_solution <- our_random_menu %>% solve_it()
 ```
+
+How long did that take?
+
+```{r time_solve_it}
+system.time(our_random_menu %>% solve_it(verbose = FALSE))
+```
+
+Not long.
 
 
 ### Solve menu
