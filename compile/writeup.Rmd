@@ -31,7 +31,7 @@ knitr::opts_knit$set(root.dir=normalizePath('../'))
 ```
 
 ```{r source_in, echo=FALSE, message=FALSE, warning=FALSE}
-# devtools::install_github("aedobbyn/dobtools")
+devtools::install_github("aedobbyn/dobtools")
 library(dobtools)
 library(testthat)
 library(feather)
@@ -47,7 +47,7 @@ library(stringr)
 source("./other/api/key.R")
 ```
 
-```{r load_scripts}
+```{r load_scripts, dependson="source_in"}
 dirs <- c("prep", "build", "score", "scrape", "solve", "simulate")
 paths <- stringr::str_c("./scripts/", dirs)
 
@@ -496,7 +496,7 @@ Given these conditions, it makes sense to use a simple linear programming algori
 
 The `Rglpk_solve_LP()` function is going to do the work for us. What `solve_it()` below will do is grab the elements of a menu that we need for this function, pass them to the solver in the format it needs, and return a solution that is a list of a few things we're intersted in: the cost of our final menu, the original menu, and the multiplier on each food's portion size.
 
-Kind of a lot going on in `solve_it()`, which I'll walk through below. If you're only interested in what we get out of it, feel free to skip this section `r emo_ji("grin")`.
+Kind of a lot going on in `solve_it()`, which I'll walk through below. If you're only interested in what we get out of it, feel free to skip this section `r emo::ji("grin")`.
 
 **Making solve_it()**
 
@@ -513,18 +513,16 @@ Now to construct the constraint matrix which I'm cleverly calling `constraint_ma
 
 Cool, so now we can read a given row in this matrix pertaining to a certain nutrient left to right as adding up the value of that nutrient contained in all of our menu foods. That gives us the sum total of that nutrient in the menu.
 
-What we'd need next if we keep reading from left to right is the directionality which the solver accepts as a vector of `">"`s and `"<"`s. Farthest to the right, we'll need the min or max value of that nutrient, which we'll supply in the vector `rhs` for "right hand side" of the equation.
+What we'd need next if we keep reading from left to right is the directionality which the solver accepts as a vector of `">"`s and `"<"`s. Farthest to the right, we'll need the min or max value of that nutrient, which we'll supply in the vector `rhs` for "right hand side" of the equation. We get `rhs` from the user-supplied `nut_df`, or dataframe of nutrients and their daily upper or lower bounds.
 
-We'll specify minimum and serving sizes per food by creating `bounds` from `min_food_amount` and `max_food_amount`. This acts as the other half of the constraint on the solver; not only do we need a certain amount of each nutrient, we also need a certain amount of each food.
+We'll specify minimum and serving sizes per food by creating `bounds` from `min_food_amount` and `max_food_amount`. This acts as the other half of the constraint on the solver; not only do we need a certain amount of each *nutrient*, we also need a certain amount of each *food*.
 
 Finally, we can specify that we want only full serving sizes by setting `only_full_servings` to TRUE. If we do that, we'll tell the solver that the `types` must be integer, `"I"` rather than continuous, `"C"`.
 
 If we turn `verbose` on we'll know whether a solution could be found or not, and what the cost of the solved menu is.  
 **Return**
 
-The native return value of the call to `Rglpk_solve_LP()` is a list. `solve_it()` will take that list and append a few more things to it.
-
-Firt, if we're handed a 
+The native return value of the call to `Rglpk_solve_LP()` is a list including: vector of solution amounts, the cost, and the status (0 for solved, 1 for not solvable). `solve_it()` will take that list and append a few more things to it, so we can check that it's working correctly and pipe it into other things to distill menus and nutritional information out . We'll append the nutritional constraints we supplied in `nut_df`, the constraint matrix we constructed, and the nutrient values in our original menu in both raw and per 100g form.
 
 
 ```{r solve_it}
@@ -614,13 +612,13 @@ solve_it <- function(df, nut_df = nutrient_df, df_is_per_100g = TRUE, only_full_
   
   return(out)
 }
-
-
 ```
 
+Let's try it out.
 
 ```{r our_menu_solution}
 our_menu_solution <- our_random_menu %>% solve_it()
+our_menu_solution
 ```
 
 How long did that take?
@@ -629,12 +627,14 @@ How long did that take?
 system.time(our_random_menu %>% solve_it(verbose = FALSE))
 ```
 
-Not long.
+Not long. Thanks for being written in C, GLPK! 
 
 
 ### Solve menu
 
-`solve_menu` takes one main argument: the result of a call to `solve_it()`. Since the return value of solve it contains the original menu and a vector of solution amounts -- that is, the amount we're multiplying each portion size by in order to arrive at our solution -- we can combine these to get our solved menu.
+Okay so our output of `solve_it()` is an informative but long list. We want an easy way to solve a menu and get its solution back. Here's where `solve_menu()` comes in.
+
+`solve_menu()` takes one main argument: the result of a call to `solve_it()`. Since we've written the return value of `solve_it()` to contain the original menu *and* a vector of solution amounts -- that is, the amount we're multiplying each portion size by in order to arrive at our solution -- we can combine these to get our solved menu.
 
 We also return a message, if `verbose` is TRUE, telling us which food we've got the most servings of, as this might be something we'd want to decrease. (Now that I'm thining about it, maybe a more helpful message would take a threshold portion size and only alert us if we've exceeded that threshold.)
 
@@ -672,8 +672,9 @@ solve_menu <- function(sol, verbose = TRUE) {
   
   return(df_solved)
 }
-
 ```
+
+Let's see what our tidied output looks like.
 
 ```{r our_solved_menu}
 our_solved_menu <- our_menu_solution %>% solve_menu()
@@ -683,7 +684,7 @@ our_solved_menu %>% kable(format = "html")
 
 #### Solve nutrients
 
-This function will let us find what the raw nutrient amounts in our solved menu are, and let us know which nutrient we've overshot the lower bound on the most. Like `solve_menu()`, a result from `solve_it()` can be piped nicely in here.
+This function will let us find what the raw nutrient amounts in our solved menu are, and let us know which nutrient we've overshot the lower bound on the most. Recall that one of the things we're returning as the result of our `solve_it()` call is the dataframe of nutritional constraints we provided it. This means that, like `solve_menu()`, a result from `solve_it()` can be piped nicely in here.
 
 ```{r solve_nutrients}
 solve_nutrients <- function(sol, verbose = TRUE) {

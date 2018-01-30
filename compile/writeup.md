@@ -17,17 +17,6 @@ for (p in paths) {
 }
 ```
 
-```
-## [1] "File not found :("
-## [1] "File not found :("
-## [1] "File not found :("
-## [1] "File not found :("
-## [1] "File not found :("
-## [1] "File not found :("
-## [1] "File not found :("
-## [1] "File not found :("
-```
-
 
 
 
@@ -83,7 +72,8 @@ head(foods)
 ## # ... with 1 more variables: nutrients <list>
 ```
 
-We've got one row per food and a nested list-col of nutrients [^1].
+We've got one row per food and a nested list-col of nutrients.
+
 
 
 ```r
@@ -110,6 +100,35 @@ str(foods$nutrients[1:3])
 ##   ..$ unit       : chr [1:4] "kcal" "g" "g" "g"
 ##   ..$ value      : chr [1:4] "107" "--" "0.10" "11.21"
 ##   ..$ gm         : chr [1:4] "308" "--" "0.3" "32.2"
+```
+
+
+If we tried to unnest this right now we'd get an error. 
+
+```r
+foods %>% unnest()
+```
+
+
+That's because missing values are coded as `--`. That's an issue for two of these columns, `gm` and `value`, which get coded as numeric if there are no mising values and character otherwise. 
+
+Since a single column in a dataframe can only have values of one type, before unnesting our `nutrients` list column, we'll want to make sure all values of `gm` and `value` are of the same type across all rows. 
+
+I'm sure there's a more elegant `purrr` solution or a better way to set types when we're taking our list to tibble, but a quick and dirty fix here is to go through and make sure these values are all character.
+
+
+```r
+for (i in 1:length(foods$nutrients)) {
+  for (j in 1:nrow(foods$nutrients[[1]])) {
+    foods$nutrients[[i]]$gm[j] <- as.character(foods$nutrients[[i]]$gm[j])
+    foods$nutrients[[i]]$value[j] <- as.character(foods$nutrients[[i]]$value[j])
+  }
+}
+```
+
+
+```r
+foods <- foods %>% unnest()
 ```
 
 
@@ -369,7 +388,6 @@ foods[1:20, ] %>% kable(format = "html")
   </tr>
 </tbody>
 </table>
-
 
 Great, we've successfully unnested. As I mentioned before, we'll use our nice ABBREV.xlsx rather than using data pulled from the API. So:
 
@@ -1663,33 +1681,687 @@ scaled <- abbrev %>%
     vars(nutrient_names, "Energ_Kcal"), dobtools::z_score   # <-- equivalent to scale(), but simpler
   )
 
-scaled[1:20, ] %>% kable()
+scaled[1:20, ] %>% kable(format = "html")
 ```
 
-
-
-shorter_desc    solution_amounts   GmWt_1   serving_gmwt   cost   Lipid_Tot_g    Sodium_mg   Cholestrl_mg     FA_Sat_g    Protein_g   Calcium_mg      Iron_mg   Magnesium_mg   Phosphorus_mg   Potassium_mg      Zinc_mg    Copper_mg   Manganese_mg   Selenium_µg     Vit_C_mg   Thiamin_mg   Riboflavin_mg    Niacin_mg   Panto_Acid_mg    Vit_B6_mg   Energ_Kcal  Shrt_Desc                                          NDB_No        score   scaled_score
--------------  -----------------  -------  -------------  -----  ------------  -----------  -------------  -----------  -----------  -----------  -----------  -------------  --------------  -------------  -----------  -----------  -------------  ------------  -----------  -----------  --------------  -----------  --------------  -----------  -----------  -------------------------------------------------  -------  ----------  -------------
-BUTTER                         1     5.00           5.00   7.80     5.0713727    0.3020499      1.1239165    7.6802714   -1.1342898   -0.2071890   -0.5151346     -0.6086378      -0.6680318     -0.6719806   -0.5944711   -0.3061583     -0.0822562    -0.4821958   -0.1318713   -0.3814302      -0.4448635   -0.7689737      -0.3962200   -0.6405274    3.3042137  BUTTER,WITH SALT                                   01001     -3419.716     -0.4532518
-BUTTER                         1     3.80           3.80   6.50     4.8707676    0.2487875      1.1929970    6.7219460   -1.1671035   -0.2119396   -0.5081402     -0.6277555      -0.6680318     -0.6299679   -0.6053622   -0.2910091     -0.0821312    -0.5130922   -0.1318713   -0.3772865      -0.3796632   -0.7732304      -0.4056312   -0.6287325    3.3107643  BUTTER,WHIPPED,W/ SALT                             01002     -3405.992     -0.4270146
-BUTTER OIL                     1    12.80          12.80   8.20     6.3828013   -0.2669700      1.4071466    9.3724902   -1.1862449   -0.3022006   -0.5197976     -0.6468732      -0.7618769     -0.7189361   -0.6162534   -0.3046434     -0.0822562    -0.5130922   -0.1318713   -0.3897175      -0.5078905   -0.7772742      -0.4686138   -0.6452454    4.3457655  BUTTER OIL,ANHYDROUS                               01003     -3426.108     -0.4654711
-CHEESE                         1    28.35          28.35   4.28     1.3326945    0.7485664      0.1567890    2.4383369    0.7388273    2.1871032   -0.4475222     -0.2071661       0.9541465     -0.0986301    0.1052854   -0.2455614     -0.0811313    -0.0650934   -0.1318713   -0.3317063       0.3114603   -0.5616729       0.7758346   -0.2560127    0.9197807  CHEESE,BLUE                                        01004     -3383.120     -0.3832890
-CHEESE                         1   132.00         132.00   5.42     1.3998008    0.2283703      0.2880420    2.4535663    0.9065419    2.8806878   -0.4195446     -0.1880484       1.2401504     -0.3951907    0.0889486   -0.2698001     -0.0807564    -0.0650934   -0.1318713   -0.3627837       0.2440866   -0.7527983      -0.2673592   -0.4942703    1.0376922  CHEESE,BRICK                                       01005     -2550.059      1.2092995
-CHEESE                         1    28.35          28.35   5.17     1.2570214    0.2896220      0.3294903    2.2365083    0.6795803    0.5529037   -0.4032243     -0.2645192       0.0648531     -0.3556493    0.0290473   -0.2773748     -0.0780068    -0.0650934   -0.1318713   -0.2467613       0.6113818   -0.6970356       0.0236636   -0.0932426    0.7953185  CHEESE,BRIE                                        01006     -3427.868     -0.4688367
-CHEESE                         1    28.35          28.35   7.37     1.0128687    0.4787035      0.1360648    1.8916842    0.5929885    1.5220220   -0.4428592     -0.2645192       0.7753941     -0.2691525    0.0290473   -0.2743449     -0.0775069    -0.0650934   -0.1318713   -0.3337781       0.5418348   -0.6438270       0.5115974   -0.1121145    0.5725968  CHEESE,CAMEMBERT                                   01007     -3365.981     -0.3505239
-CHEESE                         1    28.35          28.35   5.26     1.3655338    0.3437721      0.2811339    2.4247107    1.0833714    2.8759373   -0.3705838     -0.2262838       1.4144340     -0.5014583    0.1815234   -0.2698001     -0.0796316    -0.0650934   -0.1318713   -0.3275626       0.4592477   -0.7396025      -0.3383050   -0.4730394    1.0704454  CHEESE,CARAWAY                                     01008     -3234.675     -0.0995030
-CHEESE                         1   132.00         132.00   7.99     1.6589454    0.3109270      0.3225823    2.4700781    0.8728167    3.0517087   -0.4871571     -0.1306952       1.2580257     -0.5434710    0.3721185   -0.2607106     -0.0788817     0.3674573   -0.1318713   -0.3317063       0.4114341   -0.7653555      -0.1790388   -0.4919113    1.2538633  CHEESE,CHEDDAR                                     01009     -2687.571      0.9464129
-CHEESE                         1    28.35          28.35   2.99     1.4654793    0.3526492      0.3502145    2.5675458    0.9183913    2.7334199   -0.4708368     -0.2454015       1.2982450     -0.4965156    0.1406816   -0.2425315     -0.0807564    -0.0650934   -0.1318713   -0.2964852       0.1180326   -0.7608860      -0.1768670   -0.4730394    1.1425025  CHEESE,CHESHIRE                                    01010     -3257.267     -0.1426935
-CHEESE                         1   132.00         132.00   1.14     1.5732778    0.2674294      0.2949501    2.6866551    0.9539395    2.9329442   -0.3426062     -0.1498129       1.2669633     -0.4174328    0.2169196   -0.2425315     -0.0807564    -0.0650934   -0.1318713   -0.3607119       0.2962469   -0.7581191      -0.3238263   -0.4612445    1.1883569  CHEESE,COLBY                                       01011     -2599.704      1.1143912
-CHEESE                         1   113.00         113.00   1.67    -0.4120696    0.0543798     -0.2438781   -0.2790560   -0.1981870    0.0730952   -0.5034773     -0.4939316      -0.0647424     -0.4742736   -0.5100647   -0.2622255     -0.0820062    -0.2133964   -0.1318713   -0.3358499      -0.1645021   -0.7568421      -0.0726200   -0.5390910   -0.7506325  CHEESE,COTTAGE,CRMD,LRG OR SML CURD                01012     -3386.210     -0.3891963
-CHEESE                         1   113.00         113.00   1.87    -0.4441949    0.0366256     -0.2715103   -0.1839929   -0.2373812   -0.0694222   -0.4824941     -0.5130493      -0.2703077     -0.5088723   -0.5291242   -0.2455614     -0.0818812    -0.2751894   -0.1061157   -0.3234190      -0.2101423   -0.7459876      -0.3448205   -0.4871933   -0.7571832  CHEESE,COTTAGE,CRMD,W/FRUIT                        01013     -3463.568     -0.5370853
-CHEESE                         1   145.00         145.00   8.64    -0.6983422    0.0614814     -0.3129586   -0.5273742   -0.2692834    0.0873469   -0.4848256     -0.4365785       0.0737908     -0.3927194   -0.4910051   -0.2607106     -0.0795066    -0.2226654   -0.1318713   -0.3441373      -0.0275814   -0.7472646      -0.1529771   -0.6098606   -0.9209492  CHEESE,COTTAGE,NONFAT,UNCRMD,DRY,LRG OR SML CURD   01014     -3278.578     -0.1834343
-CHEESE                         1   113.00         113.00   8.15    -0.5569906    0.0046682     -0.2784184   -0.3564851   -0.2592570    0.2061114   -0.4894885     -0.4748139      -0.1049617     -0.4223755   -0.4801140   -0.2561658     -0.0803815    -0.1454242   -0.1318713   -0.3503528       0.0267522   -0.7559908      -0.0965100   -0.5131421   -0.8619934  CHEESE,COTTAGE,LOWFAT,2% MILKFAT                   01015     -3266.099     -0.1595762
-CHEESE                         1   113.00         113.00   1.33    -0.6462277    0.0916634     -0.3336828   -0.4510672   -0.0824275   -0.0314176   -0.4871571     -0.5512847      -0.1764626     -0.5187577   -0.5155102   -0.2637404     -0.0818812    -0.2350240   -0.1318713   -0.3482809      -0.1601554   -0.7506699      -0.3202066   -0.4871933   -0.9209492  CHEESE,COTTAGE,LOWFAT,1% MILKFAT                   01016     -3490.534     -0.5886355
-CHEESE                         1    14.50          14.50   3.15     1.7396158    0.0099944      0.3363984    2.6858536   -0.6511988    0.1396033   -0.4941514     -0.4748139      -0.2971205     -0.4050761   -0.4828368   -0.2788897     -0.0808814    -0.2473826   -0.1318713   -0.3441373      -0.0188880   -0.7585448      -0.1015775   -0.5155011    0.9001288  CHEESE,CREAM                                       01017     -3389.710     -0.3958887
-CHEESE                         1    28.35          28.35   3.94     1.2655882    0.4520723      0.2535017    2.2624783    1.0660531    3.1514709   -0.4172131     -0.0733421       1.6199993     -0.2666811    0.4020692   -0.2516211     -0.0808814    -0.0650934   -0.1318713   -0.3151317       0.3266737   -0.7604603      -0.2724267   -0.4683214    0.9459833  CHEESE,EDAM                                        01018     -3208.657     -0.0497637
-CHEESE                         1   150.00         150.00   4.61     0.8001274    0.5452815      0.2535017    1.8415076    0.0834642    2.0208329   -0.3682524     -0.2836369       0.7307060     -0.5780698    0.1651867   -0.2576807     -0.0787567    -0.0496451   -0.1318713   -0.0727276       1.3155454   -0.5669938       0.2241943    0.3526058    0.3367737  CHEESE,FETA                                        01019     -3516.569     -0.6384083
-CHEESE                         1   132.00         132.00   1.73     1.5040298    0.4414199      0.4400192    2.5228196    1.1216541    2.2916159   -0.4661739     -0.3792254       0.7709253     -0.5731271    0.3339995   -0.2682852     -0.0805064    -0.0650934   -0.1318713   -0.3482809      -0.0753950   -0.7459876      -0.1652840   -0.4518085    1.1556037  CHEESE,FONTINA                                     01020     -3304.806     -0.2335737
+<table>
+ <thead>
+  <tr>
+   <th style="text-align:left;"> shorter_desc </th>
+   <th style="text-align:right;"> solution_amounts </th>
+   <th style="text-align:right;"> GmWt_1 </th>
+   <th style="text-align:right;"> serving_gmwt </th>
+   <th style="text-align:right;"> cost </th>
+   <th style="text-align:right;"> Lipid_Tot_g </th>
+   <th style="text-align:right;"> Sodium_mg </th>
+   <th style="text-align:right;"> Cholestrl_mg </th>
+   <th style="text-align:right;"> FA_Sat_g </th>
+   <th style="text-align:right;"> Protein_g </th>
+   <th style="text-align:right;"> Calcium_mg </th>
+   <th style="text-align:right;"> Iron_mg </th>
+   <th style="text-align:right;"> Magnesium_mg </th>
+   <th style="text-align:right;"> Phosphorus_mg </th>
+   <th style="text-align:right;"> Potassium_mg </th>
+   <th style="text-align:right;"> Zinc_mg </th>
+   <th style="text-align:right;"> Copper_mg </th>
+   <th style="text-align:right;"> Manganese_mg </th>
+   <th style="text-align:right;"> Selenium_µg </th>
+   <th style="text-align:right;"> Vit_C_mg </th>
+   <th style="text-align:right;"> Thiamin_mg </th>
+   <th style="text-align:right;"> Riboflavin_mg </th>
+   <th style="text-align:right;"> Niacin_mg </th>
+   <th style="text-align:right;"> Panto_Acid_mg </th>
+   <th style="text-align:right;"> Vit_B6_mg </th>
+   <th style="text-align:right;"> Energ_Kcal </th>
+   <th style="text-align:left;"> Shrt_Desc </th>
+   <th style="text-align:left;"> NDB_No </th>
+   <th style="text-align:right;"> score </th>
+   <th style="text-align:right;"> scaled_score </th>
+  </tr>
+ </thead>
+<tbody>
+  <tr>
+   <td style="text-align:left;"> BUTTER </td>
+   <td style="text-align:right;"> 1 </td>
+   <td style="text-align:right;"> 5.00 </td>
+   <td style="text-align:right;"> 5.00 </td>
+   <td style="text-align:right;"> 7.80 </td>
+   <td style="text-align:right;"> 5.0713727 </td>
+   <td style="text-align:right;"> 0.3020499 </td>
+   <td style="text-align:right;"> 1.1239165 </td>
+   <td style="text-align:right;"> 7.6802714 </td>
+   <td style="text-align:right;"> -1.1342898 </td>
+   <td style="text-align:right;"> -0.2071890 </td>
+   <td style="text-align:right;"> -0.5151346 </td>
+   <td style="text-align:right;"> -0.6086378 </td>
+   <td style="text-align:right;"> -0.6680318 </td>
+   <td style="text-align:right;"> -0.6719806 </td>
+   <td style="text-align:right;"> -0.5944711 </td>
+   <td style="text-align:right;"> -0.3061583 </td>
+   <td style="text-align:right;"> -0.0822562 </td>
+   <td style="text-align:right;"> -0.4821958 </td>
+   <td style="text-align:right;"> -0.1318713 </td>
+   <td style="text-align:right;"> -0.3814302 </td>
+   <td style="text-align:right;"> -0.4448635 </td>
+   <td style="text-align:right;"> -0.7689737 </td>
+   <td style="text-align:right;"> -0.3962200 </td>
+   <td style="text-align:right;"> -0.6405274 </td>
+   <td style="text-align:right;"> 3.3042137 </td>
+   <td style="text-align:left;"> BUTTER,WITH SALT </td>
+   <td style="text-align:left;"> 01001 </td>
+   <td style="text-align:right;"> -3419.716 </td>
+   <td style="text-align:right;"> -0.4532518 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> BUTTER </td>
+   <td style="text-align:right;"> 1 </td>
+   <td style="text-align:right;"> 3.80 </td>
+   <td style="text-align:right;"> 3.80 </td>
+   <td style="text-align:right;"> 6.50 </td>
+   <td style="text-align:right;"> 4.8707676 </td>
+   <td style="text-align:right;"> 0.2487875 </td>
+   <td style="text-align:right;"> 1.1929970 </td>
+   <td style="text-align:right;"> 6.7219460 </td>
+   <td style="text-align:right;"> -1.1671035 </td>
+   <td style="text-align:right;"> -0.2119396 </td>
+   <td style="text-align:right;"> -0.5081402 </td>
+   <td style="text-align:right;"> -0.6277555 </td>
+   <td style="text-align:right;"> -0.6680318 </td>
+   <td style="text-align:right;"> -0.6299679 </td>
+   <td style="text-align:right;"> -0.6053622 </td>
+   <td style="text-align:right;"> -0.2910091 </td>
+   <td style="text-align:right;"> -0.0821312 </td>
+   <td style="text-align:right;"> -0.5130922 </td>
+   <td style="text-align:right;"> -0.1318713 </td>
+   <td style="text-align:right;"> -0.3772865 </td>
+   <td style="text-align:right;"> -0.3796632 </td>
+   <td style="text-align:right;"> -0.7732304 </td>
+   <td style="text-align:right;"> -0.4056312 </td>
+   <td style="text-align:right;"> -0.6287325 </td>
+   <td style="text-align:right;"> 3.3107643 </td>
+   <td style="text-align:left;"> BUTTER,WHIPPED,W/ SALT </td>
+   <td style="text-align:left;"> 01002 </td>
+   <td style="text-align:right;"> -3405.992 </td>
+   <td style="text-align:right;"> -0.4270146 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> BUTTER OIL </td>
+   <td style="text-align:right;"> 1 </td>
+   <td style="text-align:right;"> 12.80 </td>
+   <td style="text-align:right;"> 12.80 </td>
+   <td style="text-align:right;"> 8.20 </td>
+   <td style="text-align:right;"> 6.3828013 </td>
+   <td style="text-align:right;"> -0.2669700 </td>
+   <td style="text-align:right;"> 1.4071466 </td>
+   <td style="text-align:right;"> 9.3724902 </td>
+   <td style="text-align:right;"> -1.1862449 </td>
+   <td style="text-align:right;"> -0.3022006 </td>
+   <td style="text-align:right;"> -0.5197976 </td>
+   <td style="text-align:right;"> -0.6468732 </td>
+   <td style="text-align:right;"> -0.7618769 </td>
+   <td style="text-align:right;"> -0.7189361 </td>
+   <td style="text-align:right;"> -0.6162534 </td>
+   <td style="text-align:right;"> -0.3046434 </td>
+   <td style="text-align:right;"> -0.0822562 </td>
+   <td style="text-align:right;"> -0.5130922 </td>
+   <td style="text-align:right;"> -0.1318713 </td>
+   <td style="text-align:right;"> -0.3897175 </td>
+   <td style="text-align:right;"> -0.5078905 </td>
+   <td style="text-align:right;"> -0.7772742 </td>
+   <td style="text-align:right;"> -0.4686138 </td>
+   <td style="text-align:right;"> -0.6452454 </td>
+   <td style="text-align:right;"> 4.3457655 </td>
+   <td style="text-align:left;"> BUTTER OIL,ANHYDROUS </td>
+   <td style="text-align:left;"> 01003 </td>
+   <td style="text-align:right;"> -3426.108 </td>
+   <td style="text-align:right;"> -0.4654711 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> CHEESE </td>
+   <td style="text-align:right;"> 1 </td>
+   <td style="text-align:right;"> 28.35 </td>
+   <td style="text-align:right;"> 28.35 </td>
+   <td style="text-align:right;"> 4.28 </td>
+   <td style="text-align:right;"> 1.3326945 </td>
+   <td style="text-align:right;"> 0.7485664 </td>
+   <td style="text-align:right;"> 0.1567890 </td>
+   <td style="text-align:right;"> 2.4383369 </td>
+   <td style="text-align:right;"> 0.7388273 </td>
+   <td style="text-align:right;"> 2.1871032 </td>
+   <td style="text-align:right;"> -0.4475222 </td>
+   <td style="text-align:right;"> -0.2071661 </td>
+   <td style="text-align:right;"> 0.9541465 </td>
+   <td style="text-align:right;"> -0.0986301 </td>
+   <td style="text-align:right;"> 0.1052854 </td>
+   <td style="text-align:right;"> -0.2455614 </td>
+   <td style="text-align:right;"> -0.0811313 </td>
+   <td style="text-align:right;"> -0.0650934 </td>
+   <td style="text-align:right;"> -0.1318713 </td>
+   <td style="text-align:right;"> -0.3317063 </td>
+   <td style="text-align:right;"> 0.3114603 </td>
+   <td style="text-align:right;"> -0.5616729 </td>
+   <td style="text-align:right;"> 0.7758346 </td>
+   <td style="text-align:right;"> -0.2560127 </td>
+   <td style="text-align:right;"> 0.9197807 </td>
+   <td style="text-align:left;"> CHEESE,BLUE </td>
+   <td style="text-align:left;"> 01004 </td>
+   <td style="text-align:right;"> -3383.120 </td>
+   <td style="text-align:right;"> -0.3832890 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> CHEESE </td>
+   <td style="text-align:right;"> 1 </td>
+   <td style="text-align:right;"> 132.00 </td>
+   <td style="text-align:right;"> 132.00 </td>
+   <td style="text-align:right;"> 5.42 </td>
+   <td style="text-align:right;"> 1.3998008 </td>
+   <td style="text-align:right;"> 0.2283703 </td>
+   <td style="text-align:right;"> 0.2880420 </td>
+   <td style="text-align:right;"> 2.4535663 </td>
+   <td style="text-align:right;"> 0.9065419 </td>
+   <td style="text-align:right;"> 2.8806878 </td>
+   <td style="text-align:right;"> -0.4195446 </td>
+   <td style="text-align:right;"> -0.1880484 </td>
+   <td style="text-align:right;"> 1.2401504 </td>
+   <td style="text-align:right;"> -0.3951907 </td>
+   <td style="text-align:right;"> 0.0889486 </td>
+   <td style="text-align:right;"> -0.2698001 </td>
+   <td style="text-align:right;"> -0.0807564 </td>
+   <td style="text-align:right;"> -0.0650934 </td>
+   <td style="text-align:right;"> -0.1318713 </td>
+   <td style="text-align:right;"> -0.3627837 </td>
+   <td style="text-align:right;"> 0.2440866 </td>
+   <td style="text-align:right;"> -0.7527983 </td>
+   <td style="text-align:right;"> -0.2673592 </td>
+   <td style="text-align:right;"> -0.4942703 </td>
+   <td style="text-align:right;"> 1.0376922 </td>
+   <td style="text-align:left;"> CHEESE,BRICK </td>
+   <td style="text-align:left;"> 01005 </td>
+   <td style="text-align:right;"> -2550.059 </td>
+   <td style="text-align:right;"> 1.2092995 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> CHEESE </td>
+   <td style="text-align:right;"> 1 </td>
+   <td style="text-align:right;"> 28.35 </td>
+   <td style="text-align:right;"> 28.35 </td>
+   <td style="text-align:right;"> 5.17 </td>
+   <td style="text-align:right;"> 1.2570214 </td>
+   <td style="text-align:right;"> 0.2896220 </td>
+   <td style="text-align:right;"> 0.3294903 </td>
+   <td style="text-align:right;"> 2.2365083 </td>
+   <td style="text-align:right;"> 0.6795803 </td>
+   <td style="text-align:right;"> 0.5529037 </td>
+   <td style="text-align:right;"> -0.4032243 </td>
+   <td style="text-align:right;"> -0.2645192 </td>
+   <td style="text-align:right;"> 0.0648531 </td>
+   <td style="text-align:right;"> -0.3556493 </td>
+   <td style="text-align:right;"> 0.0290473 </td>
+   <td style="text-align:right;"> -0.2773748 </td>
+   <td style="text-align:right;"> -0.0780068 </td>
+   <td style="text-align:right;"> -0.0650934 </td>
+   <td style="text-align:right;"> -0.1318713 </td>
+   <td style="text-align:right;"> -0.2467613 </td>
+   <td style="text-align:right;"> 0.6113818 </td>
+   <td style="text-align:right;"> -0.6970356 </td>
+   <td style="text-align:right;"> 0.0236636 </td>
+   <td style="text-align:right;"> -0.0932426 </td>
+   <td style="text-align:right;"> 0.7953185 </td>
+   <td style="text-align:left;"> CHEESE,BRIE </td>
+   <td style="text-align:left;"> 01006 </td>
+   <td style="text-align:right;"> -3427.868 </td>
+   <td style="text-align:right;"> -0.4688367 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> CHEESE </td>
+   <td style="text-align:right;"> 1 </td>
+   <td style="text-align:right;"> 28.35 </td>
+   <td style="text-align:right;"> 28.35 </td>
+   <td style="text-align:right;"> 7.37 </td>
+   <td style="text-align:right;"> 1.0128687 </td>
+   <td style="text-align:right;"> 0.4787035 </td>
+   <td style="text-align:right;"> 0.1360648 </td>
+   <td style="text-align:right;"> 1.8916842 </td>
+   <td style="text-align:right;"> 0.5929885 </td>
+   <td style="text-align:right;"> 1.5220220 </td>
+   <td style="text-align:right;"> -0.4428592 </td>
+   <td style="text-align:right;"> -0.2645192 </td>
+   <td style="text-align:right;"> 0.7753941 </td>
+   <td style="text-align:right;"> -0.2691525 </td>
+   <td style="text-align:right;"> 0.0290473 </td>
+   <td style="text-align:right;"> -0.2743449 </td>
+   <td style="text-align:right;"> -0.0775069 </td>
+   <td style="text-align:right;"> -0.0650934 </td>
+   <td style="text-align:right;"> -0.1318713 </td>
+   <td style="text-align:right;"> -0.3337781 </td>
+   <td style="text-align:right;"> 0.5418348 </td>
+   <td style="text-align:right;"> -0.6438270 </td>
+   <td style="text-align:right;"> 0.5115974 </td>
+   <td style="text-align:right;"> -0.1121145 </td>
+   <td style="text-align:right;"> 0.5725968 </td>
+   <td style="text-align:left;"> CHEESE,CAMEMBERT </td>
+   <td style="text-align:left;"> 01007 </td>
+   <td style="text-align:right;"> -3365.981 </td>
+   <td style="text-align:right;"> -0.3505239 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> CHEESE </td>
+   <td style="text-align:right;"> 1 </td>
+   <td style="text-align:right;"> 28.35 </td>
+   <td style="text-align:right;"> 28.35 </td>
+   <td style="text-align:right;"> 5.26 </td>
+   <td style="text-align:right;"> 1.3655338 </td>
+   <td style="text-align:right;"> 0.3437721 </td>
+   <td style="text-align:right;"> 0.2811339 </td>
+   <td style="text-align:right;"> 2.4247107 </td>
+   <td style="text-align:right;"> 1.0833714 </td>
+   <td style="text-align:right;"> 2.8759373 </td>
+   <td style="text-align:right;"> -0.3705838 </td>
+   <td style="text-align:right;"> -0.2262838 </td>
+   <td style="text-align:right;"> 1.4144340 </td>
+   <td style="text-align:right;"> -0.5014583 </td>
+   <td style="text-align:right;"> 0.1815234 </td>
+   <td style="text-align:right;"> -0.2698001 </td>
+   <td style="text-align:right;"> -0.0796316 </td>
+   <td style="text-align:right;"> -0.0650934 </td>
+   <td style="text-align:right;"> -0.1318713 </td>
+   <td style="text-align:right;"> -0.3275626 </td>
+   <td style="text-align:right;"> 0.4592477 </td>
+   <td style="text-align:right;"> -0.7396025 </td>
+   <td style="text-align:right;"> -0.3383050 </td>
+   <td style="text-align:right;"> -0.4730394 </td>
+   <td style="text-align:right;"> 1.0704454 </td>
+   <td style="text-align:left;"> CHEESE,CARAWAY </td>
+   <td style="text-align:left;"> 01008 </td>
+   <td style="text-align:right;"> -3234.675 </td>
+   <td style="text-align:right;"> -0.0995030 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> CHEESE </td>
+   <td style="text-align:right;"> 1 </td>
+   <td style="text-align:right;"> 132.00 </td>
+   <td style="text-align:right;"> 132.00 </td>
+   <td style="text-align:right;"> 7.99 </td>
+   <td style="text-align:right;"> 1.6589454 </td>
+   <td style="text-align:right;"> 0.3109270 </td>
+   <td style="text-align:right;"> 0.3225823 </td>
+   <td style="text-align:right;"> 2.4700781 </td>
+   <td style="text-align:right;"> 0.8728167 </td>
+   <td style="text-align:right;"> 3.0517087 </td>
+   <td style="text-align:right;"> -0.4871571 </td>
+   <td style="text-align:right;"> -0.1306952 </td>
+   <td style="text-align:right;"> 1.2580257 </td>
+   <td style="text-align:right;"> -0.5434710 </td>
+   <td style="text-align:right;"> 0.3721185 </td>
+   <td style="text-align:right;"> -0.2607106 </td>
+   <td style="text-align:right;"> -0.0788817 </td>
+   <td style="text-align:right;"> 0.3674573 </td>
+   <td style="text-align:right;"> -0.1318713 </td>
+   <td style="text-align:right;"> -0.3317063 </td>
+   <td style="text-align:right;"> 0.4114341 </td>
+   <td style="text-align:right;"> -0.7653555 </td>
+   <td style="text-align:right;"> -0.1790388 </td>
+   <td style="text-align:right;"> -0.4919113 </td>
+   <td style="text-align:right;"> 1.2538633 </td>
+   <td style="text-align:left;"> CHEESE,CHEDDAR </td>
+   <td style="text-align:left;"> 01009 </td>
+   <td style="text-align:right;"> -2687.571 </td>
+   <td style="text-align:right;"> 0.9464129 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> CHEESE </td>
+   <td style="text-align:right;"> 1 </td>
+   <td style="text-align:right;"> 28.35 </td>
+   <td style="text-align:right;"> 28.35 </td>
+   <td style="text-align:right;"> 2.99 </td>
+   <td style="text-align:right;"> 1.4654793 </td>
+   <td style="text-align:right;"> 0.3526492 </td>
+   <td style="text-align:right;"> 0.3502145 </td>
+   <td style="text-align:right;"> 2.5675458 </td>
+   <td style="text-align:right;"> 0.9183913 </td>
+   <td style="text-align:right;"> 2.7334199 </td>
+   <td style="text-align:right;"> -0.4708368 </td>
+   <td style="text-align:right;"> -0.2454015 </td>
+   <td style="text-align:right;"> 1.2982450 </td>
+   <td style="text-align:right;"> -0.4965156 </td>
+   <td style="text-align:right;"> 0.1406816 </td>
+   <td style="text-align:right;"> -0.2425315 </td>
+   <td style="text-align:right;"> -0.0807564 </td>
+   <td style="text-align:right;"> -0.0650934 </td>
+   <td style="text-align:right;"> -0.1318713 </td>
+   <td style="text-align:right;"> -0.2964852 </td>
+   <td style="text-align:right;"> 0.1180326 </td>
+   <td style="text-align:right;"> -0.7608860 </td>
+   <td style="text-align:right;"> -0.1768670 </td>
+   <td style="text-align:right;"> -0.4730394 </td>
+   <td style="text-align:right;"> 1.1425025 </td>
+   <td style="text-align:left;"> CHEESE,CHESHIRE </td>
+   <td style="text-align:left;"> 01010 </td>
+   <td style="text-align:right;"> -3257.267 </td>
+   <td style="text-align:right;"> -0.1426935 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> CHEESE </td>
+   <td style="text-align:right;"> 1 </td>
+   <td style="text-align:right;"> 132.00 </td>
+   <td style="text-align:right;"> 132.00 </td>
+   <td style="text-align:right;"> 1.14 </td>
+   <td style="text-align:right;"> 1.5732778 </td>
+   <td style="text-align:right;"> 0.2674294 </td>
+   <td style="text-align:right;"> 0.2949501 </td>
+   <td style="text-align:right;"> 2.6866551 </td>
+   <td style="text-align:right;"> 0.9539395 </td>
+   <td style="text-align:right;"> 2.9329442 </td>
+   <td style="text-align:right;"> -0.3426062 </td>
+   <td style="text-align:right;"> -0.1498129 </td>
+   <td style="text-align:right;"> 1.2669633 </td>
+   <td style="text-align:right;"> -0.4174328 </td>
+   <td style="text-align:right;"> 0.2169196 </td>
+   <td style="text-align:right;"> -0.2425315 </td>
+   <td style="text-align:right;"> -0.0807564 </td>
+   <td style="text-align:right;"> -0.0650934 </td>
+   <td style="text-align:right;"> -0.1318713 </td>
+   <td style="text-align:right;"> -0.3607119 </td>
+   <td style="text-align:right;"> 0.2962469 </td>
+   <td style="text-align:right;"> -0.7581191 </td>
+   <td style="text-align:right;"> -0.3238263 </td>
+   <td style="text-align:right;"> -0.4612445 </td>
+   <td style="text-align:right;"> 1.1883569 </td>
+   <td style="text-align:left;"> CHEESE,COLBY </td>
+   <td style="text-align:left;"> 01011 </td>
+   <td style="text-align:right;"> -2599.704 </td>
+   <td style="text-align:right;"> 1.1143912 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> CHEESE </td>
+   <td style="text-align:right;"> 1 </td>
+   <td style="text-align:right;"> 113.00 </td>
+   <td style="text-align:right;"> 113.00 </td>
+   <td style="text-align:right;"> 1.67 </td>
+   <td style="text-align:right;"> -0.4120696 </td>
+   <td style="text-align:right;"> 0.0543798 </td>
+   <td style="text-align:right;"> -0.2438781 </td>
+   <td style="text-align:right;"> -0.2790560 </td>
+   <td style="text-align:right;"> -0.1981870 </td>
+   <td style="text-align:right;"> 0.0730952 </td>
+   <td style="text-align:right;"> -0.5034773 </td>
+   <td style="text-align:right;"> -0.4939316 </td>
+   <td style="text-align:right;"> -0.0647424 </td>
+   <td style="text-align:right;"> -0.4742736 </td>
+   <td style="text-align:right;"> -0.5100647 </td>
+   <td style="text-align:right;"> -0.2622255 </td>
+   <td style="text-align:right;"> -0.0820062 </td>
+   <td style="text-align:right;"> -0.2133964 </td>
+   <td style="text-align:right;"> -0.1318713 </td>
+   <td style="text-align:right;"> -0.3358499 </td>
+   <td style="text-align:right;"> -0.1645021 </td>
+   <td style="text-align:right;"> -0.7568421 </td>
+   <td style="text-align:right;"> -0.0726200 </td>
+   <td style="text-align:right;"> -0.5390910 </td>
+   <td style="text-align:right;"> -0.7506325 </td>
+   <td style="text-align:left;"> CHEESE,COTTAGE,CRMD,LRG OR SML CURD </td>
+   <td style="text-align:left;"> 01012 </td>
+   <td style="text-align:right;"> -3386.210 </td>
+   <td style="text-align:right;"> -0.3891963 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> CHEESE </td>
+   <td style="text-align:right;"> 1 </td>
+   <td style="text-align:right;"> 113.00 </td>
+   <td style="text-align:right;"> 113.00 </td>
+   <td style="text-align:right;"> 1.87 </td>
+   <td style="text-align:right;"> -0.4441949 </td>
+   <td style="text-align:right;"> 0.0366256 </td>
+   <td style="text-align:right;"> -0.2715103 </td>
+   <td style="text-align:right;"> -0.1839929 </td>
+   <td style="text-align:right;"> -0.2373812 </td>
+   <td style="text-align:right;"> -0.0694222 </td>
+   <td style="text-align:right;"> -0.4824941 </td>
+   <td style="text-align:right;"> -0.5130493 </td>
+   <td style="text-align:right;"> -0.2703077 </td>
+   <td style="text-align:right;"> -0.5088723 </td>
+   <td style="text-align:right;"> -0.5291242 </td>
+   <td style="text-align:right;"> -0.2455614 </td>
+   <td style="text-align:right;"> -0.0818812 </td>
+   <td style="text-align:right;"> -0.2751894 </td>
+   <td style="text-align:right;"> -0.1061157 </td>
+   <td style="text-align:right;"> -0.3234190 </td>
+   <td style="text-align:right;"> -0.2101423 </td>
+   <td style="text-align:right;"> -0.7459876 </td>
+   <td style="text-align:right;"> -0.3448205 </td>
+   <td style="text-align:right;"> -0.4871933 </td>
+   <td style="text-align:right;"> -0.7571832 </td>
+   <td style="text-align:left;"> CHEESE,COTTAGE,CRMD,W/FRUIT </td>
+   <td style="text-align:left;"> 01013 </td>
+   <td style="text-align:right;"> -3463.568 </td>
+   <td style="text-align:right;"> -0.5370853 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> CHEESE </td>
+   <td style="text-align:right;"> 1 </td>
+   <td style="text-align:right;"> 145.00 </td>
+   <td style="text-align:right;"> 145.00 </td>
+   <td style="text-align:right;"> 8.64 </td>
+   <td style="text-align:right;"> -0.6983422 </td>
+   <td style="text-align:right;"> 0.0614814 </td>
+   <td style="text-align:right;"> -0.3129586 </td>
+   <td style="text-align:right;"> -0.5273742 </td>
+   <td style="text-align:right;"> -0.2692834 </td>
+   <td style="text-align:right;"> 0.0873469 </td>
+   <td style="text-align:right;"> -0.4848256 </td>
+   <td style="text-align:right;"> -0.4365785 </td>
+   <td style="text-align:right;"> 0.0737908 </td>
+   <td style="text-align:right;"> -0.3927194 </td>
+   <td style="text-align:right;"> -0.4910051 </td>
+   <td style="text-align:right;"> -0.2607106 </td>
+   <td style="text-align:right;"> -0.0795066 </td>
+   <td style="text-align:right;"> -0.2226654 </td>
+   <td style="text-align:right;"> -0.1318713 </td>
+   <td style="text-align:right;"> -0.3441373 </td>
+   <td style="text-align:right;"> -0.0275814 </td>
+   <td style="text-align:right;"> -0.7472646 </td>
+   <td style="text-align:right;"> -0.1529771 </td>
+   <td style="text-align:right;"> -0.6098606 </td>
+   <td style="text-align:right;"> -0.9209492 </td>
+   <td style="text-align:left;"> CHEESE,COTTAGE,NONFAT,UNCRMD,DRY,LRG OR SML CURD </td>
+   <td style="text-align:left;"> 01014 </td>
+   <td style="text-align:right;"> -3278.578 </td>
+   <td style="text-align:right;"> -0.1834343 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> CHEESE </td>
+   <td style="text-align:right;"> 1 </td>
+   <td style="text-align:right;"> 113.00 </td>
+   <td style="text-align:right;"> 113.00 </td>
+   <td style="text-align:right;"> 8.15 </td>
+   <td style="text-align:right;"> -0.5569906 </td>
+   <td style="text-align:right;"> 0.0046682 </td>
+   <td style="text-align:right;"> -0.2784184 </td>
+   <td style="text-align:right;"> -0.3564851 </td>
+   <td style="text-align:right;"> -0.2592570 </td>
+   <td style="text-align:right;"> 0.2061114 </td>
+   <td style="text-align:right;"> -0.4894885 </td>
+   <td style="text-align:right;"> -0.4748139 </td>
+   <td style="text-align:right;"> -0.1049617 </td>
+   <td style="text-align:right;"> -0.4223755 </td>
+   <td style="text-align:right;"> -0.4801140 </td>
+   <td style="text-align:right;"> -0.2561658 </td>
+   <td style="text-align:right;"> -0.0803815 </td>
+   <td style="text-align:right;"> -0.1454242 </td>
+   <td style="text-align:right;"> -0.1318713 </td>
+   <td style="text-align:right;"> -0.3503528 </td>
+   <td style="text-align:right;"> 0.0267522 </td>
+   <td style="text-align:right;"> -0.7559908 </td>
+   <td style="text-align:right;"> -0.0965100 </td>
+   <td style="text-align:right;"> -0.5131421 </td>
+   <td style="text-align:right;"> -0.8619934 </td>
+   <td style="text-align:left;"> CHEESE,COTTAGE,LOWFAT,2% MILKFAT </td>
+   <td style="text-align:left;"> 01015 </td>
+   <td style="text-align:right;"> -3266.099 </td>
+   <td style="text-align:right;"> -0.1595762 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> CHEESE </td>
+   <td style="text-align:right;"> 1 </td>
+   <td style="text-align:right;"> 113.00 </td>
+   <td style="text-align:right;"> 113.00 </td>
+   <td style="text-align:right;"> 1.33 </td>
+   <td style="text-align:right;"> -0.6462277 </td>
+   <td style="text-align:right;"> 0.0916634 </td>
+   <td style="text-align:right;"> -0.3336828 </td>
+   <td style="text-align:right;"> -0.4510672 </td>
+   <td style="text-align:right;"> -0.0824275 </td>
+   <td style="text-align:right;"> -0.0314176 </td>
+   <td style="text-align:right;"> -0.4871571 </td>
+   <td style="text-align:right;"> -0.5512847 </td>
+   <td style="text-align:right;"> -0.1764626 </td>
+   <td style="text-align:right;"> -0.5187577 </td>
+   <td style="text-align:right;"> -0.5155102 </td>
+   <td style="text-align:right;"> -0.2637404 </td>
+   <td style="text-align:right;"> -0.0818812 </td>
+   <td style="text-align:right;"> -0.2350240 </td>
+   <td style="text-align:right;"> -0.1318713 </td>
+   <td style="text-align:right;"> -0.3482809 </td>
+   <td style="text-align:right;"> -0.1601554 </td>
+   <td style="text-align:right;"> -0.7506699 </td>
+   <td style="text-align:right;"> -0.3202066 </td>
+   <td style="text-align:right;"> -0.4871933 </td>
+   <td style="text-align:right;"> -0.9209492 </td>
+   <td style="text-align:left;"> CHEESE,COTTAGE,LOWFAT,1% MILKFAT </td>
+   <td style="text-align:left;"> 01016 </td>
+   <td style="text-align:right;"> -3490.534 </td>
+   <td style="text-align:right;"> -0.5886355 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> CHEESE </td>
+   <td style="text-align:right;"> 1 </td>
+   <td style="text-align:right;"> 14.50 </td>
+   <td style="text-align:right;"> 14.50 </td>
+   <td style="text-align:right;"> 3.15 </td>
+   <td style="text-align:right;"> 1.7396158 </td>
+   <td style="text-align:right;"> 0.0099944 </td>
+   <td style="text-align:right;"> 0.3363984 </td>
+   <td style="text-align:right;"> 2.6858536 </td>
+   <td style="text-align:right;"> -0.6511988 </td>
+   <td style="text-align:right;"> 0.1396033 </td>
+   <td style="text-align:right;"> -0.4941514 </td>
+   <td style="text-align:right;"> -0.4748139 </td>
+   <td style="text-align:right;"> -0.2971205 </td>
+   <td style="text-align:right;"> -0.4050761 </td>
+   <td style="text-align:right;"> -0.4828368 </td>
+   <td style="text-align:right;"> -0.2788897 </td>
+   <td style="text-align:right;"> -0.0808814 </td>
+   <td style="text-align:right;"> -0.2473826 </td>
+   <td style="text-align:right;"> -0.1318713 </td>
+   <td style="text-align:right;"> -0.3441373 </td>
+   <td style="text-align:right;"> -0.0188880 </td>
+   <td style="text-align:right;"> -0.7585448 </td>
+   <td style="text-align:right;"> -0.1015775 </td>
+   <td style="text-align:right;"> -0.5155011 </td>
+   <td style="text-align:right;"> 0.9001288 </td>
+   <td style="text-align:left;"> CHEESE,CREAM </td>
+   <td style="text-align:left;"> 01017 </td>
+   <td style="text-align:right;"> -3389.710 </td>
+   <td style="text-align:right;"> -0.3958887 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> CHEESE </td>
+   <td style="text-align:right;"> 1 </td>
+   <td style="text-align:right;"> 28.35 </td>
+   <td style="text-align:right;"> 28.35 </td>
+   <td style="text-align:right;"> 3.94 </td>
+   <td style="text-align:right;"> 1.2655882 </td>
+   <td style="text-align:right;"> 0.4520723 </td>
+   <td style="text-align:right;"> 0.2535017 </td>
+   <td style="text-align:right;"> 2.2624783 </td>
+   <td style="text-align:right;"> 1.0660531 </td>
+   <td style="text-align:right;"> 3.1514709 </td>
+   <td style="text-align:right;"> -0.4172131 </td>
+   <td style="text-align:right;"> -0.0733421 </td>
+   <td style="text-align:right;"> 1.6199993 </td>
+   <td style="text-align:right;"> -0.2666811 </td>
+   <td style="text-align:right;"> 0.4020692 </td>
+   <td style="text-align:right;"> -0.2516211 </td>
+   <td style="text-align:right;"> -0.0808814 </td>
+   <td style="text-align:right;"> -0.0650934 </td>
+   <td style="text-align:right;"> -0.1318713 </td>
+   <td style="text-align:right;"> -0.3151317 </td>
+   <td style="text-align:right;"> 0.3266737 </td>
+   <td style="text-align:right;"> -0.7604603 </td>
+   <td style="text-align:right;"> -0.2724267 </td>
+   <td style="text-align:right;"> -0.4683214 </td>
+   <td style="text-align:right;"> 0.9459833 </td>
+   <td style="text-align:left;"> CHEESE,EDAM </td>
+   <td style="text-align:left;"> 01018 </td>
+   <td style="text-align:right;"> -3208.657 </td>
+   <td style="text-align:right;"> -0.0497637 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> CHEESE </td>
+   <td style="text-align:right;"> 1 </td>
+   <td style="text-align:right;"> 150.00 </td>
+   <td style="text-align:right;"> 150.00 </td>
+   <td style="text-align:right;"> 4.61 </td>
+   <td style="text-align:right;"> 0.8001274 </td>
+   <td style="text-align:right;"> 0.5452815 </td>
+   <td style="text-align:right;"> 0.2535017 </td>
+   <td style="text-align:right;"> 1.8415076 </td>
+   <td style="text-align:right;"> 0.0834642 </td>
+   <td style="text-align:right;"> 2.0208329 </td>
+   <td style="text-align:right;"> -0.3682524 </td>
+   <td style="text-align:right;"> -0.2836369 </td>
+   <td style="text-align:right;"> 0.7307060 </td>
+   <td style="text-align:right;"> -0.5780698 </td>
+   <td style="text-align:right;"> 0.1651867 </td>
+   <td style="text-align:right;"> -0.2576807 </td>
+   <td style="text-align:right;"> -0.0787567 </td>
+   <td style="text-align:right;"> -0.0496451 </td>
+   <td style="text-align:right;"> -0.1318713 </td>
+   <td style="text-align:right;"> -0.0727276 </td>
+   <td style="text-align:right;"> 1.3155454 </td>
+   <td style="text-align:right;"> -0.5669938 </td>
+   <td style="text-align:right;"> 0.2241943 </td>
+   <td style="text-align:right;"> 0.3526058 </td>
+   <td style="text-align:right;"> 0.3367737 </td>
+   <td style="text-align:left;"> CHEESE,FETA </td>
+   <td style="text-align:left;"> 01019 </td>
+   <td style="text-align:right;"> -3516.569 </td>
+   <td style="text-align:right;"> -0.6384083 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> CHEESE </td>
+   <td style="text-align:right;"> 1 </td>
+   <td style="text-align:right;"> 132.00 </td>
+   <td style="text-align:right;"> 132.00 </td>
+   <td style="text-align:right;"> 1.73 </td>
+   <td style="text-align:right;"> 1.5040298 </td>
+   <td style="text-align:right;"> 0.4414199 </td>
+   <td style="text-align:right;"> 0.4400192 </td>
+   <td style="text-align:right;"> 2.5228196 </td>
+   <td style="text-align:right;"> 1.1216541 </td>
+   <td style="text-align:right;"> 2.2916159 </td>
+   <td style="text-align:right;"> -0.4661739 </td>
+   <td style="text-align:right;"> -0.3792254 </td>
+   <td style="text-align:right;"> 0.7709253 </td>
+   <td style="text-align:right;"> -0.5731271 </td>
+   <td style="text-align:right;"> 0.3339995 </td>
+   <td style="text-align:right;"> -0.2682852 </td>
+   <td style="text-align:right;"> -0.0805064 </td>
+   <td style="text-align:right;"> -0.0650934 </td>
+   <td style="text-align:right;"> -0.1318713 </td>
+   <td style="text-align:right;"> -0.3482809 </td>
+   <td style="text-align:right;"> -0.0753950 </td>
+   <td style="text-align:right;"> -0.7459876 </td>
+   <td style="text-align:right;"> -0.1652840 </td>
+   <td style="text-align:right;"> -0.4518085 </td>
+   <td style="text-align:right;"> 1.1556037 </td>
+   <td style="text-align:left;"> CHEESE,FONTINA </td>
+   <td style="text-align:left;"> 01020 </td>
+   <td style="text-align:right;"> -3304.806 </td>
+   <td style="text-align:right;"> -0.2335737 </td>
+  </tr>
+</tbody>
+</table>
 
 Then we do a few mutates to `abbrev` using the function below. This is a function we can use on any menu dataframe, not just `abbrev`, which is why it's called `do_menu_mutates()`. Turns out that the short descriptions of foods in the `Shrt_Desc` column actually aren't so short so we'll create a `shorter_desc` column by taking only the values in `Shrt_Desc` up to the first comma. That turns "BUTTER,WHIPPED,W/ SALT" into just "BUTTER".
 
@@ -3676,9 +4348,40 @@ our_random_menu %>% score_menu()
 
 #### Getting a Solution
 
-The algorithm we use for solving is the [GNU linear program solver](https://cran.r-project.org/web/packages/Rglpk/Rglpk.pdf).
+Solving our menus is the next step. We've got a fixes set of constraints and an objective function: to minimize cost.
 
-Our goal is to return a solution that is a list of a few things we're intersted in: the cost of our final menu, the original menu, and the multiplier on each food's portion size.
+Given these conditions, it makes sense to use a simple linear programming algorithm. The implementation we use for solving is the [GNU linear program solver](https://cran.r-project.org/web/packages/Rglpk/Rglpk.pdf) which has an R interface via the `Rglpk` package.
+
+The `Rglpk_solve_LP()` function is going to do the work for us. What `solve_it()` below will do is grab the elements of a menu that we need for this function, pass them to the solver in the format it needs, and return a solution that is a list of a few things we're intersted in: the cost of our final menu, the original menu, and the multiplier on each food's portion size.
+
+Kind of a lot going on in `solve_it()`, which I'll walk through below. If you're only interested in what we get out of it, feel free to skip this section 😁.
+
+**Making solve_it()**
+
+What we first have to do is get the raw values of every nutrient, if our nutrients are in per 100g form. (If they're already in raw form, we're all set.) We know they're in raw form already if the `df_is_per_100g` flag is FALSE. Whichever form we get our menu data in, we'll transform it to the other form in order to return that in our list at the end.
+
+`Rglpk_solve_LP()` needs something to optimize for, which for us will be `df[["cost"]]`. We'll tell it we want to minimize that. 
+
+Next we need to set up a series of constraint inequalities. On the left hand side of each inequality will be the raw values of each nutrient we've got in our menu. That will be followed by a directionality, either `">"` if the value of that nutrient is a positive or a `"<"` if it is a must restrict. Last we'll supply the upper or lower bound for that particular nutrient, which we supply in `bounds`. If we're thinking about Riboflavin in our menu and we've got `n` items in our menu each with some amount of Riboflavin, that would look like:
+
+$\sum_{i=1}^{n} OurRawRiboflavin_{i} > MinRequiredDailyRiboflavinAmount$ 
+
+
+Now to construct the constraint matrix which I'm cleverly calling `constraint_matrix` for all the nutritional constraints that need to be met. We'll make this by essentially transposing our menu's nutrient columns; whereas in a typical menu dataframe we have one row per food and one column per nutrient, we'll turn this into a matrix with one row per constraint and one column per food. (In practice we do this by creating a matrix and specifying `byrow = TRUE` in the `matrix` call of `construct_matrix()`.) We can print out the constraint matrix by turning `v_v_verbose` on.
+
+Cool, so now we can read a given row in this matrix pertaining to a certain nutrient left to right as adding up the value of that nutrient contained in all of our menu foods. That gives us the sum total of that nutrient in the menu.
+
+What we'd need next if we keep reading from left to right is the directionality which the solver accepts as a vector of `">"`s and `"<"`s. Farthest to the right, we'll need the min or max value of that nutrient, which we'll supply in the vector `rhs` for "right hand side" of the equation. We get `rhs` from the user-supplied `nut_df`, or dataframe of nutrients and their daily upper or lower bounds.
+
+We'll specify minimum and serving sizes per food by creating `bounds` from `min_food_amount` and `max_food_amount`. This acts as the other half of the constraint on the solver; not only do we need a certain amount of each *nutrient*, we also need a certain amount of each *food*.
+
+Finally, we can specify that we want only full serving sizes by setting `only_full_servings` to TRUE. If we do that, we'll tell the solver that the `types` must be integer, `"I"` rather than continuous, `"C"`.
+
+If we turn `verbose` on we'll know whether a solution could be found or not, and what the cost of the solved menu is.  
+**Return**
+
+The native return value of the call to `Rglpk_solve_LP()` is a list including: vector of solution amounts, the cost, and the status (0 for solved, 1 for not solvable). `solve_it()` will take that list and append a few more things to it, so we can check that it's working correctly and pipe it into other things to distill menus and nutritional information out . We'll append the nutritional constraints we supplied in `nut_df`, the constraint matrix we constructed, and the nutrient values in our original menu in both raw and per 100g form.
+
 
 
 ```r
@@ -3770,25 +4473,7 @@ solve_it <- function(df, nut_df = nutrient_df, df_is_per_100g = TRUE, only_full_
 }
 ```
 
-
-
-```r
-system.time(our_random_menu %>% solve_it())
-```
-
-```
-## Cost is $98.79.
-```
-
-```
-## No optimal solution found :'(
-```
-
-```
-##    user  system elapsed 
-##   0.038   0.001   0.044
-```
-
+Let's try it out.
 
 
 ```r
@@ -3796,17 +4481,166 @@ our_menu_solution <- our_random_menu %>% solve_it()
 ```
 
 ```
-## Cost is $98.79.
+## Cost is $101.44.
 ```
 
 ```
 ## No optimal solution found :'(
 ```
 
+```r
+our_menu_solution
+```
+
+```
+## $optimum
+## [1] 101.44
+## 
+## $solution
+##  [1] 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1
+## 
+## $status
+## [1] 1
+## 
+## $solution_dual
+##  [1] 5.43 3.75 1.47 4.71 5.25 3.35 7.10 3.60 9.97 5.14 9.75 2.31 6.17 3.07
+## [15] 8.25 4.42 8.42 9.28
+## 
+## $auxiliary
+## $auxiliary$primal
+##  [1]   91.337680 4269.667000  399.285000   38.956894  143.787350
+##  [6] 1019.891500   21.990730  432.931500 2032.328000 3677.960000
+## [11]   16.206145    2.316085    3.516593  173.897050   70.397550
+## [16]    2.861833    2.313175   34.651609    5.334605    2.381441
+## [21] 2681.570000
+## 
+## $auxiliary$dual
+##  [1] 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+## 
+## 
+## $necessary_nutrients
+## # A tibble: 21 x 3
+##         nutrient value is_must_restrict
+##            <chr> <dbl>            <lgl>
+##  1   Lipid_Tot_g    65             TRUE
+##  2     Sodium_mg  2400             TRUE
+##  3  Cholestrl_mg   300             TRUE
+##  4      FA_Sat_g    20             TRUE
+##  5     Protein_g    56            FALSE
+##  6    Calcium_mg  1000            FALSE
+##  7       Iron_mg    18            FALSE
+##  8  Magnesium_mg   400            FALSE
+##  9 Phosphorus_mg  1000            FALSE
+## 10  Potassium_mg  3500            FALSE
+## # ... with 11 more rows
+## 
+## $constraint_matrix
+## # A tibble: 45 x 22
+##         nutrient `CANDIES, 19248` `SALMON, 15182` `BROADBEANS, 11088`
+##            <chr>            <dbl>           <dbl>               <dbl>
+##  1   Lipid_Tot_g           13.800          6.2135             0.65400
+##  2     Sodium_mg           15.600         63.7500            54.50000
+##  3  Cholestrl_mg            4.400         37.4000             0.00000
+##  4      FA_Sat_g            8.240          1.3974             0.15042
+##  5     Niacin_mg            8.240          1.3974             0.15042
+##  6     Protein_g            2.232         17.3995             6.10400
+##  7    Calcium_mg           43.600        203.1500            23.98000
+##  8 Phosphorus_mg           43.600        203.1500            23.98000
+##  9       Iron_mg            0.532          0.9010             2.07100
+## 10  Magnesium_mg           15.200         24.6500            41.42000
+## # ... with 35 more rows, and 18 more variables: `GELATIN DSSRT,
+## #   19172` <dbl>, `CRAYFISH, 15146` <dbl>, `CRACKERS, 18965` <dbl>,
+## #   `CHEESE, 01039` <dbl>, `SPICES, 02003` <dbl>, `RAVIOLI, 22899` <dbl>,
+## #   `LUXURY LOAF, 07060` <dbl>, `CANDIES, 19080` <dbl>, `ONIONS,
+## #   11290` <dbl>, `PIZZA HUT 14" PEPPERONI PIZZA, 21297` <dbl>, `BEANS,
+## #   11046` <dbl>, `GRAPE JUC, 09135` <dbl>, `PIE, 18302` <dbl>, `PORK,
+## #   10214` <dbl>, `FAST FOODS, 21114` <dbl>, dir <chr>, rhs <dbl>,
+## #   is_must_restrict <lgl>
+## 
+## $original_menu_raw
+## # A tibble: 18 x 30
+##                        shorter_desc GmWt_1 serving_gmwt  cost Lipid_Tot_g
+##                               <chr>  <dbl>        <dbl> <dbl>       <dbl>
+##  1                          CANDIES  40.00        40.00  5.43    13.80000
+##  2                           SALMON  85.00        85.00  3.75     6.21350
+##  3                       BROADBEANS 109.00       109.00  1.47     0.65400
+##  4                    GELATIN DSSRT  85.00        85.00  4.71     0.00000
+##  5                         CRAYFISH  85.00        85.00  5.25     1.02000
+##  6                         CRACKERS  30.00        30.00  3.35     3.50100
+##  7                           CHEESE  28.35        28.35  7.10     8.68644
+##  8                           SPICES   0.70         0.70  3.60     0.02849
+##  9                          RAVIOLI 242.00       242.00  9.97     3.50900
+## 10                      LUXURY LOAF  28.00        28.00  5.14     1.34400
+## 11                          CANDIES  14.50        14.50  9.75     4.35000
+## 12                           ONIONS 210.00       210.00  2.31     0.10500
+## 13 "PIZZA HUT 14\" PEPPERONI PIZZA" 113.00       113.00  6.17    14.76910
+## 14                            BEANS 104.00       104.00  3.07     0.72800
+## 15                        GRAPE JUC 253.00       253.00  8.25     0.32890
+## 16                              PIE  28.35        28.35  4.42     3.54375
+## 17                             PORK  85.00        85.00  8.42     2.20150
+## 18                       FAST FOODS 226.00       226.00  9.28    26.55500
+## # ... with 25 more variables: Sodium_mg <dbl>, Cholestrl_mg <dbl>,
+## #   FA_Sat_g <dbl>, Protein_g <dbl>, Calcium_mg <dbl>, Iron_mg <dbl>,
+## #   Magnesium_mg <dbl>, Phosphorus_mg <dbl>, Potassium_mg <dbl>,
+## #   Zinc_mg <dbl>, Copper_mg <dbl>, Manganese_mg <dbl>, Selenium_µg <dbl>,
+## #   Vit_C_mg <dbl>, Thiamin_mg <dbl>, Riboflavin_mg <dbl>,
+## #   Niacin_mg <dbl>, Panto_Acid_mg <dbl>, Vit_B6_mg <dbl>,
+## #   Energ_Kcal <dbl>, solution_amounts <dbl>, Shrt_Desc <chr>,
+## #   NDB_No <chr>, score <dbl>, scaled_score <dbl>
+## 
+## $original_menu_per_g
+## # A tibble: 18 x 30
+##                        shorter_desc solution_amounts GmWt_1 serving_gmwt
+##                               <chr>            <dbl>  <dbl>        <dbl>
+##  1                          CANDIES                1  40.00        40.00
+##  2                           SALMON                1  85.00        85.00
+##  3                       BROADBEANS                1 109.00       109.00
+##  4                    GELATIN DSSRT                1  85.00        85.00
+##  5                         CRAYFISH                1  85.00        85.00
+##  6                         CRACKERS                1  30.00        30.00
+##  7                           CHEESE                1  28.35        28.35
+##  8                           SPICES                1   0.70         0.70
+##  9                          RAVIOLI                1 242.00       242.00
+## 10                      LUXURY LOAF                1  28.00        28.00
+## 11                          CANDIES                1  14.50        14.50
+## 12                           ONIONS                1 210.00       210.00
+## 13 "PIZZA HUT 14\" PEPPERONI PIZZA"                1 113.00       113.00
+## 14                            BEANS                1 104.00       104.00
+## 15                        GRAPE JUC                1 253.00       253.00
+## 16                              PIE                1  28.35        28.35
+## 17                             PORK                1  85.00        85.00
+## 18                       FAST FOODS                1 226.00       226.00
+## # ... with 26 more variables: cost <dbl>, Lipid_Tot_g <dbl>,
+## #   Sodium_mg <dbl>, Cholestrl_mg <dbl>, FA_Sat_g <dbl>, Protein_g <dbl>,
+## #   Calcium_mg <dbl>, Iron_mg <dbl>, Magnesium_mg <dbl>,
+## #   Phosphorus_mg <dbl>, Potassium_mg <dbl>, Zinc_mg <dbl>,
+## #   Copper_mg <dbl>, Manganese_mg <dbl>, Selenium_µg <dbl>,
+## #   Vit_C_mg <dbl>, Thiamin_mg <dbl>, Riboflavin_mg <dbl>,
+## #   Niacin_mg <dbl>, Panto_Acid_mg <dbl>, Vit_B6_mg <dbl>,
+## #   Energ_Kcal <dbl>, Shrt_Desc <chr>, NDB_No <chr>, score <dbl>,
+## #   scaled_score <dbl>
+```
+
+How long did that take?
+
+
+```r
+system.time(our_random_menu %>% solve_it(verbose = FALSE))
+```
+
+```
+##    user  system elapsed 
+##   0.023   0.000   0.023
+```
+
+Not long. Thanks for being written in C, GLPK! 
+
 
 ### Solve menu
 
-`solve_menu` takes one main argument: the result of a call to `solve_it()`. Since the return value of solve it contains the original menu and a vector of solution amounts -- that is, the amount we're multiplying each portion size by in order to arrive at our solution -- we can combine these to get our solved menu.
+Okay so our output of `solve_it()` is an informative but long list. We want an easy way to solve a menu and get its solution back. Here's where `solve_menu()` comes in.
+
+`solve_menu()` takes one main argument: the result of a call to `solve_it()`. Since we've written the return value of `solve_it()` to contain the original menu *and* a vector of solution amounts -- that is, the amount we're multiplying each portion size by in order to arrive at our solution -- we can combine these to get our solved menu.
 
 We also return a message, if `verbose` is TRUE, telling us which food we've got the most servings of, as this might be something we'd want to decrease. (Now that I'm thining about it, maybe a more helpful message would take a threshold portion size and only alert us if we've exceeded that threshold.)
 
@@ -3846,6 +4680,8 @@ solve_menu <- function(sol, verbose = TRUE) {
   return(df_solved)
 }
 ```
+
+Let's see what our tidied output looks like.
 
 
 ```r
@@ -4478,7 +5314,7 @@ our_solved_menu %>% kable(format = "html")
 
 #### Solve nutrients
 
-This function will let us find what the raw nutrient amounts in our solved menu are, and let us know which nutrient we've overshot the lower bound on the most. Like `solve_menu()`, a result from `solve_it()` can be piped nicely in here.
+This function will let us find what the raw nutrient amounts in our solved menu are, and let us know which nutrient we've overshot the lower bound on the most. Recall that one of the things we're returning as the result of our `solve_it()` call is the dataframe of nutritional constraints we provided it. This means that, like `solve_menu()`, a result from `solve_it()` can be piped nicely in here.
 
 
 ```r
@@ -4671,11 +5507,13 @@ our_solved_nutrients %>% kable(format = "html")
 
 Our menus often aren't solvable. That is, at the minimum portion size we set, there's no way we can change portion sizes in such a way that we stay under all the maximum values for each must restrict and under the minimums for all positive nutrients as well as have enough calories.
 
-In these cases, we'll need to change up our lineup.
+In these cases, we'll need to change up our lineup. 
 
 ###Single swap
 
-The idea with a single swap is to see which must restricts are not satisfied 
+I only use single swapping for the cases where we're above the max threshold on must restricts, but you could imagine implementing the same funcitons to deal with positives.
+
+The idea with a single swap is to see which must restricts are not satisfied, find the food that is the `max_offender` on that must restrict (i.e., contributes the most in absolute terms to the value of the must restrict) and then swap it out. We try to `replace_food_w_better()`, that is, swap it out for a food from a pool of better foods on that dimension. We define better as foods that score above a user-specified z-score `cutoff` on that must_restrict. If there are no foods that satisfy that cutoff, we choose a food at random from the pool of all possible foods.
 
 
 ```r
@@ -4728,6 +5566,7 @@ do_single_swap <- function(menu, solve_if_unsolved = TRUE, verbose = FALSE,
 }
 ```
 
+In practice, that looks like:
 
 
 ```r
@@ -4807,7 +5646,7 @@ our_random_menu %>% do_single_swap() %>% kable(format = "html")
    <td style="text-align:right;"> 1 </td>
    <td style="text-align:right;"> 85.00 </td>
    <td style="text-align:right;"> 85.00 </td>
-   <td style="text-align:right;"> 9.02 </td>
+   <td style="text-align:right;"> 3.75 </td>
    <td style="text-align:right;"> 7.31 </td>
    <td style="text-align:right;"> 75 </td>
    <td style="text-align:right;"> 44 </td>
@@ -4831,7 +5670,7 @@ our_random_menu %>% do_single_swap() %>% kable(format = "html")
    <td style="text-align:right;"> 153 </td>
    <td style="text-align:left;"> SALMON,SOCKEYE,CND,WO/SALT,DRND SOL W/BONE </td>
    <td style="text-align:left;"> 15182 </td>
-   <td style="text-align:right;"> -3913.498 </td>
+   <td style="text-align:right;"> -2602.498 </td>
    <td style="text-align:right;"> 1.1090489 </td>
   </tr>
   <tr>
@@ -4839,7 +5678,7 @@ our_random_menu %>% do_single_swap() %>% kable(format = "html")
    <td style="text-align:right;"> 1 </td>
    <td style="text-align:right;"> 109.00 </td>
    <td style="text-align:right;"> 109.00 </td>
-   <td style="text-align:right;"> 3.93 </td>
+   <td style="text-align:right;"> 1.47 </td>
    <td style="text-align:right;"> 0.60 </td>
    <td style="text-align:right;"> 50 </td>
    <td style="text-align:right;"> 0 </td>
@@ -4863,7 +5702,7 @@ our_random_menu %>% do_single_swap() %>% kable(format = "html")
    <td style="text-align:right;"> 72 </td>
    <td style="text-align:left;"> BROADBEANS,IMMAT SEEDS,RAW </td>
    <td style="text-align:left;"> 11088 </td>
-   <td style="text-align:right;"> -4250.264 </td>
+   <td style="text-align:right;"> -2939.264 </td>
    <td style="text-align:right;"> 0.4652428 </td>
   </tr>
   <tr>
@@ -4871,7 +5710,7 @@ our_random_menu %>% do_single_swap() %>% kable(format = "html")
    <td style="text-align:right;"> 1 </td>
    <td style="text-align:right;"> 85.00 </td>
    <td style="text-align:right;"> 85.00 </td>
-   <td style="text-align:right;"> 1.96 </td>
+   <td style="text-align:right;"> 4.71 </td>
    <td style="text-align:right;"> 0.00 </td>
    <td style="text-align:right;"> 466 </td>
    <td style="text-align:right;"> 0 </td>
@@ -4895,7 +5734,7 @@ our_random_menu %>% do_single_swap() %>% kable(format = "html")
    <td style="text-align:right;"> 381 </td>
    <td style="text-align:left;"> GELATIN DSSRT,DRY MIX </td>
    <td style="text-align:left;"> 19172 </td>
-   <td style="text-align:right;"> -4938.439 </td>
+   <td style="text-align:right;"> -3627.439 </td>
    <td style="text-align:right;"> -0.8503611 </td>
   </tr>
   <tr>
@@ -4935,7 +5774,7 @@ our_random_menu %>% do_single_swap() %>% kable(format = "html")
    <td style="text-align:right;"> 1 </td>
    <td style="text-align:right;"> 30.00 </td>
    <td style="text-align:right;"> 30.00 </td>
-   <td style="text-align:right;"> 3.41 </td>
+   <td style="text-align:right;"> 3.35 </td>
    <td style="text-align:right;"> 11.67 </td>
    <td style="text-align:right;"> 1167 </td>
    <td style="text-align:right;"> 0 </td>
@@ -4959,7 +5798,7 @@ our_random_menu %>% do_single_swap() %>% kable(format = "html")
    <td style="text-align:right;"> 418 </td>
    <td style="text-align:left;"> CRACKERS,CHS,RED FAT </td>
    <td style="text-align:left;"> 18965 </td>
-   <td style="text-align:right;"> -4906.367 </td>
+   <td style="text-align:right;"> -3595.367 </td>
    <td style="text-align:right;"> -0.7890484 </td>
   </tr>
   <tr>
@@ -4999,7 +5838,7 @@ our_random_menu %>% do_single_swap() %>% kable(format = "html")
    <td style="text-align:right;"> 1 </td>
    <td style="text-align:right;"> 0.70 </td>
    <td style="text-align:right;"> 0.70 </td>
-   <td style="text-align:right;"> 9.03 </td>
+   <td style="text-align:right;"> 3.60 </td>
    <td style="text-align:right;"> 4.07 </td>
    <td style="text-align:right;"> 76 </td>
    <td style="text-align:right;"> 0 </td>
@@ -5023,7 +5862,7 @@ our_random_menu %>% do_single_swap() %>% kable(format = "html")
    <td style="text-align:right;"> 233 </td>
    <td style="text-align:left;"> SPICES,BASIL,DRIED </td>
    <td style="text-align:left;"> 02003 </td>
-   <td style="text-align:right;"> -4643.583 </td>
+   <td style="text-align:right;"> -3332.583 </td>
    <td style="text-align:right;"> -0.2866766 </td>
   </tr>
   <tr>
@@ -5031,7 +5870,7 @@ our_random_menu %>% do_single_swap() %>% kable(format = "html")
    <td style="text-align:right;"> 1 </td>
    <td style="text-align:right;"> 242.00 </td>
    <td style="text-align:right;"> 242.00 </td>
-   <td style="text-align:right;"> 7.63 </td>
+   <td style="text-align:right;"> 9.97 </td>
    <td style="text-align:right;"> 1.45 </td>
    <td style="text-align:right;"> 306 </td>
    <td style="text-align:right;"> 3 </td>
@@ -5055,7 +5894,7 @@ our_random_menu %>% do_single_swap() %>% kable(format = "html")
    <td style="text-align:right;"> 77 </td>
    <td style="text-align:left;"> RAVIOLI,CHEESE-FILLED,CND </td>
    <td style="text-align:left;"> 22899 </td>
-   <td style="text-align:right;"> -4617.693 </td>
+   <td style="text-align:right;"> -3306.693 </td>
    <td style="text-align:right;"> -0.2371810 </td>
   </tr>
   <tr>
@@ -5063,7 +5902,7 @@ our_random_menu %>% do_single_swap() %>% kable(format = "html")
    <td style="text-align:right;"> 1 </td>
    <td style="text-align:right;"> 28.00 </td>
    <td style="text-align:right;"> 28.00 </td>
-   <td style="text-align:right;"> 4.64 </td>
+   <td style="text-align:right;"> 5.14 </td>
    <td style="text-align:right;"> 4.80 </td>
    <td style="text-align:right;"> 1225 </td>
    <td style="text-align:right;"> 36 </td>
@@ -5087,7 +5926,7 @@ our_random_menu %>% do_single_swap() %>% kable(format = "html")
    <td style="text-align:right;"> 141 </td>
    <td style="text-align:left;"> LUXURY LOAF,PORK </td>
    <td style="text-align:left;"> 07060 </td>
-   <td style="text-align:right;"> -4852.980 </td>
+   <td style="text-align:right;"> -3541.980 </td>
    <td style="text-align:right;"> -0.6869870 </td>
   </tr>
   <tr>
@@ -5127,7 +5966,7 @@ our_random_menu %>% do_single_swap() %>% kable(format = "html")
    <td style="text-align:right;"> 1 </td>
    <td style="text-align:right;"> 210.00 </td>
    <td style="text-align:right;"> 210.00 </td>
-   <td style="text-align:right;"> 4.83 </td>
+   <td style="text-align:right;"> 2.31 </td>
    <td style="text-align:right;"> 0.05 </td>
    <td style="text-align:right;"> 8 </td>
    <td style="text-align:right;"> 0 </td>
@@ -5151,7 +5990,7 @@ our_random_menu %>% do_single_swap() %>% kable(format = "html")
    <td style="text-align:right;"> 28 </td>
    <td style="text-align:left;"> ONIONS,FRZ,WHL,CKD,BLD,DRND,WO/SALT </td>
    <td style="text-align:left;"> 11290 </td>
-   <td style="text-align:right;"> -4397.386 </td>
+   <td style="text-align:right;"> -3086.386 </td>
    <td style="text-align:right;"> 0.1839856 </td>
   </tr>
   <tr>
@@ -5159,7 +5998,7 @@ our_random_menu %>% do_single_swap() %>% kable(format = "html")
    <td style="text-align:right;"> 1 </td>
    <td style="text-align:right;"> 113.00 </td>
    <td style="text-align:right;"> 113.00 </td>
-   <td style="text-align:right;"> 5.69 </td>
+   <td style="text-align:right;"> 6.17 </td>
    <td style="text-align:right;"> 13.07 </td>
    <td style="text-align:right;"> 676 </td>
    <td style="text-align:right;"> 23 </td>
@@ -5183,7 +6022,7 @@ our_random_menu %>% do_single_swap() %>% kable(format = "html")
    <td style="text-align:right;"> 291 </td>
    <td style="text-align:left;"> PIZZA HUT 14&quot; PEPPERONI PIZZA,PAN CRUST </td>
    <td style="text-align:left;"> 21297 </td>
-   <td style="text-align:right;"> -4832.658 </td>
+   <td style="text-align:right;"> -3521.658 </td>
    <td style="text-align:right;"> -0.6481376 </td>
   </tr>
   <tr>
@@ -5191,7 +6030,7 @@ our_random_menu %>% do_single_swap() %>% kable(format = "html")
    <td style="text-align:right;"> 1 </td>
    <td style="text-align:right;"> 104.00 </td>
    <td style="text-align:right;"> 104.00 </td>
-   <td style="text-align:right;"> 8.77 </td>
+   <td style="text-align:right;"> 3.07 </td>
    <td style="text-align:right;"> 0.70 </td>
    <td style="text-align:right;"> 13 </td>
    <td style="text-align:right;"> 0 </td>
@@ -5215,7 +6054,7 @@ our_random_menu %>% do_single_swap() %>% kable(format = "html")
    <td style="text-align:right;"> 67 </td>
    <td style="text-align:left;"> BEANS,NAVY,MATURE SEEDS,SPROUTED,RAW </td>
    <td style="text-align:left;"> 11046 </td>
-   <td style="text-align:right;"> -4122.162 </td>
+   <td style="text-align:right;"> -2811.162 </td>
    <td style="text-align:right;"> 0.7101393 </td>
   </tr>
   <tr>
@@ -5223,7 +6062,7 @@ our_random_menu %>% do_single_swap() %>% kable(format = "html")
    <td style="text-align:right;"> 1 </td>
    <td style="text-align:right;"> 253.00 </td>
    <td style="text-align:right;"> 253.00 </td>
-   <td style="text-align:right;"> 4.53 </td>
+   <td style="text-align:right;"> 8.25 </td>
    <td style="text-align:right;"> 0.13 </td>
    <td style="text-align:right;"> 5 </td>
    <td style="text-align:right;"> 0 </td>
@@ -5247,7 +6086,7 @@ our_random_menu %>% do_single_swap() %>% kable(format = "html")
    <td style="text-align:right;"> 60 </td>
    <td style="text-align:left;"> GRAPE JUC,CND OR BTLD,UNSWTND,WO/ ADDED VIT C </td>
    <td style="text-align:left;"> 09135 </td>
-   <td style="text-align:right;"> -4343.103 </td>
+   <td style="text-align:right;"> -3032.103 </td>
    <td style="text-align:right;"> 0.2877596 </td>
   </tr>
   <tr>
@@ -5255,7 +6094,7 @@ our_random_menu %>% do_single_swap() %>% kable(format = "html")
    <td style="text-align:right;"> 1 </td>
    <td style="text-align:right;"> 28.35 </td>
    <td style="text-align:right;"> 28.35 </td>
-   <td style="text-align:right;"> 1.75 </td>
+   <td style="text-align:right;"> 4.42 </td>
    <td style="text-align:right;"> 12.50 </td>
    <td style="text-align:right;"> 211 </td>
    <td style="text-align:right;"> 0 </td>
@@ -5279,7 +6118,7 @@ our_random_menu %>% do_single_swap() %>% kable(format = "html")
    <td style="text-align:right;"> 265 </td>
    <td style="text-align:left;"> PIE,APPL,PREP FROM RECIPE </td>
    <td style="text-align:left;"> 18302 </td>
-   <td style="text-align:right;"> -4710.654 </td>
+   <td style="text-align:right;"> -3399.654 </td>
    <td style="text-align:right;"> -0.4148992 </td>
   </tr>
   <tr>
@@ -5287,7 +6126,7 @@ our_random_menu %>% do_single_swap() %>% kable(format = "html")
    <td style="text-align:right;"> 1 </td>
    <td style="text-align:right;"> 85.00 </td>
    <td style="text-align:right;"> 85.00 </td>
-   <td style="text-align:right;"> 2.46 </td>
+   <td style="text-align:right;"> 8.42 </td>
    <td style="text-align:right;"> 2.59 </td>
    <td style="text-align:right;"> 63 </td>
    <td style="text-align:right;"> 63 </td>
@@ -5311,7 +6150,7 @@ our_random_menu %>% do_single_swap() %>% kable(format = "html")
    <td style="text-align:right;"> 121 </td>
    <td style="text-align:left;"> PORK,FRSH,LOIN,SIRLOIN (CHOPS OR ROASTS),BNLESS,LN,RAW </td>
    <td style="text-align:left;"> 10214 </td>
-   <td style="text-align:right;"> -4192.317 </td>
+   <td style="text-align:right;"> -2881.317 </td>
    <td style="text-align:right;"> 0.5760225 </td>
   </tr>
   <tr>
@@ -5319,7 +6158,7 @@ our_random_menu %>% do_single_swap() %>% kable(format = "html")
    <td style="text-align:right;"> 1 </td>
    <td style="text-align:right;"> 226.00 </td>
    <td style="text-align:right;"> 226.00 </td>
-   <td style="text-align:right;"> 5.02 </td>
+   <td style="text-align:right;"> 9.28 </td>
    <td style="text-align:right;"> 11.75 </td>
    <td style="text-align:right;"> 350 </td>
    <td style="text-align:right;"> 54 </td>
@@ -5343,7 +6182,7 @@ our_random_menu %>% do_single_swap() %>% kable(format = "html")
    <td style="text-align:right;"> 239 </td>
    <td style="text-align:left;"> FAST FOODS,HAMBURGER; DOUBLE,LRG PATTY; W/ CONDMNT &amp; VEG </td>
    <td style="text-align:left;"> 21114 </td>
-   <td style="text-align:right;"> -4517.685 </td>
+   <td style="text-align:right;"> -3206.685 </td>
    <td style="text-align:right;"> -0.0459943 </td>
   </tr>
 </tbody>
@@ -5351,6 +6190,8 @@ our_random_menu %>% do_single_swap() %>% kable(format = "html")
 
 
 #### Wholesale swap
+
+The wholesale swap takes a different approach. It uses knowledge we've gained from solving to keep the foods that the solver wanted more of and offer the rest up for swapping. The intuition here is that foods that the solver increased the portion sizes of are more valuable to the menu as a whole. We sample a `percent_to_swap` of the foods that the solver assigned the lowest portion size to, shamefully dubbed the `worst_foods`.
 
 
 ```r
@@ -7014,10 +7855,8 @@ get_mult_add_portion <- function(e, only_mult_after_paren = FALSE) {
 
 
 
-If we have the input `4 1/2` this will get turned into two numbers, `4` and `0.5`. Since it's a complex fraction, we'll want to add them. 
-
 ```r
-"4 1/2 steaks" %>% get_mult_add_portion() 
+get_mult_add_portion("4 1/2 steaks") 
 ```
 
 ```
@@ -7025,10 +7864,9 @@ If we have the input `4 1/2` this will get turned into two numbers, `4` and `0.5
 ```
 
 
-If we have the input `4 (5 lb melons)` we'll want to multiply `4` and `5`. 
 
 ```r
-"4 (5 lb melons)" %>% get_mult_add_portion() 
+get_mult_add_portion("4 (5 lb melons)") 
 ```
 
 ```
@@ -7257,7 +8095,7 @@ get_portion_text <- function(df) {
 ```
 
 
-Last thing for us for now on this subject (though there's a lot more to do here!) will be to add abbreviations. This will let us standardize things like "ounces" and "oz" which actually refer to the same thing. 
+Last thing for us for now on this subject (though there's a lot more to do here!) will be to add abbreviations. This will let us standardize things like `"ounces"` and `"oz"` which actually refer to the same thing. 
 
 All `add_abbrevs()` will do is let us mutate our dataframe with a new column for the abbreviation of our portion size, if we've got a recognized portion size.
 
@@ -7284,16 +8122,29 @@ add_abbrevs <- function(df) {
 
 ```r
 tibble(ingredients = "10 pounds salt, or to taste") %>% 
-  get_portion_text() %>% add_abbrevs()
+  get_portion_text() %>% add_abbrevs() %>% kable(format = "html")
 ```
 
-```
-## # A tibble: 1 x 5
-##                   ingredients raw_portion_num portion_name approximate
-##                         <chr>           <chr>        <chr>       <lgl>
-## 1 10 pounds salt, or to taste              10        pound        TRUE
-## # ... with 1 more variables: portion_abbrev <chr>
-```
+<table>
+ <thead>
+  <tr>
+   <th style="text-align:left;"> ingredients </th>
+   <th style="text-align:left;"> raw_portion_num </th>
+   <th style="text-align:left;"> portion_name </th>
+   <th style="text-align:left;"> approximate </th>
+   <th style="text-align:left;"> portion_abbrev </th>
+  </tr>
+ </thead>
+<tbody>
+  <tr>
+   <td style="text-align:left;"> 10 pounds salt, or to taste </td>
+   <td style="text-align:left;"> 10 </td>
+   <td style="text-align:left;"> pound </td>
+   <td style="text-align:left;"> TRUE </td>
+   <td style="text-align:left;"> lb </td>
+  </tr>
+</tbody>
+</table>
 
 
 All together now. Get the portion text and values. If we only want our best guess as to the portion size, that is, `final_portion_size`, we'll chuck `range_portion` and `mult_add_portion`.
@@ -7566,38 +8417,9 @@ pairwise_per_rec %>%
   theme_void()
 ```
 
-![](writeup_files/figure-html/unnamed-chunk-6-1.png)<!-- -->
+![](writeup_files/figure-html/unnamed-chunk-5-1.png)<!-- -->
 
 
 
 
 
-
-[^1]: If we tried to unnest this right now we'd get an error. 
-
-```r
-foods %>% unnest()
-```
-
-
-That's because missing values are coded as `--`. That's an issue for two of these columns, `gm` and `value`, which get coded as numeric if there are no mising values and character otherwise. 
-
-Since a single column in a dataframe can only have values of one type, before unnesting our `nutrients` list column, we'll want to make sure all values of `gm` and `value` are of the same type across all rows. 
-
-I'm sure there's a more elegant `purrr` solution or a better way to set types when we're taking our list to tibble, but a quick and dirty fix here is to go through and make sure these values are all character.
-
-
-```r
-for (i in 1:length(foods$nutrients)) {
-  for (j in 1:nrow(foods$nutrients[[1]])) {
-    foods$nutrients[[i]]$gm[j] <- as.character(foods$nutrients[[i]]$gm[j])
-    foods$nutrients[[i]]$value[j] <- as.character(foods$nutrients[[i]]$value[j])
-  }
-}
-```
-
-
-```r
-# unnest it
-foods <- foods %>% unnest()
-```
