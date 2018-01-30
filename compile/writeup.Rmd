@@ -5,9 +5,9 @@ author:
   email: amanda.e.dobbyn@gmail.com
   twitter: dobbleobble
 output:
-  html_notebook:
-  # html_document:
-    # keep_md: true
+  # html_notebook:
+  html_document:
+    keep_md: true
     toc: false
     theme: yeti
   github_document:
@@ -956,8 +956,11 @@ simulate_spectrum <- function(n_intervals = 10, n_sims = 2, from = -1, to = 1,
 
 
 ```{r do_simulate_spectrum}
-simulate_spectrum() %>% kable(format = "html")
+status_spectrum <- simulate_spectrum()
+status_spectrum %>% kable(format = "html")
 ```
+
+
 
 
 #### Simulate Spectrum with Swapping
@@ -968,11 +971,6 @@ The next obvious question is, how many menus are solvable within a certain numbe
 `get_swap_status()` is analogous to `get_status()` from our vanilla simulator above. We specify a maximum number of allowed swaps. We build a random menu and count how many swaps it takes to solve it. If we can't solve it within `max_n_swaps` swaps, we'll give up. At the end, we return a tibble of the status and the number of swaps done for each food.
 
 ```{r get_swap_status}
-
-# ----------------------------- With Swapping ----------------------------------------------------------------
-
-# --- Build, swap, and solve a single menu, recording the status and number of swaps we did ---
-
 get_swap_status <- function(seed = NULL, min_food_amount = 0.5, max_n_swaps = 3, return_status = TRUE,
                            verbose = TRUE, ...) {  
   counter <- 0
@@ -1007,16 +1005,17 @@ get_swap_status <- function(seed = NULL, min_food_amount = 0.5, max_n_swaps = 3,
 }
 ```
 
-Let's do that for a spectrum of minimum portion sizes with a fixed max number of swaps we're willing to do. Like we did before, we split the range `from:to` into `n_intervals` and do `n_sims` at each interval, recording the number of  swaps it took to solve it. Our return tibble this time includes the swap status
+Let's test it.
+
+```{r do_get_swap_status}
+get_swap_status(seed = 1)
+```
+
+
+Now we can do the same for a spectrum of minimum portion sizes with a fixed max number of swaps we're willing to do. Like we did with `simulate_spectrum()`, we split a minimum portion size (`from` to `to`) into `n_intervals` and do `n_sims` at each interval, recording the number of  swaps it took to solve it. Our return tibble this time includes the minimum portion size we were allowed, the swap status (0 for good, 1 for bad), and the number of swaps we had to do
+
 
 ```{r simulate_swap_spectrum}
-
-
-# --- Simulate swapping and solving for a spectrum of minimum portion sizes with a fixed max number of swaps ---
-# from is the lowest minimum portion size and to is the highest minimum portion size
-# We split the range from:to into n_intervals and do n_sims at each interval
-# For each simulation, we build a menu, try to solve it, and, if we can't, swap and solve as many times as we can until
-# we either solve it and record the number of swaps it took or hit our max_n_swaps and record the failure
 simulate_swap_spectrum <- function(n_intervals = 10, n_sims = 2, max_n_swaps = 3, from = -1, to = 1,
                                    seed = NULL, verbose = FALSE, ...) {
   
@@ -1046,7 +1045,18 @@ simulate_swap_spectrum <- function(n_intervals = 10, n_sims = 2, max_n_swaps = 3
 ```
 
 
-Let's get some summary values out of our spectra. `summarise_status_spectrum()` allows us to summarise either a vanilla status spectrum or a swap spectrum.
+```{r do_simulate_swap_spectrum, message=FALSE}
+simmed_swaps <- simulate_swap_spectrum(n_intervals = 20, n_sims = 5, max_n_swaps = 4, seed = 9,
+                                       from = -1, to = 2)
+simmed_swaps %>% kable(format = "html")
+```
+
+
+#### Summarising a Spectrum
+
+Let's get some summary values out of our spectra. `summarise_status_spectrum()` allows us to summarise either a vanilla status spectrum or a swap spectrum. For a given portion size, we'll find the proportion of those menus that are we were able to solve. 
+
+If we've allowed swapping, we'll find the average number of swaps we did at a given portion size.
 
 ```{r summarise_status_spectrum}
 summarise_status_spectrum <- function(spec) {
@@ -1072,6 +1082,55 @@ summarise_status_spectrum <- function(spec) {
   return(spec_summary)
 }
 ```
+
+
+Let's summarise our vanilla spectrum.
+
+```{r status_spectrum_summary}
+status_spectrum_summary <- summarise_status_spectrum(status_spectrum)
+status_spectrum_summary
+```
+
+
+Now the fun part: visualizing the curve of minimum allowed portion size per food compared to the proportion of menus that were solvable at that portion size.
+
+```{r vanilla_curve, message=FALSE, warning=FALSE}
+ggplot() +
+  geom_smooth(data = status_spectrum, aes(min_amount, 1 - status),
+              se = FALSE) +
+  geom_point(data = status_spectrum_summary, aes(min_amount, 1 - sol_prop)) +
+  theme_minimal() +
+  ggtitle("Curve of portion size vs. solvability") +
+  labs(x = "Minimum portion size", y = "Proportion of solutions") +
+  ylim(0, 1) 
+```
+
+
+So we don't have a linear relationship between portion size and the porportion of menus that are solvable at that portion size.
+
+
+We can do the same for our swap spectrum. 
+
+```{r simmed_swaps_summary}
+simmed_swaps_summary <- summarise_status_spectrum(simmed_swaps)
+```
+
+
+
+```{r plot_status_spectrum_summary}
+# Plot min portion size vs. whether we solved it or not
+ggplot() +
+  geom_smooth(data = simmed_swaps, aes(min_food_amount, 1 - status),
+              se = FALSE) +
+  geom_point(data = simmed_swaps_summary, aes(min_food_amount, 1 - sol_prop, colour = factor(mean_n_swaps_done))) +
+  # facet_wrap( ~ n_swaps_done) +
+  theme_minimal() +
+  ggtitle("Curve of portion size vs. solvability") +
+  labs(x = "Minimum portion size", y = "Proportion of solutions") +
+  ylim(0, 1) 
+
+```
+
 
 
 ***

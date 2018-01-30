@@ -23,9 +23,9 @@ for (p in paths) {
 
 ### About
 
-This is an ongoing project on food. A few data science techniques come into play in various proportions here: along the way I query an API, generate menus, solve them algorithmically, simulate solving them, scrape the web for real menus, and touch on some natural language processing techniques.
+This is an ongoing project on food. It's mainly an excuse for me to use a few data science on real data in various proportions: along the way I query an API, generate menus, solve them algorithmically, simulate solving them, scrape the web for real menus, and touch on some natural language processing techniques.
 
-The meat of it surrounds building menus and changing them until they are in compliance with daily nutritional guidelines. We'll simulate the curve of the proportion of these that are solvable as we increase the minimum portion size that each item must meet, and start about trying to improve the quality of the menus by taking a cue from actual recipes scraped from Allrecipes.com.
+The meat of the project surrounds building menus and changing them until they are in compliance with daily nutritional guidelines. We'll simulate the curve of the proportion of these that are solvable as we increase the minimum portion size that each item must meet. Finally, I start about trying to improve the quality of the menus by taking a cue from actual recipes scraped from Allrecipes.com. 
 
 
 ### Getting from A to Beef
@@ -106,7 +106,7 @@ str(foods$nutrients[1:3])
 If we tried to unnest this right now we'd get an error. 
 
 ```r
-foods %>% unnest()
+foods %>% unnest()   # error :(
 ```
 
 
@@ -114,7 +114,7 @@ That's because missing values are coded as `--`. That's an issue for two of thes
 
 Since a single column in a dataframe can only have values of one type, before unnesting our `nutrients` list column, we'll want to make sure all values of `gm` and `value` are of the same type across all rows. 
 
-I'm sure there's a more elegant `purrr` solution or a better way to set types when we're taking our list to tibble, but a quick and dirty fix here is to go through and make sure these values are all character.
+I'm sure there's a more elegant `purrr` solution or a better way to set types when we're taking our list to tibble, but a quick and dirty fix here is to go through and make sure these values are all of type character.
 
 
 ```r
@@ -1571,7 +1571,7 @@ dim(abbrev_raw)
 
 
 
-You can read in depth the prep I did on this file in `/scripts/prep`. Mainly this involved a bit of cleaning like stripping out parentheses from column names, e.g., `Vit_C_(mg)` becomes `Vit_C_mg`. 
+You can read in depth the prep I did on this file in `/scripts/prep`. Mainly this involved a bit of cleaning like stripping out parentheses from column names, e.g., `Vit_C_(mg)` becomes `Vit_C_mg`.
 
 In there you'll also find a dataframe called `all_nut_and_mr_df` where I define the nutritional constraints on menus. If a nutrient is among the "must restricts," that is, Lipid_Tot_g, Sodium_mg, Cholestrl_mg, FA_Sat_g, then its corresponding value is a daily *upper* bound. Otherwise, the nutrient is a "positive nutrient" and its vlaue is a lower bound. For example, you're supposed to have at least 18mg of Iron and no more than 2400mg of Sodium per day. (As someone who puts salt on everything indiscriminately I'd be shocked if I've ever been under that threshold.)
 
@@ -4183,7 +4183,7 @@ our_random_menu %>% kable(format = "html")
 </tbody>
 </table>
 
-Alright nice -- we've got random menu that's at least compliant on calories. Is it compliant on nutrients and must restricts?
+Alright nice -- we've got a random menu that's at least compliant on calories. Is it compliant on nutrients and must restricts?
 
 
 #### Testing Compliance
@@ -4333,6 +4333,7 @@ score_menu <- function(orig_menu) {
 }
 ```
 
+Let's see what our menu's score is.
 
 
 ```r
@@ -4342,6 +4343,8 @@ our_random_menu %>% score_menu()
 ```
 ## [1] -2018.912
 ```
+
+
 
 
 ### Solving
@@ -4356,7 +4359,7 @@ The `Rglpk_solve_LP()` function is going to do the work for us. What `solve_it()
 
 Kind of a lot going on in `solve_it()`, which I'll walk through below. If you're only interested in what we get out of it, feel free to skip this section 😁.
 
-**Making solve_it()**
+**Into the bowels of `solve_it()`**
 
 What we first have to do is get the raw values of every nutrient, if our nutrients are in per 100g form. (If they're already in raw form, we're all set.) We know they're in raw form already if the `df_is_per_100g` flag is FALSE. Whichever form we get our menu data in, we'll transform it to the other form in order to return that in our list at the end.
 
@@ -4364,10 +4367,11 @@ What we first have to do is get the raw values of every nutrient, if our nutrien
 
 Next we need to set up a series of constraint inequalities. On the left hand side of each inequality will be the raw values of each nutrient we've got in our menu. That will be followed by a directionality, either `">"` if the value of that nutrient is a positive or a `"<"` if it is a must restrict. Last we'll supply the upper or lower bound for that particular nutrient, which we supply in `bounds`. If we're thinking about Riboflavin in our menu and we've got `n` items in our menu each with some amount of Riboflavin, that would look like:
 
-$\sum_{i=1}^{n} OurRawRiboflavin_{i} > MinRequiredDailyRiboflavinAmount$ 
+$\sum_{i=1}^{n} OurRawRiboflavin_{i} > MinRequiredDailyRiboflavin$ 
 
+where `n` is the number of foods in our menu.
 
-Now to construct the constraint matrix which I'm cleverly calling `constraint_matrix` for all the nutritional constraints that need to be met. We'll make this by essentially transposing our menu's nutrient columns; whereas in a typical menu dataframe we have one row per food and one column per nutrient, we'll turn this into a matrix with one row per constraint and one column per food. (In practice we do this by creating a matrix and specifying `byrow = TRUE` in the `matrix` call of `construct_matrix()`.) We can print out the constraint matrix by turning `v_v_verbose` on.
+Now to construct the constraint matrix which I'm cleverly calling `constraint_matrix` for all the nutritional constraints that need to be met. We'll make this by essentially transposing our menu's nutrient columns; whereas in a typical menu dataframe we have one row per food and one column per nutrient, we'll turn this into a matrix with one row per constraint and one column per food. (In practice we do this by taking our vector of nutrient constraint values, and, in the `matrix` call of `construct_matrix()`, creating `byrow = TRUE` matrix from them.) We can print out the constraint matrix by turning `v_v_verbose` on.
 
 Cool, so now we can read a given row in this matrix pertaining to a certain nutrient left to right as adding up the value of that nutrient contained in all of our menu foods. That gives us the sum total of that nutrient in the menu.
 
@@ -4638,7 +4642,7 @@ Not long. Thanks for being written in C, GLPK!
 
 ### Solve menu
 
-Okay so our output of `solve_it()` is an informative but long list. We want an easy way to solve a menu and get its solution back. Here's where `solve_menu()` comes in.
+Okay so our output of `solve_it()` is an informative but long list. It has all the building blocks we need to create a solved menu; now we just need to extract those parts and glue them together in the right ways. Here's where `solve_menu()` comes in.
 
 `solve_menu()` takes one main argument: the result of a call to `solve_it()`. Since we've written the return value of `solve_it()` to contain the original menu *and* a vector of solution amounts -- that is, the amount we're multiplying each portion size by in order to arrive at our solution -- we can combine these to get our solved menu.
 
@@ -5312,16 +5316,21 @@ our_solved_menu %>% kable(format = "html")
 </table>
 
 
-#### Solve nutrients
+### Solve nutrients
 
-This function will let us find what the raw nutrient amounts in our solved menu are, and let us know which nutrient we've overshot the lower bound on the most. Recall that one of the things we're returning as the result of our `solve_it()` call is the dataframe of nutritional constraints we provided it. This means that, like `solve_menu()`, a result from `solve_it()` can be piped nicely in here.
+We'll want to do something with nutrients that's analagous to what we're doing in `solve_menu()`. This function will let us find what the raw nutrient amounts in our solved menu are, and let us know which nutrient we've overshot the lower bound on the most. Like `solve_menu()`, a result from `solve_it()` can be piped nicely in here.
+
+One part of the solution returned by the solver is a vector of the values of the constraints -- that is, our nutrients -- at solution. That lives in `$auxiliary$primal` and becomes our `solved_nutrient_value` in the function below. 
+
+Recall also that we took `nut_df`, the dataframe of nutritional requirements handed to us by the user, and appended it to the solution so that it's also returned as a result of our call to `solve_it()`. This means the outcome of `solve_it()` will let us compare the `required_value` for each nutrient to its `solved_nutrient_value`. We calculate the ratio of these two for every nutrient, and if `verbose` is TRUE, let the user know which nutrient they've overshot the daily minimum on the most.
+
 
 
 ```r
 solve_nutrients <- function(sol, verbose = TRUE) {
   
-  solved_nutrient_value <- list(solution_nutrient_value =         # Grab the vector of nutrient values in the solution
-                                  sol$auxiliary$primal) %>% as_tibble()
+  solved_nutrient_value <- list(solution_nutrient_value =       # Grab the vector of nutrient values in the solution
+                              sol$auxiliary$primal) %>% as_tibble()
   
   nut_df_small_solved <- sol$necessary_nutrients %>%       # cbind it to the nutrient requirements
     bind_cols(solved_nutrient_value)  %>% 
@@ -5349,17 +5358,15 @@ solve_nutrients <- function(sol, verbose = TRUE) {
 }
 ```
 
+Remember that we saved the result of `solve_it()` in `our_menu_solution`. Let's see what those ratios look like in our solution.
+
 
 ```r
-our_solved_nutrients <- our_menu_solution %>% solve_nutrients()
+our_menu_solution %>% solve_nutrients() %>% kable(format = "html")
 ```
 
 ```
 ## We've overshot the most on Protein_g. It's 2.57 times what is needed.
-```
-
-```r
-our_solved_nutrients %>% kable(format = "html")
 ```
 
 <table>
@@ -5509,7 +5516,7 @@ Our menus often aren't solvable. That is, at the minimum portion size we set, th
 
 In these cases, we'll need to change up our lineup. 
 
-###Single swap
+### Single Swap
 
 I only use single swapping for the cases where we're above the max threshold on must restricts, but you could imagine implementing the same funcitons to deal with positives.
 
@@ -6188,8 +6195,9 @@ our_random_menu %>% do_single_swap() %>% kable(format = "html")
 </tbody>
 </table>
 
+<br>
 
-#### Wholesale swap
+#### Wholesale Swap
 
 The wholesale swap takes a different approach. It uses knowledge we've gained from solving to keep the foods that the solver wanted more of and offer the rest up for swapping. The intuition here is that foods that the solver increased the portion sizes of are more valuable to the menu as a whole. We sample a `percent_to_swap` of the foods that the solver assigned the lowest portion size to, shamefully dubbed the `worst_foods`.
 
@@ -6246,6 +6254,8 @@ wholesale_swap <- function(menu, df = abbrev, percent_to_swap = 0.5) {
 }
 ```
 
+
+Let's do a wholesale swap.
 
 
 ```r
@@ -7116,9 +7126,12 @@ fully_solved %>% kable(format = "html")
 </table>
 
 
-### Simulating Solving
+<br>
+<br>
 
-Cool, so we've got a mechanism for creating and solving menus. But what portion of our menus are even solvable at a minimum portion size of 1 without doing any swapping? To answer that, I set about making a way to run a some simulations.
+## Simulating Solving
+
+Cool, so we've got a mechanism for creating and solving menus. But what portion of our menus are even solvable from the get-go? We'll stipulate that solvable means solvable at a minimum portion size of 1 without doing any swapping. To answer that, I set about making a way to run a some simulations.
 
 First, a helper funciton for just `pluck`ing the status portion of our `solve_it()` response telling us whether we solved the menu or not. The result of `get_status()` should always be either a 1 for unsolvable or 0 for solved. 
 
@@ -7241,6 +7254,8 @@ simulate_menus(verbose = FALSE)
 
 Alright so that's kinda useful for a single portion size, but what if we wanted to see how solvability varies as we change up portion size? Presumably as we decrease the lower bound for each food's portion size we'll give ourselves more flexibility and be able to solve a higher proportion of menus. But will the percent of menus that are solvable increase linearly as we decrease portion size? 
 
+#### Simulate Spectrum
+
 I named this next function `simulate_spectrum()` because it allows us to take a lower and an upper bound of minimum portion sizes and see what happens at each point between those two intervals. 
 
 We specify the lower bound for the min portion size spectrum with `from` and the upper bound with `to`. How spaced out those points are and how many of them there are are set with `n_intervals` and `n_sims`; in other words, `n_intervals` is the number of chunks we want to split the spectrum of `from` to `to` into and `n_sims` is the number of times we want to repeat the simulation at each point. 
@@ -7277,7 +7292,8 @@ simulate_spectrum <- function(n_intervals = 10, n_sims = 2, from = -1, to = 1,
 
 
 ```r
-simulate_spectrum() %>% kable(format = "html")
+status_spectrum <- simulate_spectrum()
+status_spectrum %>% kable(format = "html")
 ```
 
 <table>
@@ -7381,6 +7397,279 @@ simulate_spectrum() %>% kable(format = "html")
 
 
 
+
+#### Simulate Spectrum with Swapping
+
+The next obvious question is, how many menus are solvable within a certain number of swaps? 
+
+
+`get_swap_status()` is analogous to `get_status()` from our vanilla simulator above. We specify a maximum number of allowed swaps. We build a random menu and count how many swaps it takes to solve it. If we can't solve it within `max_n_swaps` swaps, we'll give up. At the end, we return a tibble of the status and the number of swaps done for each food.
+
+
+```r
+get_swap_status <- function(seed = NULL, min_food_amount = 0.5, max_n_swaps = 3, return_status = TRUE,
+                           verbose = TRUE, ...) {  
+  counter <- 0
+  this_solution <- build_menu(seed = seed) %>% 
+    solve_it(min_food_amount = min_food_amount, verbose = verbose, only_full_servings = FALSE) 
+  
+  this_status <- this_solution %>% purrr::pluck("status")
+  
+  this_menu <- this_solution %>% solve_menu()
+  
+  while (counter < max_n_swaps & this_status == 1) {
+    this_solution <- this_menu %>% do_single_swap() %>% 
+      solve_it(min_food_amount = min_food_amount, verbose = verbose, only_full_servings = FALSE)
+    this_status <- this_solution %>% purrr::pluck("status")
+    
+    if (this_status == 0) {
+      message(paste0("Solution found in ", counter, " steps"))
+      if (return_status == TRUE) {
+        out <- list(status = this_status, n_swaps_done = counter) %>% as_tibble()
+        return(out)
+      } else {
+        this_menu <- this_solution %>% solve_menu()
+        return(this_menu)
+      }
+    }
+    counter <- counter + 1
+  }
+  
+  message(paste0("No solution found in ", counter, " steps :/"))
+  out <- tibble(status = this_status, n_swaps_done = counter)
+  return(out)
+}
+```
+
+Let's test it.
+
+
+```r
+get_swap_status(seed = 1)
+```
+
+```
+## Cost is $56.04.
+```
+
+```
+## No optimal solution found :'(
+```
+
+```
+## We've got a lot of SWAMP CABBAGE (SKUNK CABBAGE). 18.28 servings of it.
+```
+
+```
+## Cost is $56.21.
+```
+
+```
+## Optimal solution found :)
+```
+
+```
+## Solution found in 0 steps
+```
+
+```
+## # A tibble: 1 x 2
+##   status n_swaps_done
+##    <int>        <dbl>
+## 1      0            0
+```
+
+
+Now we can do the same for a spectrum of minimum portion sizes with a fixed max number of swaps we're willing to do. Like we did with `simulate_spectrum()`, we split a minimum portion size (`from` to `to`) into `n_intervals` and do `n_sims` at each interval, recording the number of  swaps it took to solve it. Our return tibble this time includes the minimum portion size we were allowed, the swap status (0 for good, 1 for bad), and the number of swaps we had to do
+
+
+
+```r
+simulate_swap_spectrum <- function(n_intervals = 10, n_sims = 2, max_n_swaps = 3, from = -1, to = 1,
+                                   seed = NULL, verbose = FALSE, ...) {
+  
+  interval <- (to - from) / n_intervals
+  spectrum <- seq(from = from, to = to, by = interval) %>% rep(n_sims) %>% sort()
+  
+  if (!is.null(seed)) { set.seed(seed) }
+  seeds <- sample(1:length(spectrum), size = length(spectrum), replace = FALSE)
+  
+  out_spectrum <- tibble(min_amount = spectrum)
+  out_status <- tibble(status = vector(length = length(spectrum)), 
+                       n_swaps_done = vector(length = length(spectrum)))
+  
+  for (i in seq_along(spectrum)) {
+    this_status_df <- get_swap_status(seed = seeds[i], min_food_amount = spectrum[i], max_n_swaps = max_n_swaps, verbose = verbose)
+    if (!is.integer(this_status_df$status)) {
+      this_status_df$status <- integer(0)     # If we don't get an integer value back, make it NA
+    }
+    out_status[i, ] <- this_status_df
+  }
+  
+  out <- bind_cols(out_spectrum, out_status)
+  
+  return(out)
+}
+```
+
+
+
+```r
+a_swap_spectrum <- simulate_swap_spectrum(n_intervals = 4)
+a_swap_spectrum %>% kable(format = "html")
+```
+
+<table>
+ <thead>
+  <tr>
+   <th style="text-align:right;"> min_amount </th>
+   <th style="text-align:right;"> status </th>
+   <th style="text-align:right;"> n_swaps_done </th>
+  </tr>
+ </thead>
+<tbody>
+  <tr>
+   <td style="text-align:right;"> -1.0 </td>
+   <td style="text-align:right;"> 0 </td>
+   <td style="text-align:right;"> 0 </td>
+  </tr>
+  <tr>
+   <td style="text-align:right;"> -1.0 </td>
+   <td style="text-align:right;"> 0 </td>
+   <td style="text-align:right;"> 0 </td>
+  </tr>
+  <tr>
+   <td style="text-align:right;"> -0.5 </td>
+   <td style="text-align:right;"> 0 </td>
+   <td style="text-align:right;"> 0 </td>
+  </tr>
+  <tr>
+   <td style="text-align:right;"> -0.5 </td>
+   <td style="text-align:right;"> 0 </td>
+   <td style="text-align:right;"> 0 </td>
+  </tr>
+  <tr>
+   <td style="text-align:right;"> 0.0 </td>
+   <td style="text-align:right;"> 0 </td>
+   <td style="text-align:right;"> 0 </td>
+  </tr>
+  <tr>
+   <td style="text-align:right;"> 0.0 </td>
+   <td style="text-align:right;"> 0 </td>
+   <td style="text-align:right;"> 0 </td>
+  </tr>
+  <tr>
+   <td style="text-align:right;"> 0.5 </td>
+   <td style="text-align:right;"> 0 </td>
+   <td style="text-align:right;"> 0 </td>
+  </tr>
+  <tr>
+   <td style="text-align:right;"> 0.5 </td>
+   <td style="text-align:right;"> 0 </td>
+   <td style="text-align:right;"> 0 </td>
+  </tr>
+  <tr>
+   <td style="text-align:right;"> 1.0 </td>
+   <td style="text-align:right;"> 1 </td>
+   <td style="text-align:right;"> 3 </td>
+  </tr>
+  <tr>
+   <td style="text-align:right;"> 1.0 </td>
+   <td style="text-align:right;"> 1 </td>
+   <td style="text-align:right;"> 3 </td>
+  </tr>
+</tbody>
+</table>
+
+
+#### Summarising a Spectrum
+
+Let's get some summary values out of our spectra. `summarise_status_spectrum()` allows us to summarise either a vanilla status spectrum or a swap spectrum.
+
+
+```r
+summarise_status_spectrum <- function(spec) {
+  
+  # If this was a product of simulate_spectrum()
+  if (!"n_swaps_done" %in% names(spec)){
+    spec_summary <- spec %>% 
+      group_by(min_amount) %>% 
+      summarise(
+        sol_prop = mean(status)
+      )
+    
+    # If this was a product of simulate_swap_spectrum()
+  } else {
+    spec_summary <- spec %>% 
+      group_by(min_amount) %>% 
+      summarise(
+        sol_prop = mean(status),
+        mean_n_swaps_done = mean(n_swaps_done)
+      )
+  }
+  
+  return(spec_summary)
+}
+```
+
+
+Let's summarise our vanilla spectrum.
+
+
+```r
+status_spectrum_summary <- summarise_status_spectrum(status_spectrum)
+status_spectrum_summary
+```
+
+```
+## # A tibble: 11 x 2
+##    min_amount sol_prop
+##         <dbl>    <dbl>
+##  1       -1.0      0.0
+##  2       -0.8      0.0
+##  3       -0.6      0.0
+##  4       -0.4      0.5
+##  5       -0.2      0.5
+##  6        0.0      0.0
+##  7        0.2      0.0
+##  8        0.4      0.5
+##  9        0.6      1.0
+## 10        0.8      1.0
+## 11        1.0      1.0
+```
+
+
+Now the fun part: visualizing the curve.
+
+
+```r
+ggplot() +
+  geom_smooth(data = status_spectrum, aes(min_amount, 1 - status),
+              se = FALSE) +
+  geom_point(data = status_spectrum_summary, aes(min_amount, 1 - sol_prop)) +
+  theme_minimal() +
+  ggtitle("Curve of portion size vs. solvability") +
+  labs(x = "Minimum portion size", y = "Proportion of solutions") +
+  ylim(0, 1) 
+```
+
+```
+## `geom_smooth()` using method = 'loess'
+```
+
+```
+## Warning: Removed 10 rows containing missing values (geom_smooth).
+```
+
+![](writeup_files/figure-html/vanilla_curve-1.png)<!-- -->
+
+
+***
+
+<br>
+<br>
+
+
 # Scraping
 
 I joked with my co-data scientist at Earlybird, Boaz Reisman, that this project so far could fairly be called "Eat, Pray, Barf." The menus we generate start off random and that's bad enough -- then, once we change up portion sizes, the menus only get less appetizing.
@@ -7440,6 +7729,18 @@ read_url <- function(url) {
 }
 try_read <- possibly(read_url, otherwise = "Bad URL", quiet = TRUE)
 ```
+
+For example,
+
+
+```r
+try_read("foo")
+```
+
+```
+## [1] "Bad URL"
+```
+
 
 `read_html()` from the `xml2` package will return us the raw HTML for a given page. We're only interested in the recipe portion of that, so using the Chrome inspector or the [SelectorGadget Chrome extension](http://selectorgadget.com/) we can figure out what the CSS tag is of the content itself. 
 
@@ -7565,8 +7866,7 @@ a_couple_recipes
 ## [8] "3 tablespoons prepared stir-fry or oyster sauce"
 ```
 
-
-Next step is tidying. We want to put this list of recipes into dataframe format with one observation per row and one variable per column. Our rows will contain items in the recipe content, each of which we'll associate with the recipe's name.
+Now we've got a list of named recipes with one row per ingredient. Next step is tidying. We want to put this list of recipes into dataframe format with one observation per row and one variable per column. Our rows will contain items in the recipe content, each of which we'll associate with the recipe's name.
 
 
 ```r
@@ -7727,6 +8027,82 @@ some_recipes_tester %>% kable(format = "html")
 
 Rather than start doing something conditional random field-level smart to get around these problems, to start off I started writing a few rules of thumb.
 
+We'll worry first about how we find and extract numbers and next about how we'll add, multiply, or average them as necessary.
+
+
+**Extracting Numbers**
+
+We'll need a few regexes to extract our numbers. 
+
+`portions_reg` will match any digit even if it contains a decimal or a slash in it, which will be important for capturing complex fractions.
+
+`multiplier_reg` covers all cases of numbers that might need to be multiplied in the Allrecipes data, because these are always sepearated by `" ("`, whereas `multiplier_reg_looser` is a more loosely-defined case matching numbers separated just by `" "`.
+
+
+```r
+# Match any number, even if it has a decimal or slash in it
+portions_reg <- "[[:digit:]]+\\.*[[:digit:]]*+\\/*[[:digit:]]*"
+
+# Match numbers separated by " (" as in "3 (5 ounce) cans of broth" for multiplying
+multiplier_reg <- "[[:digit:]]+ \\(+[[:digit:]]"   
+
+# Match numbers separated by " "
+multiplier_reg_looser <- "[0-9]+\ +[0-9]"
+```
+
+
+Now the `multiplier_reg` regexes will allow us to detect that we've got something that needs to be multiplied, like `"4 (12 oz) hams"` or a fraction like `"1 2/3 pound of butter"`. If we do, then we'll multiply or add those numbers as appropriate. The `only_mult_after_paren` parameter is something I put in that is specific to Allrecipes. On Allrecipes, it seems that if we do have multiples, they'll always be of the form "*number_of_things* (*quantity_of_single_thing*)". There are always parentheses around *quantity_of_single_thing*. If we're only using Allrecipes data, that gives us some more security that we're only multiplying quantities that actually should be multiplied. If we want to make this extensible in the future we'd want to set `only_mult_after_paren` to FALSE to account for cases like "7 4oz cans of broth".
+
+We use `str_extract()` to check that our regexes are grabbing the parts of a string that we'll need to do computation on. 
+
+
+```r
+str_extract_all("3 1/4 lb patties", portions_reg)
+```
+
+```
+## [[1]]
+## [1] "3"   "1/4"
+```
+
+And check that `multiplier_reg` 
+
+```r
+str_extract_all("3 (4 pound patties) for grilling", multiplier_reg)
+```
+
+```
+## [[1]]
+## [1] "3 (4"
+```
+
+We'll clean that up by passing it to `portions_reg` to just grab the numbers:
+
+```r
+str_extract_all("3 (4 pound patties) for grilling", multiplier_reg) %>% str_extract_all(portions_reg)
+```
+
+```
+## [[1]]
+## [1] "3" "4"
+```
+
+
+Finally, let's make sure that our stricter multiplier regex doesn't want to multiply something shouldn't be multiplied.
+
+
+```r
+str_extract_all("3 or 4 lb patties", multiplier_reg)
+```
+
+```
+## [[1]]
+## character(0)
+```
+
+
+Okay, now to the multiplying and adding.
+
 First, let's consider complex fractions. Off the bat, we know we'll need a way to turn a single fraction into a decimal form. We keep them `as.character` for now and turn them into numeric later down the pipe.
 
 
@@ -7768,7 +8144,7 @@ map_frac_to_dec(c("1/2", "1/8", "1/3"))
 
 Cool, so for a given ingredient we'll need to look for numbers that are occur next to other numbers, and then and add complex fractions and multiply multiples. 
 
-We'll use this function to look two numbers separated by a `" "` or a `" ("`. If the second number evaluates to a decimal less than 1, we've got a complex fraction. For example, if we're extracting digits and turning all fractions among them into decimals if we consider `"4 1/2 loaves of bread"` we'd end up with `"4"` and `"0.5"`. We know `0.5` is less than `1`, so we've got a complex fraction on our hands. We need to add `4 + 0.5` to end up with `4.5` loaves of bread.
+If we've got two numbers next to each other and the second number evaluates to a decimal less than 1, we've got a complex fraction. For example, if we're extracting digits and turning all fractions among them into decimals if we consider `"4 1/2 loaves of bread"` we'd end up with `"4"` and `"0.5"`. We know `0.5` is less than `1`, so we've got a complex fraction on our hands. We need to add `4 + 0.5` to end up with `4.5` loaves of bread.
 
 It's true that this function doesn't address the issue of having both a complex fraction and multiples in a recipe. That would look like `"3 (2 1/4 inch)` blocks of cheese." I haven't run into that issue too much but it certainly could use a workaround.
 
@@ -7808,23 +8184,6 @@ multiply_or_add_portions(c(4, 5))
 ```
 
 
-A few regexs we'll need: 
-
-
-```r
-# Match any number, even if it has a decimal or slash in it
-portions_reg <- "[[:digit:]]+\\.*[[:digit:]]*+\\/*[[:digit:]]*"
-
-# Match numbers separated by " (" as in "3 (5 ounce) cans of broth" for multiplying
-multiplier_reg <- "[[:digit:]]+ \\(+[[:digit:]]"   
-
-# Match numbers separated by " "
-multiplier_reg_looser <- "[0-9]+\ +[0-9]"
-```
-
-
-If we've got something that needs to be multiplied, like "4 (12 oz) hams" or a fraction like "1 2/3 pound of butter",
-then multiply or add those numbers as appropriate. The `only_mult_after_paren` parameter is something I put in that is specific to Allrecipes. On Allrecipes, it seems that if we do have multiples, they'll always be of the form "*number_of_things* (*quantity_of_single_thing*)". There are always parentheses around *quantity_of_single_thing*. If we're only using Allrecipes data, that gives us some more security that we're only multiplying quantities that actually should be multiplied. If we want to make this extensible in the future we'd want to set `only_mult_after_paren` to FALSE to account for cases like "7 4oz cans of broth".
 
 This function will allow us to add a new column to our dataframe called `mult_add_portion`. If we've done any multiplying or adding of numbers, we'll have a value greater than 0 there, and 0 otherwise.
 
@@ -7878,7 +8237,7 @@ get_mult_add_portion("4 (5 lb melons)")
 
 **Ranges**
 
-Finally, ranges. If two numbers are separated by an "or" or a "-" like "4-5 teaspoons of sugar" we know that this is a range. We'll take the average of those two numbers.
+Finally, let's deal with ranges. If two numbers are separated by an `"or"` or a `"-"` like "4-5 teaspoons of sugar" we know that this is a range. We'll take the average of those two numbers.
 
 We'll add a new column to our dataframe called `range_portion` for the result of any range calculations. If we don't have a range, just like `mult_add_portion`, we set this value to 0.
 
@@ -8037,6 +8396,10 @@ some_recipes_tester %>% get_portion_values() %>% kable(format = "html")
 </table>
 
 Looks pretty solid.
+
+
+
+**Extracting Measurement Units**
 
 Now onto easier waters: portion names. You can check out `/scripts/scrape/get_measurement_types.R` if you're interested in the steps I took to find some usual portion names and create an abbreviation dictionary, `abbrev_dict`. What we also do there is create `measures_collapsed` which is a single vector of all portion names separated by "|" so we can find all the portion names that might occur in a given item.
 
@@ -8274,7 +8637,8 @@ some_recipes_tester %>% get_portions(pare_portion_info = TRUE) %>% add_abbrevs()
 </table>
 
 
-We've got some units! Next step will be to convert all units into grams. 
+We've got some units! Next step will be to convert all units into grams, so that we have them all in a standardized format.
+
 
 ## NLP
 
@@ -8417,7 +8781,7 @@ pairwise_per_rec %>%
   theme_void()
 ```
 
-![](writeup_files/figure-html/unnamed-chunk-5-1.png)<!-- -->
+![](writeup_files/figure-html/unnamed-chunk-4-1.png)<!-- -->
 
 
 
