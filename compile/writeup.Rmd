@@ -1008,8 +1008,10 @@ get_swap_status <- function(seed = NULL, min_food_amount = 0.5, max_n_swaps = 3,
 Let's test it.
 
 ```{r do_get_swap_status}
-get_swap_status(seed = 1)
+get_swap_status(seed = 12345)
 ```
+
+So for this particular random menu that was created, we can see whether a solution was found and how many swaps we did to get there.
 
 
 Now we can do the same for a spectrum of minimum portion sizes with a fixed max number of swaps we're willing to do. Like we did with `simulate_spectrum()`, we split a minimum portion size (`from` to `to`) into `n_intervals` and do `n_sims` at each interval, recording the number of  swaps it took to solve it. Our return tibble this time includes the minimum portion size we were allowed, the swap status (0 for good, 1 for bad), and the number of swaps we had to do
@@ -1054,7 +1056,7 @@ simmed_swaps %>% kable(format = "html")
 
 #### Summarising a Spectrum
 
-Let's get some summary values out of our spectra. `summarise_status_spectrum()` allows us to summarise either a vanilla status spectrum or a swap spectrum. For a given portion size, we'll find the proportion of those menus that are we were able to solve. 
+Let's get some summary values out of our spectra. `summarise_status_spectrum()` allows us to summarise either a vanilla status spectrum or a swap spectrum. For a given portion size, we'll find the proportion of those menus that are we were able to solve.
 
 If we've allowed swapping, we'll find the average number of swaps we did at a given portion size.
 
@@ -1084,11 +1086,10 @@ summarise_status_spectrum <- function(spec) {
 ```
 
 
-Let's summarise our vanilla spectrum.
+Let's summarise our vanilla spectrum. `sol_prop` refers to the proportion of the recipes that we were able to solve.
 
 ```{r status_spectrum_summary}
-status_spectrum_summary <- summarise_status_spectrum(status_spectrum)
-status_spectrum_summary
+(status_spectrum_summary <- summarise_status_spectrum(status_spectrum))
 ```
 
 
@@ -1165,8 +1166,7 @@ grab_urls <- function(base_url, id) {
   return(recipe_url)
 }
 
-urls <- grab_urls(base_url, 244940:244950)
-urls
+(urls <- grab_urls(base_url, 244940:244950))
 ```
 
 
@@ -1202,6 +1202,14 @@ get_recipe_name <- function(page) {
 }
 ```
 
+
+Let's test that out on our fourth URL.
+
+```{r do_get_receipe_name}
+urls[4] %>% try_read() %>% get_recipe_name()
+```
+
+
 We'll need an extra couple steps when it comes to recipe content to pare out all the stray garbage left over like `\n` new lines etc.
 
 ```{r get_recipe_content}
@@ -1218,7 +1226,14 @@ get_recipe_content <- function(page) {
 ```
 
 
-Cool, so we've got three functions now, one for reading the content from a URL and turning it into a `page` and two for taking that `page` and grabbing the parts of it that we want We'll use those functions in `get_recipes()` which will take a vector of URLs and return us a list of recipes. We also include parameters for how long to wait in between requests (`sleep`) so as to avoid getting booted from allrecipes.com and whether we want the "Bad URL"s included in our results list or not. If `verbose` is TRUE we'll get a message of count of the number of 404s we had and the number of duped recipes. 
+And the content:
+
+```{r do_get_recipe_content}
+urls[4] %>% try_read() %>% get_recipe_content()
+```
+
+
+Cool, so we've got three functions now, one for reading the content from a URL and turning it into a `page` and two for taking that `page` and grabbing the parts of it that we want. We'll use those functions in `get_recipes()` which will take a vector of URLs and return us a list of recipes. We also include parameters for how long to wait in between requests (`sleep`) so as to avoid getting booted from allrecipes.com and whether we want the "Bad URL"s included in our results list or not. If `verbose` is TRUE we'll get a message of count of the number of 404s we had and the number of duped recipes. 
 
 
 **Note on dupes**
@@ -1286,9 +1301,7 @@ get_recipes <- function(urls, sleep = 5, verbose = TRUE, append_bad_URLs = TRUE)
 Let's give it a shot with a couple URLs.
 
 ```{r a_couple_recipes}
-# a_couple_recipes <- get_recipes(urls[4:5]) 
-a_couple_recipes <- more_recipes_raw[1:2]
-a_couple_recipes
+(a_couple_recipes <- get_recipes(urls[4:5]))
 ```
 
 Now we've got a list of named recipes with one row per ingredient. Next step is tidying. We want to put this list of recipes into dataframe format with one observation per row and one variable per column. Our rows will contain items in the recipe content, each of which we'll associate with the recipe's name.

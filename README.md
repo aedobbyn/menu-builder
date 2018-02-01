@@ -1,7 +1,6 @@
-# Smart Menu Builder
+# Food for Thought
 
-Various things this project touches upon: APIs, algorithms, simulations, web scraping, NLP, networks.
-
+This is a working exploration of food and that touches upon a few things: APIs, algorithms, simulations, web scraping, NLP, networks. The [very much under construction writeup](./compile/writeup.md) walks through the highlights.
 
 The main poriton of this project is a daily menu planning and optimization using foods from the [USDA food database](https://ndb.nal.usda.gov/ndb/doc/index) and the `Rglpk` package interface to the [GNU linear programming solver](https://www.gnu.org/software/glpk/) to implement the simplex algorithm. This minimizes the cost of each menu while keeping us above the minimum daily nutrient values and below the daily maximum "must restrict" values.
 
