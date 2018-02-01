@@ -69,23 +69,32 @@ more_recipes_df <- read_feather("./data/derived/more_recipes_df.feather")
 
 ### About
 
-This is an ongoing project on food. It's mainly an excuse for me to use a few data science on real data in various proportions: along the way I query an API, generate menus, solve them algorithmically, simulate solving them, scrape the web for real menus, and touch on some natural language processing techniques.
+This is an ongoing project on food. It's mainly an excuse for me to use several data science techniques in various proportions: along the way I query an API, generate menus, solve them algorithmically, simulate solving them, scrape the web for real menus, and touch on some natural language processing techniques. Don't worry about getting too hungry: this project has been fairly nicknamed/slandered "Eat, Pray, Barf."
 
-The meat of the project surrounds building menus and changing them until they are in compliance with daily nutritional guidelines. We'll simulate the curve of the proportion of these that are solvable as we increase the minimum portion size that each item must meet. Finally, I start about trying to improve the quality of the menus by taking a cue from actual recipes scraped from Allrecipes.com. 
+The meat of the project surrounds building menus and changing them until they are in compliance with daily nutritional guidelines. We'll simulate the curve of the proportion of these that are solvable as we increase the minimum portion size that each food must meet. Finally, I start about trying to improve the quality of the menus (i.e., decrease barf factor) by taking a cue from actual recipes scraped from Allrecipes.com. 
 
 
-### Getting from A to Beef
+## Getting from A to Beef
 
 The data we'll be using here is conveniently located in an Excel file called ABBREV.xlsx on the USDA website. As the name suggests, this is an abbreviated version of all the foods in their database. 
 
-If you do want the full list, they provide a Microsoft Access SQL dump as well (which requires that you have Access). The USDA also does have an open API so you can create an API key and grab foods from them with requests along the lines of a quick example I'll go through. The [API documentation](https://ndb.nal.usda.gov/ndb/doc/apilist/API-FOOD-REPORTV2.md) walks through the format for requesting data in more detail. 
+If you do want the full list, they provide a Microsoft Access SQL dump as well (which requires that you have Access). The USDA also does have an open API so you can create an API key and grab foods from them with requests along the lines of a quick example I'll go through. The [API documentation](https://ndb.nal.usda.gov/ndb/doc/apilist/API-FOOD-REPORTV2.md) walks through the format for requesting data in more detail. I'll walk through an exmaple of how to get some foods and a few of their associated nutrient values.
 
-The base URL you'll want is `http://api.nal.usda.gov/ndb/`.
+The base URL we'll want is `http://api.nal.usda.gov/ndb/`.
 
-The default number of results per request is 50 so we specify 1500 as our `max`. In this example I set `subset` to 1 in order to grab the most common foods. (Otherwise 1:1500 query only gets you from a to beef `r emo::ji("laughing")`.) If you do want to grab all foods, you can send requests of 1500 iteratively specifying `offset`, which refers to the number of the first row you want, and then glue them together.
+The default number of results per request is 50 so we specify 1500 as our `max`. In this example I set `subset` to 1 in order to grab the most common foods. (Otherwise 1:1500 query only gets you from a to beef `r emo::ji("laughing")`.) If you do want to grab all foods, you can send requests of 1500 iteratively specifying `offset`, which refers to the number of the first row you want, and then glue them together. We've specified just 4 nutrient values we want here: calories, sugar, lipids, and carbohydrates.
 
-We've specified just 4 nutrient values we want here: calories, sugar, lipids, and carbohydrates.
+After attaching those parameters to the end of our base URL, we'd have: 
 
+`http://api.nal.usda.gov/ndb/nutrients/?format=json&api_key="<YOUR_KEY_HERE>&subset=1&max=1500&nutrients=205&nutrients=204&nutrients=208&nutrients=269`
+
+
+
+In the browser, you could paste that same thing in to see:
+
+![](img/json_resp_long.jpg)
+
+We'll use the `jsonlite` package to turn that `fromJSON` into an R object.
 
 
 ```{r json_req}
@@ -94,10 +103,6 @@ food_raw <- jsonlite::fromJSON(paste0("http://api.nal.usda.gov/ndb/nutrients/?fo
 
 foods <- as_tibble(food_raw$report$foods)
 ```
-
-In the browser, you could paste that same thing in to see:
-
-![](img/json_resp_long.jpg)
 
 ```{r foods}
 head(foods)
@@ -153,6 +158,10 @@ foods$gm <- as.numeric(foods$gm)
 ```{r warning=FALSE}
 foods[1:20, ] %>% kable(format = "html")
 ```
+
+<br>
+
+### Prep Time: 20mins
 
 Great, we've successfully unnested. As I mentioned before, we'll use our nice ABBREV.xlsx rather than using data pulled from the API. So:
 

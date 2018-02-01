@@ -1,10 +1,11 @@
-# Food for Thought
+# Food for Thought :ramen:
 
-This is a working exploration of food and that touches upon a few things: APIs, algorithms, simulations, web scraping, NLP, networks. The :construction: [very much under construction writeup](./compile/writeup.md) :construction: walks through the highlights.
+This is a working exploration of food and that touches upon a few things: APIs, algorithms, simulations, web scraping, NLP, networks. The :construction: [very much under construction **writeup**](./compile/writeup.md) :construction: walks through the highlights.
 
 The main poriton of this project is a daily menu planning and optimization using foods from the [USDA food database](https://ndb.nal.usda.gov/ndb/doc/index) and the `Rglpk` package interface to the [GNU linear programming solver](https://www.gnu.org/software/glpk/) to implement an algorithmic solution to a given menu if one exists. This minimizes the cost of each menu while keeping us above the minimum daily nutrient values and below the daily maximum "must restrict" values. If solving isn't possible, we move to swapping foods in and out of the menu. We'll simulate what proportion of menus are solvable with 0 or more swaps.
 
-The latest phase is intended to optimize the tastiness of menus. Menus were scraped from [Allrecipes](http://allrecipes.com)  in order to identify which foods tend to co-occur in menus in which portion sizes. The adventure of getting portion sizes from wild recipes is most of what `/scrape` deals with.
+The latest phase is intended to optimize the tastiness of menus. Menus were scraped from [Allrecipes](http://allrecipes.com)  in order to identify which foods tend to co-occur in menus in which portion sizes. The adventure of getting portion sizes from wild recipes is most of what `/scrape` deals with. I do a little tidy text analysis on these menus to top it off.
+
 
 
 ## Structure
@@ -17,9 +18,11 @@ The latest phase is intended to optimize the tastiness of menus. Menus were scra
     * Daily nutrient constraints in `all_nut_and_mr_df.csv`
 * `menu-builder`
     * Code for the [Shiny app](https://amandadobbyn.shinyapps.io/menu-builder/) for building a random menu and tweaking it into compliance
+    
+Note: a few functions here rely on a personal package collecting a smorgasbord of functions, [dobtools](https://github.com/aedobbyn/dobtools), which you can install with `devtools::install_github("aedobbyn/dobtools")`.
+
 * `scripts`
-    * All scripts are stored in sub-directories here. These are pure scripts and do not contain any assignment of data to variables so that they can easily be loaded without executing any code. Top-level `.R` scripts here call functions defined in these sub-directories.
-    * These are generally sourced in with `[dobtools](https://github.com/aedobbyn/dobtools)::import_scripts()`
+    * All scripts are stored in sub-directories here. These are pure scripts and do not contain any assignment of data to variables so that they can easily be loaded without executing any code. Top-level `.R` scripts here call functions defined in these sub-directories. These are batch sourced in with `dobtools::import_scripts()`.
     * `/prep`
         * Read in, clean, and standardize data
         * Define daily guidelines for
@@ -36,7 +39,7 @@ The latest phase is intended to optimize the tastiness of menus. Menus were scra
             * `adjust_portion_sizes_and_square_calories.R` does the same while decreasing the total calorie count in the amount that it was increased by the adjustment
         * `master_builder.R` does all the above while staying above the 2300 calorie minimum
     * `/solve`: solve a menu, do a single smart swap, and test its compliance
-        * `solve_it.R` uses the GNU lienar programming solver from the `Rglpk` package to minimize cost while satisfying each nutritional and calorie constraint 
+        * `solve_it.R` uses the GNU lienar programming solver from the `Rglpk` package to minimize cost (randomly generated for now) while satisfying each nutritional and calorie constraint 
             * Takes a menu with either nutrients in nutrient values per 100g of food or raw gram weight of nutrients, as specified by the `df_is_per_100g` boolean flag, and a dataframe of nutritional constraints
             * Some levers to pull here:
                 * Upper and lower bounds for each portion size
