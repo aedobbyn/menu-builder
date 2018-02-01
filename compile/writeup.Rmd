@@ -159,7 +159,7 @@ Great, we've successfully unnested. As I mentioned before, we'll use our nice AB
 ```{r read_in_abbre}
 abbrev_raw <- readxl::read_excel("./data/raw/ABBREV.xlsx") %>% as_tibble()
 
-abbrev_raw[1:20, ] %>% kable(format = "html")
+abbrev_raw %>% sample_n(20) %>% kable(format = "html")
 ```
 
 ```{r dim_abbrev_raw}
@@ -170,7 +170,7 @@ dim(abbrev_raw)
 
 You can read in depth the prep I did on this file in `/scripts/prep`. Mainly this involved a bit of cleaning like stripping out parentheses from column names, e.g., `Vit_C_(mg)` becomes `Vit_C_mg`.
 
-In there you'll also find a dataframe called `all_nut_and_mr_df` where I define the nutritional constraints on menus. If a nutrient is among the "must restricts," that is, `r stringr::str_c(mr_df$must_restrict, collapse = ", ")`, then its corresponding value is a daily *upper* bound. Otherwise, the nutrient is a "positive nutrient" and its vlaue is a lower bound. For example, you're supposed to have at least 18mg of Iron and no more than 2400mg of Sodium per day. (As someone who puts salt on everything indiscriminately I'd be shocked if I've ever been under that threshold.)
+In there you'll also find a dataframe called `all_nut_and_mr_df` where I define the nutritional constraints on menus. If a nutrient is among the "must restricts," that is, it's one of `r stringr::str_c(mr_df$must_restrict, collapse = ", ")`, then its corresponding value is a daily *upper* bound. Otherwise, the nutrient is a "positive nutrient" and its vlaue is a lower bound. For example, you're supposed to have at least 18mg of Iron and no more than 2400mg of Sodium per day. (As someone who puts salt on everything indiscriminately I'd be shocked if I've ever been under that threshold.)
 
 ```{r all_nut_and_mr_df}
 all_nut_and_mr_df %>% kable(format = "html")
