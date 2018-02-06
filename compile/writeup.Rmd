@@ -5,9 +5,9 @@ author:
   email: amanda.e.dobbyn@gmail.com
   twitter: dobbleobble
 output:
-  html_notebook:
-  # html_document:
-  #   keep_md: true
+  # html_notebook:
+  html_document:
+    keep_md: true
     toc: true
     theme: yeti
   github_document:
@@ -69,7 +69,7 @@ more_recipes_df <- read_feather("./data/derived/more_recipes_df.feather")
 
 ### About
 
-This is an ongoing project on menu optimizing. It's mainly an excuse for me to use several data science techniques in various proportions: along the way I query an API, generate menus, solve them algorithmically, simulate solving them, scrape the web for real menus, and touch on some natural language processing techniques. Don't worry about getting too hungry: this project has been fairly ~nicknamed~ slandered "Eat, Pray, Barf."
+This is an ongoing project on menu optimizing. It's mainly an excuse for me to use several data science techniques in various proportions: along the way I query an API, generate menus, solve them algorithmically, simulate solving them, scrape the web for real menus, and touch on some natural language processing techniques. Don't worry about getting too hungry: this project has been fairly ~~nicknamed~~ slandered "Eat, Pray, Barf."
 
 The meat of the project surrounds building menus and changing them until they are in compliance with daily nutritional guidelines. We'll simulate the curve of the proportion of these that are solvable as we increase the minimum portion size that each food must meet. Finally, I start about trying to improve the quality of the menus (i.e., decrease barf factor) by taking a cue from actual recipes scraped from Allrecipes.com. 
 
@@ -92,7 +92,10 @@ After attaching those parameters to the end of our base URL, we'd have:
 
 In the browser, you could paste that same thing in to see:
 
-![](img/json_resp_long.jpg)
+```{r, out.width = "400px", echo=FALSE}
+knitr::include_graphics("img/json_resp_long.jpg")
+```
+
 
 We'll use the `jsonlite` package to turn that `fromJSON` into an R object.
 
@@ -105,7 +108,7 @@ foods <- as_tibble(food_raw$report$foods)
 ```
 
 ```{r foods}
-head(foods)
+head(foods) %>% kable(format = "html")
 ```
 
 We've got one row per food and a nested list-col of nutrients.
@@ -125,7 +128,7 @@ foods %>% unnest()   # error :(
 That's because missing values are coded as `--`. 
 
 ```{r}
-foods$nutrients[[100]] %>% as_tibble()
+foods$nutrients[[100]] %>% as_tibble() 
 ```
 
 This becomes an issue for two of these columns, `gm` and `value` because `gm` gets coded as type numeric if there are no mising values and character otherwise. Consider the case where we have no missing values: here we see that `gm` is numeric.
@@ -147,7 +150,7 @@ foods$nutrients <- foods$nutrients %>%
 
 but unnesting is the challenge. 
 
-The naive approach of mapping character over all the nutrients columns doesn't give us what we want:
+The naive approach of mapping character over all the nutrients columns doesn't give us what we want (somewhat analagous to the sentiment in this [GitHub Issue](https://github.com/tidyverse/purrr/issues/265):
 
 ```{r}
 foods$nutrients[1] %>% map(as.character)
@@ -169,16 +172,16 @@ for (i in seq_along(foods$nutrients)) {
 
 ```
 
-Which is a nicer way of saying
+<!-- Which is a nicer way of saying -->
 
-```{r make_character, warning=FALSE, message=FALSE}
-for (i in 1:length(foods$nutrients)) {
-  for (j in 1:nrow(foods$nutrients[[1]])) {
-    foods$nutrients[[i]]$gm[j] <- as.character(foods$nutrients[[i]]$gm[j])
-    foods$nutrients[[i]]$value[j] <- as.character(foods$nutrients[[i]]$value[j])
-  }
-}
-```
+<!-- ```{r make_character, warning=FALSE, message=FALSE, eval=FALSE} -->
+<!-- for (i in 1:length(foods$nutrients)) { -->
+<!--   for (j in 1:nrow(foods$nutrients[[1]])) { -->
+<!--     foods$nutrients[[i]]$gm[j] <- as.character(foods$nutrients[[i]]$gm[j]) -->
+<!--     foods$nutrients[[i]]$value[j] <- as.character(foods$nutrients[[i]]$value[j]) -->
+<!--   } -->
+<!-- } -->
+<!-- ``` -->
 
 Now we can unnest the whole thing.
 
@@ -582,7 +585,7 @@ If we turn `verbose` on we'll know whether a solution could be found or not, and
 The native return value of the call to `Rglpk_solve_LP()` is a list including: vector of solution amounts, the cost, and the status (0 for solved, 1 for not solvable). `solve_it()` will take that list and append a few more things to it, so we can check that it's working correctly and pipe it into other things to distill menus and nutritional information out . We'll append the nutritional constraints we supplied in `nut_df`, the constraint matrix we constructed, and the nutrient values in our original menu in both raw and per 100g form.
 
 
-```{r solve_it}
+```{r solve_it, eval=FALSE}
 solve_it <- function(df, nut_df = nutrient_df, df_is_per_100g = TRUE, only_full_servings = FALSE, 
                      min_food_amount = 1, max_food_amount = 100, 
                      verbose = TRUE, v_v_verbose = FALSE, maximize = FALSE) {
@@ -1100,8 +1103,13 @@ simulate_swap_spectrum <- function(n_intervals = 10, n_sims = 2, max_n_swaps = 3
 ```
 
 
-```{r do_simulate_swap_spectrum, message=FALSE}
-simmed_swaps <- simulate_swap_spectrum(n_intervals = 20, n_sims = 5, max_n_swaps = 4, seed = 9,
+```{r read_in_simmed_swaps, echo=FALSE, message=FALSE}
+simmed_swaps <- read_feather("./data/derived/simmed_swaps.feather")
+```
+
+
+```{r do_simulate_swap_spectrum, eval=FALSE, message=FALSE, dependson = "read_in_simmed_swaps"}
+simmed_swaps <- simulate_swap_spectrum(n_intervals = 20, n_sims = 5, max_n_swaps = 4, seed = 2018,
                                        from = -1, to = 2)
 simmed_swaps %>% kable(format = "html")
 ```
@@ -1171,12 +1179,12 @@ simmed_swaps_summary <- summarise_status_spectrum(simmed_swaps)
 
 
 
-```{r plot_status_spectrum_summary}
+```{r plot_status_spectrum_summary, message=FALSE}
 # Plot min portion size vs. whether we solved it or not
 ggplot() +
-  geom_smooth(data = simmed_swaps, aes(min_food_amount, 1 - status),
+  geom_smooth(data = simmed_swaps, aes(min_amount, 1 - status),
               se = FALSE) +
-  geom_point(data = simmed_swaps_summary, aes(min_food_amount, 1 - sol_prop, colour = factor(mean_n_swaps_done))) +
+  geom_point(data = simmed_swaps_summary, aes(min_amount, 1 - sol_prop, colour = factor(mean_n_swaps_done))) +
   # facet_wrap( ~ n_swaps_done) +
   theme_minimal() +
   ggtitle("Curve of portion size vs. solvability") +

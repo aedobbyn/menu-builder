@@ -56,7 +56,7 @@ get_swap_status(min_food_amount = 1, max_n_swaps = 5)
 
 # Do the above for some number of menus
 simmed_swaps <- simulate_swap_spectrum(n_intervals = 20, n_sims = 5, max_n_swaps = 4, seed = 9,
-                                       from = -1, to = 2)
+                                       from = -1, to = 2, verbose = FALSE)
 
 # Summarise that spectrum grouped by min_food_amount
 simmed_swaps_summary <- summarise_status_spectrum(simmed_swaps)
