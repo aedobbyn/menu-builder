@@ -150,7 +150,7 @@ foods$nutrients <- foods$nutrients %>%
 
 but unnesting is the challenge. 
 
-The naive approach of mapping character over all the nutrients columns doesn't give us what we want (somewhat analagous to the sentiment in this [GitHub Issue](https://github.com/tidyverse/purrr/issues/265):
+The naive approach of mapping character over all the nutrients columns doesn't give us what we want (which I feel is somewhat analagous to the sentiment in this [GitHub Issue](https://github.com/tidyverse/purrr/issues/265)):
 
 ```{r}
 foods$nutrients[1] %>% map(as.character)
@@ -207,11 +207,14 @@ foods[1:20, ] %>% kable(format = "html")
 
 Great, we've successfully unnested. As I mentioned before, we'll use our nice `ABBREV.xlsx` rather than using data pulled from the API. So:
 
-```{r read_in_abbre}
+```{r read_in_abbrev, message=FALSE}
 abbrev_raw <- readxl::read_excel("./data/raw/ABBREV.xlsx") %>% as_tibble()
 
 abbrev_raw %>% sample_n(20) %>% kable(format = "html")
 ```
+
+
+How much data are we working with here?
 
 ```{r dim_abbrev_raw}
 dim(abbrev_raw)
@@ -235,9 +238,16 @@ scaled <- abbrev %>%
   mutate_at(
     vars(nutrient_names, "Energ_Kcal"), dobtools::z_score   # <-- equivalent to scale(), but simpler
   )
-
-scaled[1:20, ] %>% kable(format = "html")
 ```
+
+
+I usually shunt `Shrt_Desc` all the way off screen to the right but here I'll put it next to its shorter sibling, `shorter_desc` so you can see how the truncation of name looks. Here's a random sample of 20 foods.
+
+```{r show_scaled}
+scaled %>% sample_n(20) %>% 
+  select(shorter_desc, Shrt_Desc, everything()) %>% kable(format = "html")
+```
+
 
 Then we do a few mutates to `abbrev` using the function below. This is a function we can use on any menu dataframe, not just `abbrev`, which is why it's called `do_menu_mutates()`. Turns out that the short descriptions of foods in the `Shrt_Desc` column actually aren't so short so we'll create a `shorter_desc` column by taking only the values in `Shrt_Desc` up to the first comma. That turns "BUTTER,WHIPPED,W/ SALT" into just "BUTTER".
 
@@ -284,6 +294,11 @@ We'll do these mutates and score each item (see `/scripts/score/rank_foods.R` fo
 
 ```{r do_mutates_add_ranked}
 abbrev <- abbrev %>% do_menu_mutates() %>% add_ranked_foods() 
+```
+
+And now we've got our main bucket of foods to pull from, each with a single portion size for now.
+
+```{r show_abbrev}
 abbrev[1:20, ] %>% kable(format = "html")
 ```
 
@@ -452,6 +467,8 @@ Let's see where we are with our random menu.
 our_random_menu %>% test_all_compliance
 ```
 
+
+`r emo::ji("pensive")` We've got some work to do!
 
 
 #### Scoring
