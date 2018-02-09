@@ -157,19 +157,12 @@ foods$nutrients[1] %>% map(as.character)
 ```
 
 
-So instead, for each row in the nutrients list-col we'll `flatten`, take everything to character, and then bring it back to a list.
+So instead we'll dive into the second level of our nested list, take everything in there to character, and then unnest.
 
 ```{r characterify}
-characterify <- function(i) {
-  i <- i %>% flatten() %>% 
-    map(as.character) %>% as_tibble() %>% list()
-  i
-}
+foods$nutrients <- foods$nutrients %>% modify_depth(2, as.character)
 
-for (i in seq_along(foods$nutrients)) {
-  foods$nutrients[i] <- foods$nutrients[i] %>% characterify()
-}
-
+foods %>% unnest()
 ```
 
 <!-- Which is a nicer way of saying -->
