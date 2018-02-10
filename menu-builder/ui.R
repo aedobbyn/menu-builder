@@ -44,7 +44,7 @@ shinyUI(fluidPage(
            
            conditionalPanel(
              condition = "input.build_menu != 0",
-             actionButton("adjust_portions", "Adjust Portion Sizes")),
+             actionButton("adjust_portions", "Solve It")),
            
            conditionalPanel(
              condition = "input.build_menu != 0",

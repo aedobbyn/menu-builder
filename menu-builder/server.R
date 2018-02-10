@@ -1,9 +1,12 @@
 
 library(shiny)
+library(dobtools)
 
-source("./menu_builder_shiny.R")
+import_scripts("./scripts")
 
-# set.seed(9)
+# source("./menu_builder_shiny.R")
+
+# set.seed(1)
 
 # Define server logic required to draw a histogram
 shinyServer(function(input, output) {
@@ -12,7 +15,7 @@ shinyServer(function(input, output) {
   
   # Build the menu
   observeEvent(input$build_menu, {
-    menu$data <- build_menu(abbrev)
+    menu$data <- build_menu(abbrev, seed = 1)
   })
   
   # Render data table
@@ -32,7 +35,7 @@ shinyServer(function(input, output) {
     if (input$adjust_portions == 0)
       return()
     
-    menu$data <- adjust_portion_sizes(menu$data)
+    menu$data <- solve_it(menu$data) %>% solve_menu()
   })
 
   
@@ -41,7 +44,7 @@ shinyServer(function(input, output) {
     if (input$swap_foods == 0)
       return()
     
-    menu$data <- smart_swap(menu$data)
+    menu$data <- do_single_swap(menu$data)
   })
   
   # ------------- Build master menu from original menu -----------
@@ -49,11 +52,11 @@ shinyServer(function(input, output) {
   master_menu <- reactiveValues(data = NULL)
 
   observeEvent(input$wizard_it_from_scratch, {
-    withProgress(message = 'Making Menu', value = 0, { master_menu$data <- master_builder() })
+    withProgress(message = 'Making Menu', value = 0, { master_menu$data <- build_menu() %>% solve_simple() })
   })
   
   observeEvent(input$wizard_it_from_seeded, {
-    master_menu$data <- master_builder(menu$data)
+    master_menu$data <- solve_simple(menu$data)
   })
 
   output$master_menu <- DT::renderDataTable({
