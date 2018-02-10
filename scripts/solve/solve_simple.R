@@ -1,13 +1,6 @@
 
-
-# -------- Solve and swap if needed --------
-# Test compliance; if we're above on some must_restricts, do a single swap and then solve
-# If we're below on nutrients or calories, run the solver
-# Every tenth iteraiton, run a wholesale swap
-# If we can't get to compliance after 50 iterations, give up and return what we've got
-
 solve_full <- function(menu, seed = 15, min_food_amount = 1, percent_to_swap = 0.5,
-                           verbose = TRUE, time_out_count = 50, return_menu = TRUE) {
+                       verbose = TRUE, time_out_count = 50, return_menu = TRUE) {
   counter <- 0
   
   while (test_all_compliance(menu) == "Not Compliant") {
@@ -37,24 +30,16 @@ solve_full <- function(menu, seed = 15, min_food_amount = 1, percent_to_swap = 0
         wholesale_swap(df = abbrev, percent_to_swap = percent_to_swap) %>% 
         solve_it(nutrient_df, min_food_amount = min_food_amount) %>% solve_menu()
       
-    } else if (nrow(test_mr_compliance(menu)) > 0) {
+    } else if (nrow(test_mr_compliance(menu)) || nrow(test_pos_compliance(menu)) > 0) {
       if (verbose == TRUE) { message("Doing a single swap on all must restricts") }
       counter <- counter + 1
       
       menu <- menu %>% 
-        do_single_swap(verbose = verbose) %>%
+        wholesale_swap(df = abbrev, percent_to_swap = percent_to_swap) %>% 
         solve_it(nutrient_df, min_food_amount = min_food_amount) %>% solve_menu()
       
-    } else if (nrow(test_pos_compliance(menu)) > 0) {
-      if (verbose == TRUE) { message("Nutrients uncompliant; adjusting portions sizes") }
-      counter <- counter + 1
-      
-      menu <- menu %>% 
-        solve_it(nutrient_df, min_food_amount = min_food_amount) %>% 
-        solve_menu()
-      
     } else if (test_calories(menu) == "Calories too low") {
-       if (verbose == TRUE) { message("Calories too low; adjusting portions sizes") }
+      if (verbose == TRUE) { message("Calories too low; adjusting portions sizes") }
       counter <- counter + 1
       
       menu <- menu %>% add_calories() %>% solve_it(nutrient_df, min_food_amount = min_food_amount) %>% 

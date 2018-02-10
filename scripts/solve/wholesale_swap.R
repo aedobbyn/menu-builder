@@ -1,4 +1,11 @@
 
+get_swap_candidates <- function(menu, df = abbrev, size_to_swap) {
+  candidate <- df %>% 
+    filter(! (NDB_No %in% menu$NDB_No)) %>%    # We can't swap in a food that already exists in our menu
+    sample_n(., size = size_to_swap) %>% 
+    mutate(solution_amounts = 1)    # Give us one serving of each of these new foods
+  return(candidate)
+}
 
 wholesale_swap <- function(menu, df = abbrev, percent_to_swap = 0.5) {
   
@@ -19,26 +26,18 @@ wholesale_swap <- function(menu, df = abbrev, percent_to_swap = 0.5) {
   } else {
     message("No worst foods")
   }
+  size_to_swap <- nrow(to_swap_out)
   
-  get_swap_candidates <- function(df, to_swap_out) {
-    candidate <- df %>% 
-      filter(! (NDB_No %in% menu)) %>%    # We can't swap in a food that already exists in our menu
-      sample_n(., size = nrow(to_swap_out)) %>% 
-      mutate(solution_amounts = 1)    # Give us one serving of each of these new foods
-    return(candidate)
-  }
-  swap_candidate <- get_swap_candidates(df = df, to_swap_out = to_swap_out)
+  newly_swapped_in <- get_swap_candidates(menu, abbrev, size_to_swap)
+  if(any(newly_swapped_in$NDB_No %in% menu$NDB_No)){ stop ("Swapping in food we already have :/") }
   
-  if (score_menu(swap_candidate) < score_menu(to_swap_out)) {
+  if (score_menu(newly_swapped_in) < score_menu(to_swap_out)) {
     message("Swap candidate not good enough; reswapping.")
-    swap_candidate <- get_swap_candidates(df = df, to_swap_out = to_swap_out)
+    newly_swapped_in <- get_swap_candidates(menu = menu, df = abbrev, size_to_swap = size_to_swap)
     
   } else {
-      message("Swap candidate is good enough. Doing the wholesale swap.")
-      return(swap_candidate)
+    message("Swap candidate is good enough. Doing the wholesale swap.")
   }
-  
-  newly_swapped_in <- get_swap_candidates(df, to_swap_out)
   
   message(paste0("Replacing with: ", 
                  str_c(newly_swapped_in$shorter_desc, collapse = ", ")))
@@ -49,4 +48,6 @@ wholesale_swap <- function(menu, df = abbrev, percent_to_swap = 0.5) {
   
   return(out)
 }
+
+
 

@@ -5,9 +5,9 @@ author:
   email: amanda.e.dobbyn@gmail.com
   twitter: dobbleobble
 output:
-  # html_notebook:
-  html_document:
-    keep_md: true
+  html_notebook:
+  # html_document:
+  #   keep_md: true
     toc: true
     theme: yeti
   github_document:
