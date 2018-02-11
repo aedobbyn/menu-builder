@@ -5,9 +5,9 @@ author:
   email: amanda.e.dobbyn@gmail.com
   twitter: dobbleobble
 output:
-  html_notebook:
-  # html_document:
-  #   keep_md: true
+  # html_notebook:
+  html_document:
+    keep_md: true
     toc: true
     theme: yeti
   github_document:
@@ -73,6 +73,8 @@ This is an ongoing project on menu optimizing. It's mainly an excuse for me to u
 
 The meat of the project surrounds building menus and changing them until they are in compliance with daily nutritional guidelines. We'll simulate the curve of the proportion of these that are solvable as we increase the minimum portion size that each food must meet. Finally, I start about trying to improve the quality of the menus (i.e., decrease barf factor) by taking a cue from actual recipes scraped from Allrecipes.com. 
 
+[](img/chinese_food.jpg)
+
 
 ## Getting from A to Beef
 
@@ -101,10 +103,10 @@ We'll use the `jsonlite` package to turn that `fromJSON` into an R object.
 
 
 ```{r json_req}
-food_raw <- jsonlite::fromJSON(paste0("http://api.nal.usda.gov/ndb/nutrients/?format=json&api_key=", 
-                       key, "&subset=1&max=1500&nutrients=205&nutrients=204&nutrients=208&nutrients=269"))
+foods_raw <- jsonlite::fromJSON(paste0("http://api.nal.usda.gov/ndb/nutrients/?format=json&api_key=", 
+                       key, "&subset=1&max=1500&nutrients=205&nutrients=204&nutrients=208&nutrients=269"), flatten = FALSE)
 
-foods <- as_tibble(food_raw$report$foods)
+foods <- as_tibble(foods_raw$report$foods)
 ```
 
 ```{r foods}
@@ -150,7 +152,12 @@ foods$nutrients <- foods$nutrients %>%
 
 but unnesting is the challenge. 
 
-The naive approach of mapping character over all the nutrients columns doesn't give us what we want (which I feel is somewhat analagous to the sentiment in this [GitHub Issue](https://github.com/tidyverse/purrr/issues/265)):
+The naive approach of mapping character over all the nutrients columns errors out and we're stuck with the usual sense of not quite being able to reach the part of the data we want. (All credit here to the fantastic [Jenny Bryan](https://twitter.com/JennyBryan).)
+
+```{r, out.width = "400px", echo=FALSE}
+knitr::include_graphics("img/water_funny.gif")
+```
+
 
 ```{r}
 foods$nutrients[1] %>% map(as.character)
@@ -161,20 +168,21 @@ So instead we'll dive into the second level of our nested list, take everything 
 
 ```{r characterify}
 foods$nutrients <- foods$nutrients %>% modify_depth(2, as.character)
-
-foods %>% unnest()
 ```
 
-<!-- Which is a nicer way of saying -->
+Which is a nicer way of saying
 
-<!-- ```{r make_character, warning=FALSE, message=FALSE, eval=FALSE} -->
-<!-- for (i in 1:length(foods$nutrients)) { -->
-<!--   for (j in 1:nrow(foods$nutrients[[1]])) { -->
-<!--     foods$nutrients[[i]]$gm[j] <- as.character(foods$nutrients[[i]]$gm[j]) -->
-<!--     foods$nutrients[[i]]$value[j] <- as.character(foods$nutrients[[i]]$value[j]) -->
-<!--   } -->
-<!-- } -->
-<!-- ``` -->
+```{r make_character, warning=FALSE, message=FALSE, eval=FALSE}
+for (i in 1:length(foods$nutrients)) {
+  for (j in 1:nrow(foods$nutrients[[1]])) {
+    foods$nutrients[[i]]$nutrient_id[j] <- as.character(foods$nutrients[[i]]$nutrient_id[j])
+    foods$nutrients[[i]]$nutrient[j] <- as.character(foods$nutrients[[i]]$nutrient[j])
+    foods$nutrients[[i]]$unit[j] <- as.character(foods$nutrients[[i]]$unit[j])
+    foods$nutrients[[i]]$gm[j] <- as.character(foods$nutrients[[i]]$gm[j])
+    foods$nutrients[[i]]$value[j] <- as.character(foods$nutrients[[i]]$value[j])
+  }
+}
+```
 
 Now we can unnest the whole thing.
 
@@ -576,8 +584,6 @@ What we first have to do is get the raw values of every nutrient, if our nutrien
 Next we need to set up a series of constraint inequalities. On the left hand side of each inequality will be the raw values of each nutrient we've got in our menu. That will be followed by a directionality, either `">"` if the value of that nutrient is a positive or a `"<"` if it is a must restrict. Last we'll supply the upper or lower bound for that particular nutrient, which we supply in `bounds`. If we're thinking about Riboflavin in our menu and we've got `n` items in our menu each with some amount of Riboflavin, that would look like:
 
 $\sum_{i=1}^{n} OurRawRiboflavin_{i} > MinRequiredDailyRiboflavin$ 
-
-where `n` is the number of foods in our menu.
 
 Now to construct the constraint matrix which I'm cleverly calling `constraint_matrix` for all the nutritional constraints that need to be met. We'll make this by essentially transposing our menu's nutrient columns; whereas in a typical menu dataframe we have one row per food and one column per nutrient, we'll turn this into a matrix with one row per constraint and one column per food. (In practice we do this by taking our vector of nutrient constraint values, and, in the `matrix` call of `construct_matrix()`, creating `byrow = TRUE` matrix from them.) We can print out the constraint matrix by turning `v_v_verbose` on.
 

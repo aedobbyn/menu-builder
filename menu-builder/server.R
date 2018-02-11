@@ -35,7 +35,7 @@ shinyServer(function(input, output) {
     if (input$adjust_portions == 0)
       return()
     
-    menu$data <- solve_it(menu$data) %>% solve_menu()
+    menu$data <- menu$data %>% solve_it() %>% solve_menu()
   })
 
   
@@ -44,7 +44,7 @@ shinyServer(function(input, output) {
     if (input$swap_foods == 0)
       return()
     
-    menu$data <- do_single_swap(menu$data)
+    menu$data <- menu$data %>% do_single_swap()
   })
   
   # ------------- Build master menu from original menu -----------
@@ -52,11 +52,12 @@ shinyServer(function(input, output) {
   master_menu <- reactiveValues(data = NULL)
 
   observeEvent(input$wizard_it_from_scratch, {
-    withProgress(message = 'Making Menu', value = 0, { master_menu$data <- build_menu() %>% solve_simple() })
+    # withProgress(message = 'Making Menu', value = 0, { master_menu$data <- build_menu() %>% solve_simple() })
+    master_menu$data <- build_menu(seed = 1) %>% solve_simple()
   })
   
   observeEvent(input$wizard_it_from_seeded, {
-    master_menu$data <- solve_simple(menu$data)
+    master_menu$data <- menu$data %>% solve_simple()
   })
 
   output$master_menu <- DT::renderDataTable({
