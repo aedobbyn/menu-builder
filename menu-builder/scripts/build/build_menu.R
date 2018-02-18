@@ -1,6 +1,6 @@
 
-source("./scripts/score/score_menu.R")
-source("./scripts/build/add_calories.R")
+# source("./scripts/score/score_menu.R")
+# source("./scripts/build/add_calories.R")
 
 # ------------- Initial Builder ---------------
 

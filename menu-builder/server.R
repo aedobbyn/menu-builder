@@ -1,8 +1,12 @@
 
 library(shiny)
 library(dobtools)
+library(here)
+library(feather)
 
-import_scripts("./scripts")
+setwd("/Users/amanda/Desktop/Earlybird/food-progress/menu-builder")
+source("./read_in.R")
+
 
 # source("./menu_builder_shiny.R")
 

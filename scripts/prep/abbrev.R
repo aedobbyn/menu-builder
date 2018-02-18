@@ -84,4 +84,17 @@ abbrev <- abbrev %>% do_menu_mutates() %>% add_ranked_foods()
 abbrev_sans_na <- abbrev %>% 
   drop_na_(all_nut_and_mr_df$nutrient) %>% filter(!(is.na(Energ_Kcal)) & !(is.na(GmWt_1)))
 
-# write_feather(scaled, "./scaled.feather")
+
+
+# write_feather(scaled, "./data/derived/scaled.feather")
+# ln -s ~/Desktop/Earlybird/food-progress/data/derived/scaled.feather ~/Desktop/Earlybird/food-progress/menu-builder/data
+# write_feather(all_nut_and_mr_df, "./data/derived/all_nut_and_mr_df.feather")
+# write_feather(mr_df, "./data/derived/mr_df.feather")
+# write_feather(pos_df, "./data/derived/pos_df.feather")
+
+
+# ln -s ~/Desktop/Earlybird/food-progress/data/derived/all_nut_and_mr_df.feather ~/Desktop/Earlybird/food-progress/menu-builder/data
+# ln -s ~/Desktop/Earlybird/food-progress/data/derived/mr_df.feather ~/Desktop/Earlybird/food-progress/menu-builder/data
+# ln -s ~/Desktop/Earlybird/food-progress/data/derived/pos_df.feather ~/Desktop/Earlybird/food-progress/menu-builder/data
+
+

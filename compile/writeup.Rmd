@@ -152,16 +152,23 @@ foods$nutrients <- foods$nutrients %>%
 
 but unnesting is the challenge. 
 
-The naive approach of mapping character over all the nutrients columns errors out and we're stuck with the usual sense of not quite being able to reach the part of the data we want. (All credit here to the fantastic [Jenny Bryan](https://twitter.com/JennyBryan).)
-
-```{r, out.width = "400px", echo=FALSE}
-knitr::include_graphics("img/water_funny.gif")
+```{r, error=TRUE}
+foods %>% unnest()
 ```
 
+The naive approach of mapping character over all the nutrients columns doesn't give us the output we expect 
 
 ```{r}
 foods$nutrients[1] %>% map(as.character)
 ```
+
+and we're stuck with the usual sense of not quite being able to reach the part of the data we want. (All credit here to the fantastic [Jenny Bryan](https://twitter.com/JennyBryan).)
+
+```{r, out.width = "400px", echo=FALSE}
+knitr::include_graphics("img/water_funny.gif")
+```
+<!-- From: https://giphy.com/gifs/water-funny-Bqn8Z7xdPCFy0 -->
+
 
 
 So instead we'll dive into the second level of our nested list, take everything in there to character, and then unnest.
