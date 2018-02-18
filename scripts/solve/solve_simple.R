@@ -26,7 +26,8 @@ solve_simple <- function(menu, seed = 15, min_food_amount = 1, percent_to_swap =
       counter <- counter + 1
       
       menu <- menu %>% 
-        do_single_swap() %>% # wholesale_swap(df = abbrev, percent_to_swap = percent_to_swap) %>%
+        do_single_swap() %>% 
+        # wholesale_swap(df = abbrev, percent_to_swap = percent_to_swap) %>%
         solve_it(nutrient_df, min_food_amount = min_food_amount) %>% solve_menu()
       
     } else if (test_calories(menu) == "Calories too low") {

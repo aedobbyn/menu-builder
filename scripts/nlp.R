@@ -32,24 +32,9 @@ grab_words <- function(df, row_start = 1, row_stop = 100, n_grams = 1) {
 unigrams <- grab_words(more_recipes_df)
 bigrams <- grab_words(more_recipes_df, n_grams = 2)
 
-
-# Logical for whether an word is a number or not
-# we could have as easily done this w a regex
-find_nums <- function(df) {
-  df <- df %>% mutate(
-    num = suppressWarnings(as.numeric(word)),    # we could have as easily done this w a regex
-    is_num = case_when(
-      !is.na(num) ~ TRUE,
-      is.na(num) ~ FALSE
-    )
-  ) %>% select(-num)
-  
-  return(df)
-}
-
 # Filter out numbers
 unigrams <- unigrams %>%
-  find_nums() %>%
+  dobtools::find_nums(contains_num = FALSE) %>%   # Add a column showing whether 
   filter(is_num == FALSE) %>% 
   select(-is_num)
 
@@ -115,4 +100,45 @@ pairwise_per_rec %>%
 
 
 
+
+
+
+# --------- Topic Models ----------
+
+
+# -------- Topic Models -------
+library(tm)
+library(topicmodels)
+
+# # Cast to term-document matrix
+# hts_dtm <- hts_words_tfidf %>% 
+#   cast_dtm(document = chapter, term = word, value = n_word)
+# 
+# # Do topic modeling on dtm
+# hts_dtm_lda <- LDA(hts_dtm, k = 99, control = list(seed = 1234))
+# 
+# # saveRDS(hts_dtm_lda, file = "./data/derived/hts/hts_dtm_lda.rds")
+# 
+# # Tidy 
+# hts_dtm_topics <- hts_dtm_lda %>% tidytext::tidy(matrix = "beta")
+# 
+# # Top words per topic
+# hts_top_terms <- hts_dtm_topics %>%
+#   group_by(topic) %>%
+#   top_n(10, beta) %>%
+#   ungroup() %>%
+#   arrange(topic, -beta)
+# 
+# # write_feather(hts_dtm_topics, "./data/derived/hts/hts_dtm_topics.feather")
+# 
+# 
+# # Get estimated proportion of words from that document that are generated from that topic
+# hts_gamma <- tidy(hts_dtm_lda, matrix = "gamma")
+# 
+# # How do documents align with topics
+# hts_chapter_classifications <- hts_gamma %>%
+#   group_by(document) %>%
+#   top_n(1, gamma) %>%
+#   ungroup()
+# 
 
