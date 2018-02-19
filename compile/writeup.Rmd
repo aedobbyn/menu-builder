@@ -64,6 +64,7 @@ status_spectrum <- read_feather("./data/derived/status_spectrum.feather")
 rec_spectrum <- read_feather("./data/derived/rec_spectrum.feather")
 more_recipes_raw <- readRDS("./data/derived/more_recipes_raw.rds")
 more_recipes_df <- read_feather("./data/derived/more_recipes_df.feather")
+recipes_df <- read_feather("./data/derived/recipes_df.feather")   # With converted units
 ```
 
 
@@ -1681,7 +1682,7 @@ measures_collapsed
 
 Then if there are multiple portions that match, we'll take the last one.
 
-We'll also add `approximate` to our dataframe which is just a boolean value indicating whether this item is exact or approximate. If the item contains one of `approximate` (`r str_c(approximate_raw, collapse = " ,")`) then we give it a TRUE.
+We'll also add `approximate` to our dataframe which is just a boolean value indicating whether this item is exact or approximate. If the item contains one of `approximate` (`r stringr::str_c(approximate_raw, collapse = " ,")`) then we give it a TRUE.
 
 ```{r test_approximate_true}
 str_detect("8 or so cloves of garlic", approximate)
@@ -1770,7 +1771,7 @@ We've got some units! Next step will be to convert all units into grams, so that
 
 **Converting to Grams**
 
-Rather than rolling our own conversion dictionary, let's turn to the `measurements` package that sports the `conv_unit()` function for going from one unit to another. For example
+Rather than rolling our own conversion dictionary, let's turn to the `measurements` package that sports the `conv_unit()` function for going from one unit to another. For example, coverting 12 inches to centimeters, we get:
 
 ```{r inch_to_cm}
 conv_unit(12, "inch", "cm")
@@ -1791,7 +1792,7 @@ We'll set up exception handling so that `conv_unit()` gives us an `NA` rather th
 try_conv <- possibly(conv_unit, otherwise = NA)
 ```
 
-We'll mutate our dataframe, adding a new column to convert to either grams in the case that our unit is a solid or mililieters if it's a liquid. These have a 1-to-1 conversion (1g = 1ml) so we'll take whichever one of these is not a missing value and put that in our `converted` column.
+We'll mutate our abbreviation dictionary, adding a new column to convert to either grams in the case that our unit is a solid or mililieters if it's a liquid. These have a 1-to-1 conversion (1g = 1ml) so we'll take whichever one of these is not a missing value and put that in our `converted` column.
 
 We'll use a sample value of 10 for everything.
 
@@ -1821,7 +1822,8 @@ test_abbrev_dict_conv(abbrev_dict, key)
 
 What proportion of the portion abbreviations are we able to to convert to grams off the bat?
 ```{r}
-length(convertables$converted[!is.na(convertables$converted)]) / length(convertables$converted)
+converted_units <- test_abbrev_dict_conv(abbrev_dict, key)
+length(converted_units$converted[!is.na(converted_units$converted)]) / length(converted_units$converted)
 ```
 
 We can take a look at the units that `measurements` provides conversions for to see if we'll need to go elsewhere to do the conversion math ourselves.
@@ -1908,6 +1910,10 @@ recipes_df <- recipes %>%
   add_abbrevs() %>% 
   left_join(abbrev_dict_w_accepted, by = c("portion_abbrev" = "key")) %>% 
   convert_units()
+```
+
+```{r, echo=FALSE, eval=TRUE}
+more_recipes_df %>% sample_n(20) %>% kable(format = "html")
 ```
 
 

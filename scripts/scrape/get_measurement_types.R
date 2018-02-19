@@ -52,8 +52,7 @@ add_other_measurement_types <- function() {
 
 
 # From a website
-get_measurement_types_from_source <- function(measurement_url = "https://www.convert-me.com/en/convert/cooking/", 
-                                              add_other_measurement_types = TRUE) {
+get_measurement_types_from_source <- function(measurement_url = "https://www.convert-me.com/en/convert/cooking/") {
   
   measurement_types_raw <- measurement_url %>% 
     read_html() %>% 
@@ -82,24 +81,35 @@ get_measurement_types_from_source <- function(measurement_url = "https://www.con
     distinct() %>% 
     filter(! name %in% c("dessert", "spoon", "fluid", "fl") & nchar(name) > 0) 
   
-  # Add in things that didn't have abbreviations 
-  needs_abbrev <- c("tablespoon", "teaspoon", "cup", "fluid ounce", "gallon")
-  abbrevs_needed <- c("tbsp", "tsp", "cup", "fluid oz", "gal")
-  extra_measurements <- list(name = needs_abbrev, key = abbrevs_needed) %>% as_tibble()
+  return(measurement_types)
+}
+
+raw_measurement_types <- get_measurement_types_from_source()
+
+refine_measurement_types <- function(vec = raw_measurement_types,
+                                     add_other_measurement_types = TRUE) {
   
+  measurement_types <- raw_measurement_types %>%
+    filter(! name == "cup")  # no abbrev here
+  
+  # Add in things that didn't have abbreviations 
+  needs_abbrev <- c("tablespoon", "teaspoon", "fluid ounce", "gallon")
+  abbrevs_needed <- c("tbsp", "tsp", "fluid oz", "gal")
+  extra_measurements <- list(name = needs_abbrev, key = abbrevs_needed) %>% as_tibble()
+
   measurement_types <<- measurement_types %>% filter(!name %in% needs_abbrev) 
-  abbrev_dict <<- measurement_types %>%  mutate(
+  abbrev_dict_pre <- measurement_types %>%  mutate(
     rownum = 1:nrow(.),
     key = ifelse(rownum %% 2 != 0, lead(name), name)
   ) %>% 
     filter(!name == key) %>% 
     select(-rownum) 
-  abbrev_dict <- abbrev_dict %>% bind_rows(extra_measurements)
+  abbrev_dict <<- abbrev_dict_pre %>% bind_rows(extra_measurements)
   
   # We need to put the prefix "us_" before some of our units in order to conver to grams
-  to_usize <- c("tsp", "tbsp", "cup", "pint")   # "quart", "gal"
+  to_usize <- c("tsp", "tbsp", "cup", "pint", "quart", "gal")   
   
-  accepted <- c("oz", "pint", "lbs", "kg", "g", "l", "dl", "ml", "tbsp", "tsp", "cup", "oz")
+  accepted <- c("oz", "pint", "lbs", "kg", "g", "l", "dl", "ml", "tbsp", "tsp", "oz", "gal", "quart", "cup")
   accepted[which(accepted %in% to_usize)] <- stringr::str_c("us_", accepted[which(accepted %in% to_usize)])
   
   # cbind this to our dictionary 
@@ -111,6 +121,12 @@ get_measurement_types_from_source <- function(measurement_url = "https://www.con
   
   return(measurement_types)
 }
+
+bing <- refine_measurement_types()
+
+
+
+
 
 
 get_measurement_types_from_source_collapsed <- function() {
@@ -150,6 +166,11 @@ get_measurement_types <- function(from_file = TRUE) {
     measures_collapsed <<- get_measurement_types_from_source_collapsed()
   }
 }
+
+
+# write_feather(abbrev_dict, "./data/derived/abbrev_dict.feather")
+# write_feather(abbrev_dict_w_accepted, "./data/derived/abbrev_dict_w_accepted.feather")
+# write_rds(mc, "./data/derived/measurement_types.rds")
 
 
 

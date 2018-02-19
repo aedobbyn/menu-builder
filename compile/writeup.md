@@ -1,4 +1,23 @@
-# Food for Thought
+---
+title: Food for Thought
+author:
+  name: Amanda Dobbyn
+  email: amanda.e.dobbyn@gmail.com
+  twitter: dobbleobble
+output:
+  # html_notebook:
+  html_document:
+    keep_md: true
+    toc: true
+    theme: yeti
+  github_document:
+    toc: true
+  pdf_document:
+    keep_tex: true
+    toc: false
+editor_options: 
+  chunk_output_type: inline
+---
 
 ***
 
@@ -17,6 +36,11 @@ for (p in paths) {
 }
 ```
 
+```
+## Warning in read_fun(path = path, sheet = sheet, limits = limits, shim =
+## shim, : partial argument match of 'sheet' to 'sheet_i'
+```
+
 
 
 
@@ -26,6 +50,8 @@ for (p in paths) {
 This is an ongoing project on menu optimizing. It's mainly an excuse for me to use several data science techniques in various proportions: along the way I query an API, generate menus, solve them algorithmically, simulate solving them, scrape the web for real menus, and touch on some natural language processing techniques. Don't worry about getting too hungry: this project has been fairly ~~nicknamed~~ slandered "Eat, Pray, Barf."
 
 The meat of the project surrounds building menus and changing them until they are in compliance with daily nutritional guidelines. We'll simulate the curve of the proportion of these that are solvable as we increase the minimum portion size that each food must meet. Finally, I start about trying to improve the quality of the menus (i.e., decrease barf factor) by taking a cue from actual recipes scraped from Allrecipes.com. 
+
+[](img/chinese_food.jpg)
 
 
 ## Getting from A to Beef
@@ -54,10 +80,10 @@ We'll use the `jsonlite` package to turn that `fromJSON` into an R object.
 
 
 ```r
-food_raw <- jsonlite::fromJSON(paste0("http://api.nal.usda.gov/ndb/nutrients/?format=json&api_key=", 
+foods_raw <- jsonlite::fromJSON(paste0("http://api.nal.usda.gov/ndb/nutrients/?format=json&api_key=", 
                        key, "&subset=1&max=1500&nutrients=205&nutrients=204&nutrients=208&nutrients=269"), flatten = FALSE)
 
-foods <- as_tibble(food_raw$report$foods)
+foods <- as_tibble(foods_raw$report$foods)
 ```
 
 
@@ -207,10 +233,16 @@ foods$nutrients <- foods$nutrients %>%
 
 but unnesting is the challenge. 
 
-The naive approach of mapping character over all the nutrients columns errors out and we're stuck with the usual sense of not quite being able to reach the part of the data we want. (All credit here to the fantastic [Jenny Bryan](https://twitter.com/JennyBryan).)
 
-<img src="img/water_funny.gif" width="400px" />
+```r
+foods %>% unnest()
+```
 
+```
+## Error in bind_rows_(x, .id): Column `gm` can't be converted from character to numeric
+```
+
+The naive approach of mapping character over all the nutrients columns doesn't give us the output we expect 
 
 
 ```r
@@ -225,6 +257,12 @@ foods$nutrients[1] %>% map(as.character)
 ## [4] "c(\"9\", NA, \"0.00\", \"0.38\")"                                                        
 ## [5] "c(\"29\", NA, \"0\", \"1.3\")"
 ```
+
+and we're stuck with the usual sense of not quite being able to reach the part of the data we want. (All credit here to the fantastic [Jenny Bryan](https://twitter.com/JennyBryan).)
+
+<img src="img/water_funny.gif" width="400px" />
+<!-- From: https://giphy.com/gifs/water-funny-Bqn8Z7xdPCFy0 -->
+
 
 
 So instead we'll dive into the second level of our nested list, take everything in there to character, and then unnest.
@@ -8830,6 +8868,486 @@ some_recipes_tester %>% get_portions(pare_portion_info = TRUE) %>% add_abbrevs()
 We've got some units! Next step will be to convert all units into grams, so that we have them all in a standardized format.
 
 
+**Converting to Grams**
+
+Rather than rolling our own conversion dictionary, let's turn to the `measurements` package that sports the `conv_unit()` function for going from one unit to another. For example, coverting 12 inches to centimeters, we get:
+
+
+```r
+conv_unit(12, "inch", "cm")
+```
+
+```
+## [1] 30.48
+```
+
+
+Let's see how that'll work with our data. Let's take our 14 oz to grams.
+
+
+```r
+conv_unit(more_recipes_df[3, ]$portion, more_recipes_df[3, ]$portion_abbrev, "g")
+```
+
+```
+## [1] 396.8933
+```
+
+Let's see which of our units `conv_unit()` can successfully convert out of the box.
+
+We'll set up exception handling so that `conv_unit()` gives us an `NA` rather than an error if it encounters a value it can't convert properly. 
+
+
+```r
+try_conv <- possibly(conv_unit, otherwise = NA)
+```
+
+We'll mutate our abbreviation dictionary, adding a new column to convert to either grams in the case that our unit is a solid or mililieters if it's a liquid. These have a 1-to-1 conversion (1g = 1ml) so we'll take whichever one of these is not a missing value and put that in our `converted` column.
+
+We'll use a sample value of 10 for everything.
+
+
+```r
+test_abbrev_dict_conv <- function(dict, key_col, val = 10) {
+  
+  quo_col <- enquo(key_col)
+  
+  out <- dict %>% 
+    rowwise() %>% 
+    mutate(
+      converted_g = try_conv(val, !!quo_col, "g"),
+      converted_ml = try_conv(val, !!quo_col, "ml"),
+      converted = case_when(
+        !is.na(converted_g) ~ converted_g,
+        !is.na(converted_ml) ~ converted_ml
+      )
+    )
+  
+  return(out)
+}
+```
+
+
+```r
+test_abbrev_dict_conv(abbrev_dict, key)
+```
+
+```
+## Source: local data frame [12 x 5]
+## Groups: <by row>
+## 
+## # A tibble: 12 x 5
+##           name      key converted_g converted_ml  converted
+##          <chr>    <chr>       <dbl>        <dbl>      <dbl>
+##  1       ounce       oz    283.4952           NA   283.4952
+##  2        pint       pt          NA           NA         NA
+##  3       pound       lb          NA           NA         NA
+##  4    kilogram       kg  10000.0000           NA 10000.0000
+##  5        gram        g     10.0000           NA    10.0000
+##  6       liter        l          NA        10000 10000.0000
+##  7   deciliter       dl          NA         1000  1000.0000
+##  8  milliliter       ml          NA           10    10.0000
+##  9  tablespoon     tbsp          NA           NA         NA
+## 10    teaspoon      tsp          NA           NA         NA
+## 11         cup      cup          NA           NA         NA
+## 12 fluid ounce fluid oz          NA           NA         NA
+```
+
+What proportion of the portion abbreviations are we able to to convert to grams off the bat?
+
+```r
+converted_units <- test_abbrev_dict_conv(abbrev_dict, key)
+length(converted_units$converted[!is.na(converted_units$converted)]) / length(converted_units$converted)
+```
+
+```
+## [1] 0.5
+```
+
+We can take a look at the units that `measurements` provides conversions for to see if we'll need to go elsewhere to do the conversion math ourselves.
+
+
+```r
+conv_unit_options$volume
+```
+
+```
+##  [1] "ul"        "ml"        "dl"        "l"         "cm3"      
+##  [6] "dm3"       "m3"        "km3"       "us_tsp"    "us_tbsp"  
+## [11] "us_oz"     "us_cup"    "us_pint"   "us_quart"  "us_gal"   
+## [16] "inch3"     "ft3"       "mi3"       "imp_tsp"   "imp_tbsp" 
+## [21] "imp_oz"    "imp_cup"   "imp_pint"  "imp_quart" "imp_gal"
+```
+
+This explains why `pint`, `cup`, etc. weren't convertable. It looks like we need to put the prefix `"us_"` before some of our units. We'll create a new `accepted` column of `abbrev_units` that provides the convertable 
+
+
+
+```r
+to_usize <- c("tsp", "tbsp", "cup", "pint")  
+
+accepted <- c("oz", "pint", "lbs", "kg", "g", "l", "dl", "ml", "tbsp", "tsp", "cup", "oz")
+accepted[which(accepted %in% to_usize)] <- 
+  stringr::str_c("us_", accepted[which(accepted %in% to_usize)])
+
+# cbind this to our dictionary 
+abbrev_dict_w_accepted <- abbrev_dict %>% bind_cols(accepted = accepted)
+```
+
+What percentage of units are we able to convert now?
+
+```r
+test_abbrev_dict_conv(abbrev_dict_w_accepted, accepted)
+```
+
+```
+## Source: local data frame [12 x 6]
+## Groups: <by row>
+## 
+## # A tibble: 12 x 6
+##           name      key accepted converted_g converted_ml   converted
+##          <chr>    <chr>    <chr>       <dbl>        <dbl>       <dbl>
+##  1       ounce       oz       oz    283.4952           NA   283.49523
+##  2        pint       pt  us_pint          NA   4731.76473  4731.76473
+##  3       pound       lb      lbs   4535.9243           NA  4535.92428
+##  4    kilogram       kg       kg  10000.0000           NA 10000.00000
+##  5        gram        g        g     10.0000           NA    10.00000
+##  6       liter        l        l          NA  10000.00000 10000.00000
+##  7   deciliter       dl       dl          NA   1000.00000  1000.00000
+##  8  milliliter       ml       ml          NA     10.00000    10.00000
+##  9  tablespoon     tbsp  us_tbsp          NA    147.86765   147.86765
+## 10    teaspoon      tsp   us_tsp          NA     49.28922    49.28922
+## 11         cup      cup   us_cup          NA   2365.88236  2365.88236
+## 12 fluid ounce fluid oz       oz    283.4952           NA   283.49523
+```
+
+Looks like all of them! Good stuff.
+
+Let's write a function to convert units for our real dataframe.
+
+
+
+```r
+convert_units <- function(df, name_col = accepted, val_col = portion,
+                          pare_down = TRUE) {
+  
+  quo_name_col <- enquo(name_col)
+  quo_val_col <- enquo(val_col)
+  
+  out <- df %>% 
+    rowwise() %>% 
+    mutate(
+      converted_g = try_conv(!!quo_val_col, !!quo_name_col, "g"),
+      converted_ml = try_conv(!!quo_val_col, !!quo_name_col, "ml"), 
+      converted = case_when(
+        !is.na(converted_g) ~ as.numeric(converted_g), 
+        !is.na(converted_ml) ~ as.numeric(converted_ml), 
+        is.na(converted_g) && is.na(converted_ml) ~ NA_real_ 
+      )
+    ) 
+  
+  if (pare_down == TRUE) {
+    out <- out %>% 
+      select(-converted_g, -converted_ml)
+  }
+  
+  return(out)
+}
+```
+
+
+Next let's add an `accepted` column onto our dataframe to get our units in the right format and run our function.
+
+
+```r
+more_recipes_df %>% 
+  left_join(abbrev_dict_w_accepted, by = c("portion_abbrev" = "key")) %>% 
+  sample_n(30) %>%
+  convert_units()
+```
+
+```
+## Source: local data frame [30 x 12]
+## Groups: <by row>
+## 
+## # A tibble: 30 x 12
+##                         ingredients
+##                               <chr>
+##  1          4 KRAFT 2% Milk Singles
+##  2 1 (14.5 ounce) can chicken broth
+##  3                    3/4 cup honey
+##  4 1/2 cup sweetened flaked coconut
+##  5                           2 eggs
+##  6      1 (.25 ounce) package yeast
+##  7              1/4 teaspoon pepper
+##  8                  1 teaspoon salt
+##  9       1 cup chopped baby spinach
+## 10        1/4 teaspoon curry powder
+## # ... with 20 more rows, and 11 more variables: recipe_name <chr>,
+## #   raw_portion_num <chr>, portion_name <chr>, approximate <lgl>,
+## #   range_portion <dbl>, mult_add_portion <dbl>, portion <dbl>,
+## #   portion_abbrev <chr>, name <chr>, accepted <chr>, converted <dbl>
+```
+
+
+
+**All the data**
+
+Let's put it all together, scraping all of our URLs.
+
+
+```r
+recipes_raw <- more_urls %>% get_recipes(sleep = 3)
+recipes <- recipes_raw[!recipes_raw == "Bad URL"]
+
+recipes_df <- recipes %>% 
+  dfize() %>% 
+  get_portions() %>% 
+  add_abbrevs() %>% 
+  left_join(abbrev_dict_w_accepted, by = c("portion_abbrev" = "key")) %>% 
+  convert_units()
+```
+
+<table>
+ <thead>
+  <tr>
+   <th style="text-align:left;"> ingredients </th>
+   <th style="text-align:left;"> recipe_name </th>
+   <th style="text-align:left;"> raw_portion_num </th>
+   <th style="text-align:left;"> portion_name </th>
+   <th style="text-align:left;"> approximate </th>
+   <th style="text-align:right;"> range_portion </th>
+   <th style="text-align:right;"> mult_add_portion </th>
+   <th style="text-align:right;"> portion </th>
+   <th style="text-align:left;"> portion_abbrev </th>
+  </tr>
+ </thead>
+<tbody>
+  <tr>
+   <td style="text-align:left;"> 1/3 cup butter </td>
+   <td style="text-align:left;"> Scalloped Carrots </td>
+   <td style="text-align:left;"> 1/3 </td>
+   <td style="text-align:left;">  </td>
+   <td style="text-align:left;"> FALSE </td>
+   <td style="text-align:right;"> 0 </td>
+   <td style="text-align:right;"> 0.00 </td>
+   <td style="text-align:right;"> 0.3333333 </td>
+   <td style="text-align:left;">  </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> 1/2 cup Egg Beaters </td>
+   <td style="text-align:left;"> French Toast </td>
+   <td style="text-align:left;"> 1/2 </td>
+   <td style="text-align:left;">  </td>
+   <td style="text-align:left;"> FALSE </td>
+   <td style="text-align:right;"> 0 </td>
+   <td style="text-align:right;"> 0.00 </td>
+   <td style="text-align:right;"> 0.5000000 </td>
+   <td style="text-align:left;">  </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> Freshly ground pepper to taste </td>
+   <td style="text-align:left;"> Mary's Zucchini with Parmesan </td>
+   <td style="text-align:left;">  </td>
+   <td style="text-align:left;">  </td>
+   <td style="text-align:left;"> TRUE </td>
+   <td style="text-align:right;"> 0 </td>
+   <td style="text-align:right;"> 0.00 </td>
+   <td style="text-align:right;"> NA </td>
+   <td style="text-align:left;">  </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> 2 cloves garlic, minced </td>
+   <td style="text-align:left;"> White Bean Tabbouleh </td>
+   <td style="text-align:left;"> 2 </td>
+   <td style="text-align:left;">  </td>
+   <td style="text-align:left;"> FALSE </td>
+   <td style="text-align:right;"> 0 </td>
+   <td style="text-align:right;"> 0.00 </td>
+   <td style="text-align:right;"> 2.0000000 </td>
+   <td style="text-align:left;">  </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> 1/4 cup drained and rinsed black beans, or more to taste </td>
+   <td style="text-align:left;"> Delicious Spinach Salad </td>
+   <td style="text-align:left;"> 1/4 </td>
+   <td style="text-align:left;">  </td>
+   <td style="text-align:left;"> TRUE </td>
+   <td style="text-align:right;"> 0 </td>
+   <td style="text-align:right;"> 0.00 </td>
+   <td style="text-align:right;"> 0.2500000 </td>
+   <td style="text-align:left;">  </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> 2 cups milk </td>
+   <td style="text-align:left;"> Strawberry Cream Pie </td>
+   <td style="text-align:left;"> 2 </td>
+   <td style="text-align:left;">  </td>
+   <td style="text-align:left;"> FALSE </td>
+   <td style="text-align:right;"> 0 </td>
+   <td style="text-align:right;"> 0.00 </td>
+   <td style="text-align:right;"> 2.0000000 </td>
+   <td style="text-align:left;">  </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> 1 tablespoon olive oil </td>
+   <td style="text-align:left;"> Loaded Queso Fundido </td>
+   <td style="text-align:left;"> 1 </td>
+   <td style="text-align:left;">  </td>
+   <td style="text-align:left;"> FALSE </td>
+   <td style="text-align:right;"> 0 </td>
+   <td style="text-align:right;"> 0.00 </td>
+   <td style="text-align:right;"> 1.0000000 </td>
+   <td style="text-align:left;">  </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> 9 cups chicken stock </td>
+   <td style="text-align:left;"> Wonton Soup without Ginger </td>
+   <td style="text-align:left;"> 9 </td>
+   <td style="text-align:left;">  </td>
+   <td style="text-align:left;"> FALSE </td>
+   <td style="text-align:right;"> 0 </td>
+   <td style="text-align:right;"> 0.00 </td>
+   <td style="text-align:right;"> 9.0000000 </td>
+   <td style="text-align:left;">  </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> 1 (.25 ounce) package active dry yeast </td>
+   <td style="text-align:left;"> Manaaeesh Flatbread </td>
+   <td style="text-align:left;"> 1, 25 </td>
+   <td style="text-align:left;"> ounce </td>
+   <td style="text-align:left;"> FALSE </td>
+   <td style="text-align:right;"> 0 </td>
+   <td style="text-align:right;"> 0.00 </td>
+   <td style="text-align:right;"> 1.0000000 </td>
+   <td style="text-align:left;"> oz </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> 2 tablespoons lemon juice </td>
+   <td style="text-align:left;"> Honey-Dijon Chicken </td>
+   <td style="text-align:left;"> 2 </td>
+   <td style="text-align:left;">  </td>
+   <td style="text-align:left;"> FALSE </td>
+   <td style="text-align:right;"> 0 </td>
+   <td style="text-align:right;"> 0.00 </td>
+   <td style="text-align:right;"> 2.0000000 </td>
+   <td style="text-align:left;">  </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> Sauce: </td>
+   <td style="text-align:left;"> Spaghetti and Meatballs (Paleo Style) </td>
+   <td style="text-align:left;">  </td>
+   <td style="text-align:left;">  </td>
+   <td style="text-align:left;"> FALSE </td>
+   <td style="text-align:right;"> 0 </td>
+   <td style="text-align:right;"> 0.00 </td>
+   <td style="text-align:right;"> NA </td>
+   <td style="text-align:left;">  </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> 4 1/4 cups all-purpose flour </td>
+   <td style="text-align:left;"> Sweet-as-Sugar Cookies </td>
+   <td style="text-align:left;"> 4, 1/4 </td>
+   <td style="text-align:left;">  </td>
+   <td style="text-align:left;"> FALSE </td>
+   <td style="text-align:right;"> 0 </td>
+   <td style="text-align:right;"> 4.25 </td>
+   <td style="text-align:right;"> 4.2500000 </td>
+   <td style="text-align:left;">  </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> 1/4 teaspoon black pepper </td>
+   <td style="text-align:left;"> Crustless Feta and Cheddar Quiche </td>
+   <td style="text-align:left;"> 1/4 </td>
+   <td style="text-align:left;">  </td>
+   <td style="text-align:left;"> FALSE </td>
+   <td style="text-align:right;"> 0 </td>
+   <td style="text-align:right;"> 0.00 </td>
+   <td style="text-align:right;"> 0.2500000 </td>
+   <td style="text-align:left;">  </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> 4 (6 ounce) salmon fillets </td>
+   <td style="text-align:left;"> Glazed Salmon </td>
+   <td style="text-align:left;"> 4, 6 </td>
+   <td style="text-align:left;"> ounce </td>
+   <td style="text-align:left;"> FALSE </td>
+   <td style="text-align:right;"> 0 </td>
+   <td style="text-align:right;"> 24.00 </td>
+   <td style="text-align:right;"> 24.0000000 </td>
+   <td style="text-align:left;"> oz </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> 2 dashes aromatic bitters (such as Angostura®) </td>
+   <td style="text-align:left;"> The Delmonico Cocktail </td>
+   <td style="text-align:left;"> 2 </td>
+   <td style="text-align:left;">  </td>
+   <td style="text-align:left;"> FALSE </td>
+   <td style="text-align:right;"> 0 </td>
+   <td style="text-align:right;"> 0.00 </td>
+   <td style="text-align:right;"> 2.0000000 </td>
+   <td style="text-align:left;">  </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> 3 tablespoons sliced almonds, toasted </td>
+   <td style="text-align:left;"> Easy Puebla-Style Chicken Mole </td>
+   <td style="text-align:left;"> 3 </td>
+   <td style="text-align:left;">  </td>
+   <td style="text-align:left;"> FALSE </td>
+   <td style="text-align:right;"> 0 </td>
+   <td style="text-align:right;"> 0.00 </td>
+   <td style="text-align:right;"> 3.0000000 </td>
+   <td style="text-align:left;">  </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> 1 large Spanish onion, sliced </td>
+   <td style="text-align:left;"> Red Wine Braised Short Ribs with Smashed Fall Vegetables </td>
+   <td style="text-align:left;"> 1 </td>
+   <td style="text-align:left;">  </td>
+   <td style="text-align:left;"> FALSE </td>
+   <td style="text-align:right;"> 0 </td>
+   <td style="text-align:right;"> 0.00 </td>
+   <td style="text-align:right;"> 1.0000000 </td>
+   <td style="text-align:left;">  </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> 1 bunch scallions, sliced diagonally into 2-inch pieces </td>
+   <td style="text-align:left;"> Japanese Beef with Soba Noodles </td>
+   <td style="text-align:left;"> 1, 2 </td>
+   <td style="text-align:left;">  </td>
+   <td style="text-align:left;"> FALSE </td>
+   <td style="text-align:right;"> 0 </td>
+   <td style="text-align:right;"> 0.00 </td>
+   <td style="text-align:right;"> 1.0000000 </td>
+   <td style="text-align:left;">  </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> 1/4 cup water </td>
+   <td style="text-align:left;"> Seasoned Broccoli Spears </td>
+   <td style="text-align:left;"> 1/4 </td>
+   <td style="text-align:left;">  </td>
+   <td style="text-align:left;"> FALSE </td>
+   <td style="text-align:right;"> 0 </td>
+   <td style="text-align:right;"> 0.00 </td>
+   <td style="text-align:right;"> 0.2500000 </td>
+   <td style="text-align:left;">  </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> 1 teaspoon baking powder </td>
+   <td style="text-align:left;"> Banana Coffee Cake with Pecans </td>
+   <td style="text-align:left;"> 1 </td>
+   <td style="text-align:left;">  </td>
+   <td style="text-align:left;"> FALSE </td>
+   <td style="text-align:right;"> 0 </td>
+   <td style="text-align:right;"> 0.00 </td>
+   <td style="text-align:right;"> 1.0000000 </td>
+   <td style="text-align:left;">  </td>
+  </tr>
+</tbody>
+</table>
+
+
+
 ## NLP
 
 
@@ -8971,7 +9489,7 @@ pairwise_per_rec %>%
   theme_void()
 ```
 
-![](writeup_files/figure-html/unnamed-chunk-9-1.png)<!-- -->
+![](writeup_files/figure-html/unnamed-chunk-19-1.png)<!-- -->
 
 
 

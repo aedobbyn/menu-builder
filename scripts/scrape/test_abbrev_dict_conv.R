@@ -1,7 +1,7 @@
 library(measurements)
 
 # Set up exception handling
-try_conv <- possibly(conv_unit, otherwise = NA)
+try_conv <- possibly(measurements::conv_unit, otherwise = NA)
 
 test_abbrev_dict_conv <- function(dict, key_col, val = 10) {
   

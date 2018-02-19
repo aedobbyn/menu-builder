@@ -52,6 +52,9 @@ expect_silent(some_recipes_tester %>% get_portions(add_abbrevs = TRUE))
 
 # -------- Conversions ------
 
+# Make sure conv_unit works
+expect_equal(396.89, conv_unit(more_recipes_df[3, ]$portion, more_recipes_df[3, ]$portion_abbrev, "g") %>% round(digits = 2))
+
 converted_units <- test_abbrev_dict_conv(abbrev_dict, key)
 converted_units_w_accepted <- test_abbrev_dict_conv(abbrev_dict_w_accepted, accepted)
 
