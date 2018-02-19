@@ -17,6 +17,7 @@ units <- c(
   "grams", "gram",
   "heads", "head",
   "quarts", "quart",
+  "gallons", "gallon",     # <-- my addition
   "stalks", "stalk",
   "pints", "pint",
   "pieces", "piece",
@@ -30,6 +31,7 @@ units <- c(
   "bulbs", "bulb",
   "bottles", "bottle"
 )
+
 
 ## This actually doesn't remove plurals with "es"
 # remove_plurals <- function(vec) {
@@ -81,8 +83,8 @@ get_measurement_types_from_source <- function(measurement_url = "https://www.con
     filter(! name %in% c("dessert", "spoon", "fluid", "fl") & nchar(name) > 0) 
   
   # Add in things that didn't have abbreviations 
-  needs_abbrev <- c("tablespoon", "teaspoon", "cup", "fluid ounce")
-  abbrevs_needed <- c("tbsp", "tsp", "cup", "fluid oz")
+  needs_abbrev <- c("tablespoon", "teaspoon", "cup", "fluid ounce", "gallon")
+  abbrevs_needed <- c("tbsp", "tsp", "cup", "fluid oz", "gal")
   extra_measurements <- list(name = needs_abbrev, key = abbrevs_needed) %>% as_tibble()
   
   measurement_types <<- measurement_types %>% filter(!name %in% needs_abbrev) 
