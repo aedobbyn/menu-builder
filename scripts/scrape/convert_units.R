@@ -62,10 +62,11 @@ length(convertables$converted[is.na(convertables$converted)]) / length(convertab
 
 
 
-more_recipes_df_head <- more_recipes_df_head %>% 
+more_recipes_df <- more_recipes_df %>% 
   left_join(abbrev_dict, by = c("portion_abbrev" = "key"))
 
-
+more_recipes_df_head <- more_recipes_df_head %>% 
+  left_join(abbrev_dict, by = c("portion_abbrev" = "key"))
 
 
 convert_units <- function(df, name_col = accepted, val_col = portion) {
@@ -74,7 +75,7 @@ convert_units <- function(df, name_col = accepted, val_col = portion) {
   quo_val_col <- enquo(val_col)
   
   out <- df %>% 
-    # left_join(abbrev_dict, by = c(!!quo_name_col, "key")) %>% 
+    # left_join(abbrev_dict, by = c(!!quo_name_col = "key")) %>% 
     # na_if(!!quo_val_col == "") %>%
     rowwise() %>% 
     mutate(
@@ -100,10 +101,14 @@ more_recipes_df_head %>% convert_units() %>% View()
 
 more_recipes_df %>% 
   left_join(abbrev_dict, by = c("portion_abbrev" = "key")) %>% 
-  sample_n(30) %>% 
+  sample_n(300) %>%
   convert_units() %>% View()
 
-
-
+# Test that this works with volume
+more_recipes_df %>% 
+  filter(portion_abbrev %in% c("cup", "tbsp", "tsp", "pt")) %>% 
+  sample_n(5) %>% 
+  left_join(abbrev_dict, by = c("portion_abbrev" = "key")) %>% 
+  convert_units()
 
 
