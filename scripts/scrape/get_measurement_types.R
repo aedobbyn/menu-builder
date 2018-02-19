@@ -96,6 +96,15 @@ get_measurement_types_from_source <- function(measurement_url = "https://www.con
     select(-rownum) 
   abbrev_dict <- abbrev_dict %>% bind_rows(extra_measurements)
   
+  # We need to put the prefix "us_" before some of our units in order to conver to grams
+  to_usize <- c("tsp", "tbsp", "cup", "pint")   # "quart", "gal"
+  
+  accepted <- c("oz", "pint", "lbs", "kg", "g", "l", "dl", "ml", "tbsp", "tsp", "cup", "oz")
+  accepted[which(accepted %in% to_usize)] <- stringr::str_c("us_", accepted[which(accepted %in% to_usize)])
+  
+  # cbind this to our dictionary 
+  abbrev_dict_w_accepted <<- abbrev_dict %>% bind_cols(accepted = accepted)
+  
   if (add_other_measurement_types == TRUE) {
     measurement_types <- add_other_measurement_types()
   }
@@ -131,10 +140,12 @@ get_measurement_types_from_source_collapsed <- function() {
 
 
 
+
 get_measurement_types <- function(from_file = TRUE) {
   if (from_file == TRUE) {
     measures_collapsed <<- read_rds("./data/derived/measurement_types.rds")
     abbrev_dict <<- read_feather("./data/derived/abbrev_dict.feather")
+    abbrev_dict_w_accepted <<- read_feather("./data/derived/abbrev_dict_w_accepted.feather")
   } else {
     measures_collapsed <<- get_measurement_types_from_source_collapsed()
   }

@@ -1768,6 +1768,150 @@ some_recipes_tester %>% get_portions(pare_portion_info = TRUE) %>% add_abbrevs()
 We've got some units! Next step will be to convert all units into grams, so that we have them all in a standardized format.
 
 
+**Converting to Grams**
+
+Rather than rolling our own conversion dictionary, let's turn to the `measurements` package that sports the `conv_unit()` function for going from one unit to another. For example
+
+```{r inch_to_cm}
+conv_unit(12, "inch", "cm")
+```
+
+
+Let's see how that'll work with our data. Let's take our `r more_recipes_df[3, ]$portion` `r more_recipes_df[3, ]$portion_abbrev` to grams.
+
+```{r test_conv_unit}
+conv_unit(more_recipes_df[3, ]$portion, more_recipes_df[3, ]$portion_abbrev, "g")
+```
+
+Let's see which of our units `conv_unit()` can successfully convert out of the box.
+
+We'll set up exception handling so that `conv_unit()` gives us an `NA` rather than an error if it encounters a value it can't convert properly. 
+
+```{r try_conv}
+try_conv <- possibly(conv_unit, otherwise = NA)
+```
+
+We'll mutate our dataframe, adding a new column to convert to either grams in the case that our unit is a solid or mililieters if it's a liquid. These have a 1-to-1 conversion (1g = 1ml) so we'll take whichever one of these is not a missing value and put that in our `converted` column.
+
+We'll use a sample value of 10 for everything.
+
+```{r test_abbrev_dict_conv}
+test_abbrev_dict_conv <- function(dict, key_col, val = 10) {
+  
+  quo_col <- enquo(key_col)
+  
+  out <- dict %>% 
+    rowwise() %>% 
+    mutate(
+      converted_g = try_conv(val, !!quo_col, "g"),
+      converted_ml = try_conv(val, !!quo_col, "ml"),
+      converted = case_when(
+        !is.na(converted_g) ~ converted_g,
+        !is.na(converted_ml) ~ converted_ml
+      )
+    )
+  
+  return(out)
+}
+```
+
+```{r}
+test_abbrev_dict_conv(abbrev_dict, key)
+```
+
+What proportion of the portion abbreviations are we able to to convert to grams off the bat?
+```{r}
+length(convertables$converted[!is.na(convertables$converted)]) / length(convertables$converted)
+```
+
+We can take a look at the units that `measurements` provides conversions for to see if we'll need to go elsewhere to do the conversion math ourselves.
+
+```{r}
+conv_unit_options$volume
+```
+
+This explains why `pint`, `cup`, etc. weren't convertable. It looks like we need to put the prefix `"us_"` before some of our units. We'll create a new `accepted` column of `abbrev_units` that provides the convertable 
+
+
+```{r}
+to_usize <- c("tsp", "tbsp", "cup", "pint")  
+
+accepted <- c("oz", "pint", "lbs", "kg", "g", "l", "dl", "ml", "tbsp", "tsp", "cup", "oz")
+accepted[which(accepted %in% to_usize)] <- 
+  stringr::str_c("us_", accepted[which(accepted %in% to_usize)])
+
+# cbind this to our dictionary 
+abbrev_dict_w_accepted <- abbrev_dict %>% bind_cols(accepted = accepted)
+```
+
+What percentage of units are we able to convert now?
+```{r}
+test_abbrev_dict_conv(abbrev_dict_w_accepted, accepted)
+```
+
+Looks like all of them! Good stuff.
+
+Let's write a function to convert units for our real dataframe.
+
+
+```{r}
+convert_units <- function(df, name_col = accepted, val_col = portion,
+                          pare_down = TRUE) {
+  
+  quo_name_col <- enquo(name_col)
+  quo_val_col <- enquo(val_col)
+  
+  out <- df %>% 
+    rowwise() %>% 
+    mutate(
+      converted_g = try_conv(!!quo_val_col, !!quo_name_col, "g"),
+      converted_ml = try_conv(!!quo_val_col, !!quo_name_col, "ml"), 
+      converted = case_when(
+        !is.na(converted_g) ~ as.numeric(converted_g), 
+        !is.na(converted_ml) ~ as.numeric(converted_ml), 
+        is.na(converted_g) && is.na(converted_ml) ~ NA_real_ 
+      )
+    ) 
+  
+  if (pare_down == TRUE) {
+    out <- out %>% 
+      select(-converted_g, -converted_ml)
+  }
+  
+  return(out)
+}
+```
+
+
+Next let's add an `accepted` column onto our dataframe to get our units in the right format and run our function.
+
+```{r}
+more_recipes_df %>% 
+  left_join(abbrev_dict_w_accepted, by = c("portion_abbrev" = "key")) %>% 
+  sample_n(30) %>%
+  convert_units()
+```
+
+
+
+**All the data**
+
+Let's put it all together, scraping all of our URLs.
+
+```{r, eval=FALSE}
+recipes_raw <- more_urls %>% get_recipes(sleep = 3)
+recipes <- recipes_raw[!recipes_raw == "Bad URL"]
+
+recipes_df <- recipes %>% 
+  dfize() %>% 
+  get_portions() %>% 
+  add_abbrevs() %>% 
+  left_join(abbrev_dict_w_accepted, by = c("portion_abbrev" = "key")) %>% 
+  convert_units()
+```
+
+
+
 ## NLP
 
 

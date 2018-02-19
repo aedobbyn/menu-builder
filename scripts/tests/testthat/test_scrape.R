@@ -46,3 +46,19 @@ expect_silent(some_recipes_tester %>% get_portions() %>% add_abbrevs())
 expect_silent(some_recipes_tester %>% get_portion_text() %>% add_abbrevs %>% get_portion_values())
 expect_silent(some_recipes_tester %>% get_portions(add_abbrevs = TRUE))
 
+
+
+
+
+# -------- Conversions ------
+
+converted_units <- test_abbrev_dict_conv(abbrev_dict, key)
+converted_units_w_accepted <- test_abbrev_dict_conv(abbrev_dict_w_accepted, accepted)
+
+# Pre-processing we can only convert 3/4 of units. Post- it should be 100%.
+expect_equal(0.75, length(converted_units$converted[!is.na(converted_units$converted)]) / length(converted_units$converted))
+expect_equal(1, length(converted_units_w_accepted$converted[!is.na(converted_units_w_accepted$converted)]) / length(converted_units_w_accepted$converted))
+
+
+
+
