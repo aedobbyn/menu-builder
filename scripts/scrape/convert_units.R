@@ -37,6 +37,10 @@ test_abbrev_dict_conv <- function(dict, key_col, val = 10) {
 }
 test_abbrev_dict_conv(abbrev_dict, key)
 
+# What percent of 
+length(convertables$converted[is.na(convertables$converted)]) / length(convertables$converted)
+
+
 
 # We need to put the prefix "us_" before some of our units
 to_usize <- c("tsp", "tbsp", "cup", "pint")   # "quart", "gal"
@@ -58,7 +62,8 @@ length(convertables$converted[is.na(convertables$converted)]) / length(convertab
 
 
 
-
+more_recipes_df_head <- more_recipes_df_head %>% 
+  left_join(abbrev_dict, by = c("portion_abbrev" = "key"))
 
 
 
@@ -70,36 +75,33 @@ convert_units <- function(df, name_col = accepted, val_col = portion) {
   
   out <- df %>% 
     # left_join(abbrev_dict, by = c(!!quo_name_col, "key")) %>% 
-    # na_if(!!quo_val_col == "") %>% 
+    # na_if(!!quo_val_col == "") %>%
     rowwise() %>% 
     mutate(
-      converted_g = try_conv(!!quo_val_col, accepted, "g"),
-      converted_ml = try_conv(!!quo_val_col, accepted, "ml"),
+      # value = na_if(!!quo_val_col, ""),
+      converted_g = try_conv(!!quo_val_col, !!quo_name_col, "g"),
+      converted_ml = try_conv(!!quo_val_col, !!quo_name_col, "ml"), 
       converted = case_when(
-        !is.na(converted_g) ~ converted_g,
-        !is.na(converted_ml) ~ converted_ml
+        !is.na(converted_g) ~ as.numeric(converted_g), 
+        !is.na(converted_ml) ~ as.numeric(converted_ml), 
+        is.na(converted_g) && is.na(converted_ml) ~ NA_real_ 
       )
-    )
+    ) 
+
   
   return(out)
 }
 
-more_recipes_df_head <- more_recipes_df_head %>% 
-  left_join(abbrev_dict, by = c("portion_abbrev" = "key"))
 
-
-more_recipes_df_head %>% convert_units()
+more_recipes_df_head %>% convert_units() %>% View()
   
 
 
-abbrev_dict %>% left_join(more_recipes_df_head, by = c("key" = "portion_abbrev")) %>% convert_units() %>% View()
-
 
 more_recipes_df %>% 
+  left_join(abbrev_dict, by = c("portion_abbrev" = "key")) %>% 
   sample_n(30) %>% 
-  mutate(
-    foo = ifelse(portion_abbrev == "", "", conv_unit(portion, portion_abbrev, "g"))
-  ) %>% View()
+  convert_units() %>% View()
 
 
 
