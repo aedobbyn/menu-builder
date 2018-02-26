@@ -8,8 +8,8 @@ library(testthat)
 library(dobtools)
 
 # Source in script for grabbing all the types of measurements (pound, ounce, etc. and their abbreviations in abbrev_dict())
-source("./scripts/scrape/urls.R")
-source("./scripts/scrape/get_measurement_types.R")
+# source("./scripts/scrape/urls.R")
+# source("./scripts/scrape/get_measurement_types.R")   # <-- don't uncomment or will currenlty break dobdown
 
 remove_whitespace <- function(str) {
   str <- str %>% str_split(" ") %>% as_vector()
@@ -52,11 +52,7 @@ get_recipes <- function(urls, sleep = 5, verbose = TRUE, append_bad_URLs = TRUE)
   bad_url_counter <- 0
   duped_recipe_counter <- 0
   
-  if (append_bad_URLs == TRUE) {
-    out <- vector(length = length(urls))    
-  } else {
-    out <- NULL       # In this case we don't know how long our list will be 
-  }
+  out <- NULL
   
   for (url in urls) {
     Sys.sleep(sleep)    # Sleep in between requests to avoid 429 (too many requests)

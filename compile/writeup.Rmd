@@ -1608,6 +1608,34 @@ dash_reg_1 <- "([0-9])((-))(([0-9]))"
 dash_reg_2 <- "([0-9])(( - ))(([0-9]))"
 ```
 
+First, a couple helpers. If two numbers are separated by an "or" or a "-" we know that this is a range, e.g., 4-5 teaspoons of sugar.
+```{r determine_if_range}
+determine_if_range <- function(ingredients) {
+  if (str_detect(ingredients, pattern = to_reg) | 
+      str_detect(ingredients, pattern = or_reg) |
+      str_detect(ingredients, pattern = dash_reg_1) |
+      str_detect(ingredients, pattern = dash_reg_2)) {
+    contains_range <- TRUE
+  } else {
+    contains_range <- FALSE
+  }
+  return(contains_range)
+}
+```
+
+
+And, we'll want to be able to get the mean of the first two elements in a numeric vector.
+```{r get_portion_means}
+get_portion_means <- function(e) {
+  if (length(e) == 0) {
+    e <- 0    # NA to 0
+  } else if (length(e) > 1) {
+      e <- mean(e[1:2])
+  }
+  return(e)
+}
+```
+
 
 ```{r get_ranges}
 get_ranges <- function(e) {
@@ -1674,7 +1702,7 @@ Looks pretty solid.
 
 **Extracting Measurement Units**
 
-Now onto easier waters: portion names. You can check out `/scripts/scrape/get_measurement_types.R` if you're interested in the steps I took to find some usual portion names and create an abbreviation dictionary, `abbrev_dict`. What we also do there is create `measures_collapsed` which is a single vector of all portion names separated by "|" so we can find all the portion names that might occur in a given item.
+Now onto easier waters: portion names. You can check out [`/scripts/scrape/get_measurement_types.R`](https://github.com/aedobbyn/menu-builder/blob/master/scripts/scrape/get_measurement_types.R)  if you're interested in the steps I took to find some usual portion names and create an abbreviation dictionary, `abbrev_dict`. What we also do there is create `measures_collapsed` which is a single vector of all portion names separated by "|" so we can find all the portion names that might occur in a given item.
 
 ```{r measures_collapsed}
 measures_collapsed
@@ -1858,7 +1886,7 @@ Let's write a function to convert units for our real dataframe.
 
 ```{r}
 convert_units <- function(df, name_col = accepted, val_col = portion,
-                          pare_down = TRUE) {
+                          pare_down = TRUE, round_to = 2) {
   
   quo_name_col <- enquo(name_col)
   quo_val_col <- enquo(val_col)
@@ -1866,8 +1894,8 @@ convert_units <- function(df, name_col = accepted, val_col = portion,
   out <- df %>% 
     rowwise() %>% 
     mutate(
-      converted_g = try_conv(!!quo_val_col, !!quo_name_col, "g"),
-      converted_ml = try_conv(!!quo_val_col, !!quo_name_col, "ml"), 
+      converted_g = try_conv(!!quo_val_col, !!quo_name_col, "g") %>% round(digits = round_to),
+      converted_ml = try_conv(!!quo_val_col, !!quo_name_col, "ml") %>% round(digits = round_to), 
       converted = case_when(
         !is.na(converted_g) ~ as.numeric(converted_g), 
         !is.na(converted_ml) ~ as.numeric(converted_ml), 
@@ -1891,14 +1919,15 @@ Next let's add an `accepted` column onto our dataframe to get our units in the r
 more_recipes_df %>% 
   left_join(abbrev_dict_w_accepted, by = c("portion_abbrev" = "key")) %>% 
   sample_n(30) %>%
-  convert_units()
+  convert_units() %>% 
+  kable(format = "html")
 ```
 
 
 
 **All the data**
 
-Let's put it all together, scraping all of our URLs.
+Let's put it all together, scraping all of our URLs and doing all of the munging in order.
 
 ```{r, eval=FALSE}
 recipes_raw <- more_urls %>% get_recipes(sleep = 3)
@@ -1912,8 +1941,13 @@ recipes_df <- recipes %>%
   convert_units()
 ```
 
-```{r, echo=FALSE, eval=TRUE}
-more_recipes_df %>% sample_n(20) %>% kable(format = "html")
+```{r, echo=TRUE, eval=TRUE}
+set.seed(1234)
+
+recipes_df %>% 
+  sample_n(20) %>%
+  select(ingredients, recipe_name, portion, portion_abbrev, converted) %>% 
+  kable(format = "html")
 ```
 
 

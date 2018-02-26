@@ -1,4 +1,4 @@
-
+library(here)
 library(feather)
 
 # Other measurement types from https://github.com/NYTimes/ingredient-phrase-tagger/blob/master/ingredient_phrase_tagger/training/utils.py
@@ -159,9 +159,9 @@ get_measurement_types_from_source_collapsed <- function() {
 
 get_measurement_types <- function(from_file = TRUE) {
   if (from_file == TRUE) {
-    measures_collapsed <<- read_rds("./data/derived/measurement_types.rds")
-    abbrev_dict <<- read_feather("./data/derived/abbrev_dict.feather")
-    abbrev_dict_w_accepted <<- read_feather("./data/derived/abbrev_dict_w_accepted.feather")
+    measures_collapsed <<- read_rds(here("data", "derived", "measurement_types.rds"))
+    abbrev_dict <<- read_rds(here("data", "derived", "abbrev_dict.feather"))
+    abbrev_dict_w_accepted <<- read_rds(here("data", "derived", "abbrev_dict_w_accepted.feather"))
   } else {
     measures_collapsed <<- get_measurement_types_from_source_collapsed()
   }

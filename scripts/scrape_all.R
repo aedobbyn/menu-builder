@@ -1,6 +1,7 @@
 
 # # ---------- Get a lot of recipes ---------
 source("./scripts/scrape/urls.R")
+get_measurement_types(from_file = TRUE)
 
 more_recipes_raw <- more_urls %>% get_recipes(sleep = 3)
 more_recipes <- more_recipes_raw[!more_recipes_raw == "Bad URL"]

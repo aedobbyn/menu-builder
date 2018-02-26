@@ -19701,38 +19701,8 @@ abbrev_dict_w_accepted &lt;- abbrev_dict %&gt;% bind_cols(accepted = accepted)</
 <pre class="r"><code>more_recipes_df %&gt;% 
   left_join(abbrev_dict_w_accepted, by = c(&quot;portion_abbrev&quot; = &quot;key&quot;)) %&gt;% 
   sample_n(30) %&gt;%
-  convert_units()</code></pre>
-<pre><code>## Source: local data frame [30 x 12]
-## Groups: &lt;by row&gt;
-## 
-## # A tibble: 30 x 12
-##                         ingredients
-##                               &lt;chr&gt;
-##  1          4 KRAFT 2% Milk Singles
-##  2 1 (14.5 ounce) can chicken broth
-##  3                    3/4 cup honey
-##  4 1/2 cup sweetened flaked coconut
-##  5                           2 eggs
-##  6      1 (.25 ounce) package yeast
-##  7              1/4 teaspoon pepper
-##  8                  1 teaspoon salt
-##  9       1 cup chopped baby spinach
-## 10        1/4 teaspoon curry powder
-## # ... with 20 more rows, and 11 more variables: recipe_name &lt;chr&gt;,
-## #   raw_portion_num &lt;chr&gt;, portion_name &lt;chr&gt;, approximate &lt;lgl&gt;,
-## #   range_portion &lt;dbl&gt;, mult_add_portion &lt;dbl&gt;, portion &lt;dbl&gt;,
-## #   portion_abbrev &lt;chr&gt;, name &lt;chr&gt;, accepted &lt;chr&gt;, converted &lt;dbl&gt;</code></pre>
-<p><strong>All the data</strong></p>
-<p>Let’s put it all together, scraping all of our URLs.</p>
-<pre class="r"><code>recipes_raw &lt;- more_urls %&gt;% get_recipes(sleep = 3)
-recipes &lt;- recipes_raw[!recipes_raw == &quot;Bad URL&quot;]
-
-recipes_df &lt;- recipes %&gt;% 
-  dfize() %&gt;% 
-  get_portions() %&gt;% 
-  add_abbrevs() %&gt;% 
-  left_join(abbrev_dict_w_accepted, by = c(&quot;portion_abbrev&quot; = &quot;key&quot;)) %&gt;% 
-  convert_units()</code></pre>
+  convert_units() %&gt;% 
+  kable(format = &quot;html&quot;)</code></pre>
 <table>
 <thead>
 <tr>
@@ -19763,47 +19733,30 @@ portion
 <th style="text-align:left;">
 portion_abbrev
 </th>
+<th style="text-align:left;">
+name
+</th>
+<th style="text-align:left;">
+accepted
+</th>
+<th style="text-align:right;">
+converted
+</th>
 </tr>
 </thead>
 <tbody>
 <tr>
 <td style="text-align:left;">
-1/3 cup butter
+1 (14.5 ounce) can chicken broth
 </td>
 <td style="text-align:left;">
-Scalloped Carrots
+African Chicken in Spicy Red Sauce
 </td>
 <td style="text-align:left;">
-1/3
+1, 14.5
 </td>
 <td style="text-align:left;">
-</td>
-<td style="text-align:left;">
-FALSE
-</td>
-<td style="text-align:right;">
-0
-</td>
-<td style="text-align:right;">
-0.00
-</td>
-<td style="text-align:right;">
-0.3333333
-</td>
-<td style="text-align:left;">
-</td>
-</tr>
-<tr>
-<td style="text-align:left;">
-1/2 cup Egg Beaters
-</td>
-<td style="text-align:left;">
-French Toast
-</td>
-<td style="text-align:left;">
-1/2
-</td>
-<td style="text-align:left;">
+ounce
 </td>
 <td style="text-align:left;">
 FALSE
@@ -19812,127 +19765,30 @@ FALSE
 0
 </td>
 <td style="text-align:right;">
-0.00
+14.50
 </td>
 <td style="text-align:right;">
-0.5000000
+14.5000000
 </td>
 <td style="text-align:left;">
+oz
+</td>
+<td style="text-align:left;">
+ounce
+</td>
+<td style="text-align:left;">
+oz
+</td>
+<td style="text-align:right;">
+411.06809
 </td>
 </tr>
 <tr>
 <td style="text-align:left;">
-Freshly ground pepper to taste
+1 cup blueberries
 </td>
 <td style="text-align:left;">
-Mary’s Zucchini with Parmesan
-</td>
-<td style="text-align:left;">
-</td>
-<td style="text-align:left;">
-</td>
-<td style="text-align:left;">
-TRUE
-</td>
-<td style="text-align:right;">
-0
-</td>
-<td style="text-align:right;">
-0.00
-</td>
-<td style="text-align:right;">
-NA
-</td>
-<td style="text-align:left;">
-</td>
-</tr>
-<tr>
-<td style="text-align:left;">
-2 cloves garlic, minced
-</td>
-<td style="text-align:left;">
-White Bean Tabbouleh
-</td>
-<td style="text-align:left;">
-2
-</td>
-<td style="text-align:left;">
-</td>
-<td style="text-align:left;">
-FALSE
-</td>
-<td style="text-align:right;">
-0
-</td>
-<td style="text-align:right;">
-0.00
-</td>
-<td style="text-align:right;">
-2.0000000
-</td>
-<td style="text-align:left;">
-</td>
-</tr>
-<tr>
-<td style="text-align:left;">
-1/4 cup drained and rinsed black beans, or more to taste
-</td>
-<td style="text-align:left;">
-Delicious Spinach Salad
-</td>
-<td style="text-align:left;">
-1/4
-</td>
-<td style="text-align:left;">
-</td>
-<td style="text-align:left;">
-TRUE
-</td>
-<td style="text-align:right;">
-0
-</td>
-<td style="text-align:right;">
-0.00
-</td>
-<td style="text-align:right;">
-0.2500000
-</td>
-<td style="text-align:left;">
-</td>
-</tr>
-<tr>
-<td style="text-align:left;">
-2 cups milk
-</td>
-<td style="text-align:left;">
-Strawberry Cream Pie
-</td>
-<td style="text-align:left;">
-2
-</td>
-<td style="text-align:left;">
-</td>
-<td style="text-align:left;">
-FALSE
-</td>
-<td style="text-align:right;">
-0
-</td>
-<td style="text-align:right;">
-0.00
-</td>
-<td style="text-align:right;">
-2.0000000
-</td>
-<td style="text-align:left;">
-</td>
-</tr>
-<tr>
-<td style="text-align:left;">
-1 tablespoon olive oil
-</td>
-<td style="text-align:left;">
-Loaded Queso Fundido
+Fourth of July Salad
 </td>
 <td style="text-align:left;">
 1
@@ -19953,16 +19809,25 @@ FALSE
 </td>
 <td style="text-align:left;">
 </td>
+<td style="text-align:left;">
+NA
+</td>
+<td style="text-align:left;">
+NA
+</td>
+<td style="text-align:right;">
+NA
+</td>
 </tr>
 <tr>
 <td style="text-align:left;">
-9 cups chicken stock
+1/2 cup sweetened flaked coconut
 </td>
 <td style="text-align:left;">
-Wonton Soup without Ginger
+Baked Coconut Shrimp with Spicy Dipping Sauce
 </td>
 <td style="text-align:left;">
-9
+1/2
 </td>
 <td style="text-align:left;">
 </td>
@@ -19976,17 +19841,62 @@ FALSE
 0.00
 </td>
 <td style="text-align:right;">
-9.0000000
+0.5000000
 </td>
 <td style="text-align:left;">
+</td>
+<td style="text-align:left;">
+NA
+</td>
+<td style="text-align:left;">
+NA
+</td>
+<td style="text-align:right;">
+NA
 </td>
 </tr>
 <tr>
 <td style="text-align:left;">
-1 (.25 ounce) package active dry yeast
+2 eggs
 </td>
 <td style="text-align:left;">
-Manaaeesh Flatbread
+Tuna Fish Patties
+</td>
+<td style="text-align:left;">
+2
+</td>
+<td style="text-align:left;">
+</td>
+<td style="text-align:left;">
+FALSE
+</td>
+<td style="text-align:right;">
+0
+</td>
+<td style="text-align:right;">
+0.00
+</td>
+<td style="text-align:right;">
+2.0000000
+</td>
+<td style="text-align:left;">
+</td>
+<td style="text-align:left;">
+NA
+</td>
+<td style="text-align:left;">
+NA
+</td>
+<td style="text-align:right;">
+NA
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+1 (.25 ounce) package yeast
+</td>
+<td style="text-align:left;">
+White Pizza with Mushrooms
 </td>
 <td style="text-align:left;">
 1, 25
@@ -20009,13 +19919,350 @@ FALSE
 <td style="text-align:left;">
 oz
 </td>
+<td style="text-align:left;">
+ounce
+</td>
+<td style="text-align:left;">
+oz
+</td>
+<td style="text-align:right;">
+28.34952
+</td>
 </tr>
 <tr>
 <td style="text-align:left;">
-2 tablespoons lemon juice
+1/4 teaspoon pepper
 </td>
 <td style="text-align:left;">
-Honey-Dijon Chicken
+Caramelized Pork Slices
+</td>
+<td style="text-align:left;">
+1/4
+</td>
+<td style="text-align:left;">
+</td>
+<td style="text-align:left;">
+FALSE
+</td>
+<td style="text-align:right;">
+0
+</td>
+<td style="text-align:right;">
+0.00
+</td>
+<td style="text-align:right;">
+0.2500000
+</td>
+<td style="text-align:left;">
+</td>
+<td style="text-align:left;">
+NA
+</td>
+<td style="text-align:left;">
+NA
+</td>
+<td style="text-align:right;">
+NA
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+1 teaspoon salt
+</td>
+<td style="text-align:left;">
+Seasoned Hamburger Mix
+</td>
+<td style="text-align:left;">
+1
+</td>
+<td style="text-align:left;">
+</td>
+<td style="text-align:left;">
+FALSE
+</td>
+<td style="text-align:right;">
+0
+</td>
+<td style="text-align:right;">
+0.00
+</td>
+<td style="text-align:right;">
+1.0000000
+</td>
+<td style="text-align:left;">
+</td>
+<td style="text-align:left;">
+NA
+</td>
+<td style="text-align:left;">
+NA
+</td>
+<td style="text-align:right;">
+NA
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+1 cup chopped baby spinach
+</td>
+<td style="text-align:left;">
+White Bean Tabbouleh
+</td>
+<td style="text-align:left;">
+1
+</td>
+<td style="text-align:left;">
+</td>
+<td style="text-align:left;">
+FALSE
+</td>
+<td style="text-align:right;">
+0
+</td>
+<td style="text-align:right;">
+0.00
+</td>
+<td style="text-align:right;">
+1.0000000
+</td>
+<td style="text-align:left;">
+</td>
+<td style="text-align:left;">
+NA
+</td>
+<td style="text-align:left;">
+NA
+</td>
+<td style="text-align:right;">
+NA
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+1/2 teaspoon sugar
+</td>
+<td style="text-align:left;">
+Baby Lettuces with Green Apple, Walnuts, and Dried Cranberries
+</td>
+<td style="text-align:left;">
+1/2
+</td>
+<td style="text-align:left;">
+</td>
+<td style="text-align:left;">
+FALSE
+</td>
+<td style="text-align:right;">
+0
+</td>
+<td style="text-align:right;">
+0.00
+</td>
+<td style="text-align:right;">
+0.5000000
+</td>
+<td style="text-align:left;">
+</td>
+<td style="text-align:left;">
+NA
+</td>
+<td style="text-align:left;">
+NA
+</td>
+<td style="text-align:right;">
+NA
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+1 cup milk
+</td>
+<td style="text-align:left;">
+Sweet Baked Onion Rings
+</td>
+<td style="text-align:left;">
+1
+</td>
+<td style="text-align:left;">
+</td>
+<td style="text-align:left;">
+FALSE
+</td>
+<td style="text-align:right;">
+0
+</td>
+<td style="text-align:right;">
+0.00
+</td>
+<td style="text-align:right;">
+1.0000000
+</td>
+<td style="text-align:left;">
+</td>
+<td style="text-align:left;">
+NA
+</td>
+<td style="text-align:left;">
+NA
+</td>
+<td style="text-align:right;">
+NA
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+2 cups water, or as needed - divided
+</td>
+<td style="text-align:left;">
+Bayrischer Schweinebraten (Bavarian Roast Pork)
+</td>
+<td style="text-align:left;">
+2
+</td>
+<td style="text-align:left;">
+</td>
+<td style="text-align:left;">
+TRUE
+</td>
+<td style="text-align:right;">
+0
+</td>
+<td style="text-align:right;">
+0.00
+</td>
+<td style="text-align:right;">
+2.0000000
+</td>
+<td style="text-align:left;">
+</td>
+<td style="text-align:left;">
+NA
+</td>
+<td style="text-align:left;">
+NA
+</td>
+<td style="text-align:right;">
+NA
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+1/2 teaspoon garlic salt
+</td>
+<td style="text-align:left;">
+Quinoa Crust Quiche
+</td>
+<td style="text-align:left;">
+1/2
+</td>
+<td style="text-align:left;">
+</td>
+<td style="text-align:left;">
+FALSE
+</td>
+<td style="text-align:right;">
+0
+</td>
+<td style="text-align:right;">
+0.00
+</td>
+<td style="text-align:right;">
+0.5000000
+</td>
+<td style="text-align:left;">
+</td>
+<td style="text-align:left;">
+NA
+</td>
+<td style="text-align:left;">
+NA
+</td>
+<td style="text-align:right;">
+NA
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+1 (15 ounce) can white or yellow corn, drained
+</td>
+<td style="text-align:left;">
+Black-Eyed Peas Salad
+</td>
+<td style="text-align:left;">
+1, 15
+</td>
+<td style="text-align:left;">
+ounce
+</td>
+<td style="text-align:left;">
+FALSE
+</td>
+<td style="text-align:right;">
+0
+</td>
+<td style="text-align:right;">
+15.00
+</td>
+<td style="text-align:right;">
+15.0000000
+</td>
+<td style="text-align:left;">
+oz
+</td>
+<td style="text-align:left;">
+ounce
+</td>
+<td style="text-align:left;">
+oz
+</td>
+<td style="text-align:right;">
+425.24285
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+1 (1.25 ounce) package TACO BELL HOME ORIGINALS Taco Seasoning Mix
+</td>
+<td style="text-align:left;">
+Burrito Bake
+</td>
+<td style="text-align:left;">
+1, 1.25
+</td>
+<td style="text-align:left;">
+ounce
+</td>
+<td style="text-align:left;">
+FALSE
+</td>
+<td style="text-align:right;">
+0
+</td>
+<td style="text-align:right;">
+1.25
+</td>
+<td style="text-align:right;">
+1.2500000
+</td>
+<td style="text-align:left;">
+oz
+</td>
+<td style="text-align:left;">
+ounce
+</td>
+<td style="text-align:left;">
+oz
+</td>
+<td style="text-align:right;">
+35.43690
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+2 cups cubed fully cooked ham
+</td>
+<td style="text-align:left;">
+Ham N Cheese Potato Bake
 </td>
 <td style="text-align:left;">
 2
@@ -20036,13 +20283,418 @@ FALSE
 </td>
 <td style="text-align:left;">
 </td>
+<td style="text-align:left;">
+NA
+</td>
+<td style="text-align:left;">
+NA
+</td>
+<td style="text-align:right;">
+NA
+</td>
 </tr>
 <tr>
 <td style="text-align:left;">
-Sauce:
+4 boneless lean pork loin chops
 </td>
 <td style="text-align:left;">
-Spaghetti and Meatballs (Paleo Style)
+Apples ‘n’ Onion Topped Chops
+</td>
+<td style="text-align:left;">
+4
+</td>
+<td style="text-align:left;">
+</td>
+<td style="text-align:left;">
+FALSE
+</td>
+<td style="text-align:right;">
+0
+</td>
+<td style="text-align:right;">
+0.00
+</td>
+<td style="text-align:right;">
+4.0000000
+</td>
+<td style="text-align:left;">
+</td>
+<td style="text-align:left;">
+NA
+</td>
+<td style="text-align:left;">
+NA
+</td>
+<td style="text-align:right;">
+NA
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+2/3 cup fat-free sour cream
+</td>
+<td style="text-align:left;">
+Mexican Beef and Corn Casserole from Country Crock®
+</td>
+<td style="text-align:left;">
+2/3
+</td>
+<td style="text-align:left;">
+</td>
+<td style="text-align:left;">
+FALSE
+</td>
+<td style="text-align:right;">
+0
+</td>
+<td style="text-align:right;">
+0.00
+</td>
+<td style="text-align:right;">
+0.6666667
+</td>
+<td style="text-align:left;">
+</td>
+<td style="text-align:left;">
+NA
+</td>
+<td style="text-align:left;">
+NA
+</td>
+<td style="text-align:right;">
+NA
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+1/2 cup chopped red onion
+</td>
+<td style="text-align:left;">
+Roast Beef Sandwich Roll
+</td>
+<td style="text-align:left;">
+1/2
+</td>
+<td style="text-align:left;">
+</td>
+<td style="text-align:left;">
+FALSE
+</td>
+<td style="text-align:right;">
+0
+</td>
+<td style="text-align:right;">
+0.00
+</td>
+<td style="text-align:right;">
+0.5000000
+</td>
+<td style="text-align:left;">
+</td>
+<td style="text-align:left;">
+NA
+</td>
+<td style="text-align:left;">
+NA
+</td>
+<td style="text-align:right;">
+NA
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+1 (200 g) package KRAFT Dinner Extra Creamy Macaroni and Cheese
+</td>
+<td style="text-align:left;">
+One-Pot Salsa Beef Skillet
+</td>
+<td style="text-align:left;">
+1, 200
+</td>
+<td style="text-align:left;">
+</td>
+<td style="text-align:left;">
+FALSE
+</td>
+<td style="text-align:right;">
+0
+</td>
+<td style="text-align:right;">
+200.00
+</td>
+<td style="text-align:right;">
+200.0000000
+</td>
+<td style="text-align:left;">
+</td>
+<td style="text-align:left;">
+NA
+</td>
+<td style="text-align:left;">
+NA
+</td>
+<td style="text-align:right;">
+NA
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+2 1/2 tablespoons extra-virgin olive oil
+</td>
+<td style="text-align:left;">
+Baby Lettuces with Green Apple, Walnuts, and Dried Cranberries
+</td>
+<td style="text-align:left;">
+2, 1/2
+</td>
+<td style="text-align:left;">
+</td>
+<td style="text-align:left;">
+FALSE
+</td>
+<td style="text-align:right;">
+0
+</td>
+<td style="text-align:right;">
+2.50
+</td>
+<td style="text-align:right;">
+2.5000000
+</td>
+<td style="text-align:left;">
+</td>
+<td style="text-align:left;">
+NA
+</td>
+<td style="text-align:left;">
+NA
+</td>
+<td style="text-align:right;">
+NA
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+1 cup salsa
+</td>
+<td style="text-align:left;">
+Veggie Fajitas
+</td>
+<td style="text-align:left;">
+1
+</td>
+<td style="text-align:left;">
+</td>
+<td style="text-align:left;">
+FALSE
+</td>
+<td style="text-align:right;">
+0
+</td>
+<td style="text-align:right;">
+0.00
+</td>
+<td style="text-align:right;">
+1.0000000
+</td>
+<td style="text-align:left;">
+</td>
+<td style="text-align:left;">
+NA
+</td>
+<td style="text-align:left;">
+NA
+</td>
+<td style="text-align:right;">
+NA
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+4 dried pasilla chilies
+</td>
+<td style="text-align:left;">
+Chicken Mole with Four Chiles
+</td>
+<td style="text-align:left;">
+4
+</td>
+<td style="text-align:left;">
+</td>
+<td style="text-align:left;">
+FALSE
+</td>
+<td style="text-align:right;">
+0
+</td>
+<td style="text-align:right;">
+0.00
+</td>
+<td style="text-align:right;">
+4.0000000
+</td>
+<td style="text-align:left;">
+</td>
+<td style="text-align:left;">
+NA
+</td>
+<td style="text-align:left;">
+NA
+</td>
+<td style="text-align:right;">
+NA
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+1/2 teaspoon dried oregano
+</td>
+<td style="text-align:left;">
+Extra-Virgin Olive Oil Dipping Sauce
+</td>
+<td style="text-align:left;">
+1/2
+</td>
+<td style="text-align:left;">
+</td>
+<td style="text-align:left;">
+FALSE
+</td>
+<td style="text-align:right;">
+0
+</td>
+<td style="text-align:right;">
+0.00
+</td>
+<td style="text-align:right;">
+0.5000000
+</td>
+<td style="text-align:left;">
+</td>
+<td style="text-align:left;">
+NA
+</td>
+<td style="text-align:left;">
+NA
+</td>
+<td style="text-align:right;">
+NA
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+1 tablespoon cold unsalted butter, cut into chunks
+</td>
+<td style="text-align:left;">
+Crust for Two
+</td>
+<td style="text-align:left;">
+1
+</td>
+<td style="text-align:left;">
+</td>
+<td style="text-align:left;">
+FALSE
+</td>
+<td style="text-align:right;">
+0
+</td>
+<td style="text-align:right;">
+0.00
+</td>
+<td style="text-align:right;">
+1.0000000
+</td>
+<td style="text-align:left;">
+</td>
+<td style="text-align:left;">
+NA
+</td>
+<td style="text-align:left;">
+NA
+</td>
+<td style="text-align:right;">
+NA
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+6 cloves garlic, minced
+</td>
+<td style="text-align:left;">
+Grilled Open-Face Feta and Veggie Sandwich
+</td>
+<td style="text-align:left;">
+6
+</td>
+<td style="text-align:left;">
+</td>
+<td style="text-align:left;">
+FALSE
+</td>
+<td style="text-align:right;">
+0
+</td>
+<td style="text-align:right;">
+0.00
+</td>
+<td style="text-align:right;">
+6.0000000
+</td>
+<td style="text-align:left;">
+</td>
+<td style="text-align:left;">
+NA
+</td>
+<td style="text-align:left;">
+NA
+</td>
+<td style="text-align:right;">
+NA
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+2 cups frozen corn
+</td>
+<td style="text-align:left;">
+One-Pot Salsa Beef Skillet
+</td>
+<td style="text-align:left;">
+2
+</td>
+<td style="text-align:left;">
+</td>
+<td style="text-align:left;">
+FALSE
+</td>
+<td style="text-align:right;">
+0
+</td>
+<td style="text-align:right;">
+0.00
+</td>
+<td style="text-align:right;">
+2.0000000
+</td>
+<td style="text-align:left;">
+</td>
+<td style="text-align:left;">
+NA
+</td>
+<td style="text-align:left;">
+NA
+</td>
+<td style="text-align:right;">
+NA
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+Salt and black pepper
+</td>
+<td style="text-align:left;">
+Easy Barbecued Spareribs
 </td>
 <td style="text-align:left;">
 </td>
@@ -20062,96 +20714,22 @@ NA
 </td>
 <td style="text-align:left;">
 </td>
-</tr>
-<tr>
 <td style="text-align:left;">
-4 1/4 cups all-purpose flour
+NA
 </td>
 <td style="text-align:left;">
-Sweet-as-Sugar Cookies
-</td>
-<td style="text-align:left;">
-4, 1/4
-</td>
-<td style="text-align:left;">
-</td>
-<td style="text-align:left;">
-FALSE
+NA
 </td>
 <td style="text-align:right;">
-0
-</td>
-<td style="text-align:right;">
-4.25
-</td>
-<td style="text-align:right;">
-4.2500000
-</td>
-<td style="text-align:left;">
+NA
 </td>
 </tr>
 <tr>
 <td style="text-align:left;">
-1/4 teaspoon black pepper
+2 eggs
 </td>
 <td style="text-align:left;">
-Crustless Feta and Cheddar Quiche
-</td>
-<td style="text-align:left;">
-1/4
-</td>
-<td style="text-align:left;">
-</td>
-<td style="text-align:left;">
-FALSE
-</td>
-<td style="text-align:right;">
-0
-</td>
-<td style="text-align:right;">
-0.00
-</td>
-<td style="text-align:right;">
-0.2500000
-</td>
-<td style="text-align:left;">
-</td>
-</tr>
-<tr>
-<td style="text-align:left;">
-4 (6 ounce) salmon fillets
-</td>
-<td style="text-align:left;">
-Glazed Salmon
-</td>
-<td style="text-align:left;">
-4, 6
-</td>
-<td style="text-align:left;">
-ounce
-</td>
-<td style="text-align:left;">
-FALSE
-</td>
-<td style="text-align:right;">
-0
-</td>
-<td style="text-align:right;">
-24.00
-</td>
-<td style="text-align:right;">
-24.0000000
-</td>
-<td style="text-align:left;">
-oz
-</td>
-</tr>
-<tr>
-<td style="text-align:left;">
-2 dashes aromatic bitters (such as Angostura®)
-</td>
-<td style="text-align:left;">
-The Delmonico Cocktail
+Carrot Pancake Cake
 </td>
 <td style="text-align:left;">
 2
@@ -20172,40 +20750,22 @@ FALSE
 </td>
 <td style="text-align:left;">
 </td>
-</tr>
-<tr>
 <td style="text-align:left;">
-3 tablespoons sliced almonds, toasted
+NA
 </td>
 <td style="text-align:left;">
-Easy Puebla-Style Chicken Mole
-</td>
-<td style="text-align:left;">
-3
-</td>
-<td style="text-align:left;">
-</td>
-<td style="text-align:left;">
-FALSE
+NA
 </td>
 <td style="text-align:right;">
-0
-</td>
-<td style="text-align:right;">
-0.00
-</td>
-<td style="text-align:right;">
-3.0000000
-</td>
-<td style="text-align:left;">
+NA
 </td>
 </tr>
 <tr>
 <td style="text-align:left;">
-1 large Spanish onion, sliced
+1 onion, chopped
 </td>
 <td style="text-align:left;">
-Red Wine Braised Short Ribs with Smashed Fall Vegetables
+Claire’s Curried Butternut Squash Soup
 </td>
 <td style="text-align:left;">
 1
@@ -20226,16 +20786,25 @@ FALSE
 </td>
 <td style="text-align:left;">
 </td>
+<td style="text-align:left;">
+NA
+</td>
+<td style="text-align:left;">
+NA
+</td>
+<td style="text-align:right;">
+NA
+</td>
 </tr>
 <tr>
 <td style="text-align:left;">
-1 bunch scallions, sliced diagonally into 2-inch pieces
+1 1/4 cups milk
 </td>
 <td style="text-align:left;">
-Japanese Beef with Soba Noodles
+Broccoli Sausage Breakfast Bake
 </td>
 <td style="text-align:left;">
-1, 2
+1, 1/4
 </td>
 <td style="text-align:left;">
 </td>
@@ -20246,66 +20815,399 @@ FALSE
 0
 </td>
 <td style="text-align:right;">
-0.00
+1.25
+</td>
+<td style="text-align:right;">
+1.2500000
+</td>
+<td style="text-align:left;">
+</td>
+<td style="text-align:left;">
+NA
+</td>
+<td style="text-align:left;">
+NA
+</td>
+<td style="text-align:right;">
+NA
+</td>
+</tr>
+</tbody>
+</table>
+<p><strong>All the data</strong></p>
+<p>Let’s put it all together, scraping all of our URLs and doing all of the munging in order.</p>
+<pre class="r"><code>recipes_raw &lt;- more_urls %&gt;% get_recipes(sleep = 3)
+recipes &lt;- recipes_raw[!recipes_raw == &quot;Bad URL&quot;]
+
+recipes_df &lt;- recipes %&gt;% 
+  dfize() %&gt;% 
+  get_portions() %&gt;% 
+  add_abbrevs() %&gt;% 
+  left_join(abbrev_dict_w_accepted, by = c(&quot;portion_abbrev&quot; = &quot;key&quot;)) %&gt;% 
+  convert_units()</code></pre>
+<pre class="r"><code>set.seed(1234)
+
+recipes_df %&gt;% 
+  sample_n(20) %&gt;%
+  select(ingredients, recipe_name, portion, portion_abbrev, converted) %&gt;% 
+  kable(format = &quot;html&quot;)</code></pre>
+<table>
+<thead>
+<tr>
+<th style="text-align:left;">
+ingredients
+</th>
+<th style="text-align:left;">
+recipe_name
+</th>
+<th style="text-align:right;">
+portion
+</th>
+<th style="text-align:left;">
+portion_abbrev
+</th>
+<th style="text-align:right;">
+converted
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left;">
+1 (14.5 ounce) can diced tomatoes
+</td>
+<td style="text-align:left;">
+No Ordinary Meatloaf
+</td>
+<td style="text-align:right;">
+14.5000000
+</td>
+<td style="text-align:left;">
+oz
+</td>
+<td style="text-align:right;">
+411.068085
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+2 eggs
+</td>
+<td style="text-align:left;">
+Blueberry Banana Nut Bread
+</td>
+<td style="text-align:right;">
+2.0000000
+</td>
+<td style="text-align:left;">
+</td>
+<td style="text-align:right;">
+NA
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+1/2 cup KRAFT LIGHT DONE RIGHT! Raspberry Vinaigrette Reduced Fat Dressing
+</td>
+<td style="text-align:left;">
+Chicken and Citrus Salad
+</td>
+<td style="text-align:right;">
+0.5000000
+</td>
+<td style="text-align:left;">
+cup
+</td>
+<td style="text-align:right;">
+118.294118
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+2 tablespoons cold butter
+</td>
+<td style="text-align:left;">
+Blueberry Banana Nut Bread
+</td>
+<td style="text-align:right;">
+2.0000000
+</td>
+<td style="text-align:left;">
+tbsp
+</td>
+<td style="text-align:right;">
+29.573530
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+1 cup superfine sugar
+</td>
+<td style="text-align:left;">
+Banana Coffee Cake with Pecans
+</td>
+<td style="text-align:right;">
+1.0000000
+</td>
+<td style="text-align:left;">
+cup
+</td>
+<td style="text-align:right;">
+236.588236
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+1 onion, chopped
+</td>
+<td style="text-align:left;">
+Claire’s Curried Butternut Squash Soup
 </td>
 <td style="text-align:right;">
 1.0000000
 </td>
 <td style="text-align:left;">
 </td>
+<td style="text-align:right;">
+NA
+</td>
 </tr>
 <tr>
 <td style="text-align:left;">
-1/4 cup water
+2/3 cup milk
 </td>
 <td style="text-align:left;">
-Seasoned Broccoli Spears
-</td>
-<td style="text-align:left;">
-1/4
-</td>
-<td style="text-align:left;">
-</td>
-<td style="text-align:left;">
-FALSE
+Cabbage Cakes
 </td>
 <td style="text-align:right;">
-0
+0.6666667
+</td>
+<td style="text-align:left;">
+cup
 </td>
 <td style="text-align:right;">
-0.00
+157.725491
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+1/2 cup red salsa
+</td>
+<td style="text-align:left;">
+Chorizo, Potato and Green Chile Omelet
+</td>
+<td style="text-align:right;">
+0.5000000
+</td>
+<td style="text-align:left;">
+cup
+</td>
+<td style="text-align:right;">
+118.294118
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+1/2 cup raisins
+</td>
+<td style="text-align:left;">
+Fudge Drops
+</td>
+<td style="text-align:right;">
+0.5000000
+</td>
+<td style="text-align:left;">
+cup
+</td>
+<td style="text-align:right;">
+118.294118
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+1/4 cup brown sugar
+</td>
+<td style="text-align:left;">
+Mango Chicken with Greens
 </td>
 <td style="text-align:right;">
 0.2500000
 </td>
 <td style="text-align:left;">
+cup
+</td>
+<td style="text-align:right;">
+59.147059
 </td>
 </tr>
 <tr>
 <td style="text-align:left;">
-1 teaspoon baking powder
+4 tablespoons Safeway SELECT Verdi Olive Oil
 </td>
 <td style="text-align:left;">
-Banana Coffee Cake with Pecans
-</td>
-<td style="text-align:left;">
-1
-</td>
-<td style="text-align:left;">
-</td>
-<td style="text-align:left;">
-FALSE
+Bistro Beef Salad
 </td>
 <td style="text-align:right;">
-0
+4.0000000
+</td>
+<td style="text-align:left;">
+tbsp
 </td>
 <td style="text-align:right;">
-0.00
+59.147059
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+1/4 cup canola oil
+</td>
+<td style="text-align:left;">
+Hungarian Salad
+</td>
+<td style="text-align:right;">
+0.2500000
+</td>
+<td style="text-align:left;">
+cup
+</td>
+<td style="text-align:right;">
+59.147059
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+4 ounces PHILADELPHIA Neufchatel Cheese, 1/3 Less Fat than Cream Cheese
+</td>
+<td style="text-align:left;">
+Creamy Two-Layer Pumpkin Pie
+</td>
+<td style="text-align:right;">
+4.0000000
+</td>
+<td style="text-align:left;">
+oz
+</td>
+<td style="text-align:right;">
+113.398093
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+1 tablespoon milk
+</td>
+<td style="text-align:left;">
+Caramel Pear Crumble
 </td>
 <td style="text-align:right;">
 1.0000000
 </td>
 <td style="text-align:left;">
+tbsp
+</td>
+<td style="text-align:right;">
+14.786765
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+3 tablespoons Worcestershire sauce
+</td>
+<td style="text-align:left;">
+Traveling Oven-Barbecued Baby Back Ribs
+</td>
+<td style="text-align:right;">
+3.0000000
+</td>
+<td style="text-align:left;">
+tbsp
+</td>
+<td style="text-align:right;">
+44.360294
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+1 teaspoon crushed red pepper flakes
+</td>
+<td style="text-align:left;">
+Artichoke and Shrimp Linguine
+</td>
+<td style="text-align:right;">
+1.0000000
+</td>
+<td style="text-align:left;">
+tsp
+</td>
+<td style="text-align:right;">
+4.928922
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+1 tablespoon freshly ground black pepper
+</td>
+<td style="text-align:left;">
+African Chicken in Spicy Red Sauce
+</td>
+<td style="text-align:right;">
+1.0000000
+</td>
+<td style="text-align:left;">
+tbsp
+</td>
+<td style="text-align:right;">
+14.786765
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+2 cups sugar snap peas, trimmed
+</td>
+<td style="text-align:left;">
+Sugar Snap Salad
+</td>
+<td style="text-align:right;">
+2.0000000
+</td>
+<td style="text-align:left;">
+cup
+</td>
+<td style="text-align:right;">
+473.176473
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+1 teaspoon canola oil
+</td>
+<td style="text-align:left;">
+Apples ‘n’ Onion Topped Chops
+</td>
+<td style="text-align:right;">
+1.0000000
+</td>
+<td style="text-align:left;">
+tsp
+</td>
+<td style="text-align:right;">
+4.928922
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+1 (8 ounce) package KRAFT Mexican Style Shredded Four Cheese with a Touch of PHILADELPHIA, divided
+</td>
+<td style="text-align:left;">
+Chorizo, Potato and Green Chile Omelet
+</td>
+<td style="text-align:right;">
+8.0000000
+</td>
+<td style="text-align:left;">
+oz
+</td>
+<td style="text-align:right;">
+226.796185
 </td>
 </tr>
 </tbody>
