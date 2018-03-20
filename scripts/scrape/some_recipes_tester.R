@@ -13,4 +13,4 @@ some_recipes_tester[9, ] <- "about 17 fluid ounces of wine"
 some_recipes_tester[10, ] <- "4-5 cans of 1/2 caf coffee"
 some_recipes_tester[11, ] <- "3 7oz figs with 1/3 rind"
 
-write_feather(some_recipes_tester, here("data", "derived", "some_recipes_tester.feather"))
+# write_feather(some_recipes_tester, here("data", "derived", "some_recipes_tester.feather"))

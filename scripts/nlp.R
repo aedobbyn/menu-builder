@@ -1,10 +1,13 @@
+library(tidyverse)
+library(readr)
 library(tidytext)
 library(widyr)
 library(igraph)
 library(ggraph)
 library(feather)
 library(dobtools)
-import_scripts(path = "./scripts/scrape")
+library(here)
+import_scripts(here("scripts", "scrape"))
 
 more_recipes_df <- read_feather("./data/derived/more_recipes_df.feather")
 # Load in stopwords to remove
@@ -12,16 +15,23 @@ data(stop_words)
 
 # Get a dataframe of all units (need plurals for abbrev_dict ones)
 all_units <- c(units, abbrev_dict$name, abbrev_dict$key, "inch")
-all_units_df <- list(word = all_units) %>% as_tibble()
+all_units_df <- tibble(word = all_units) 
 
 
 # Get a sample (can't be random because we need foods that come from the same menus) and 
 # unnest words
-grab_words <- function(df, row_start = 1, row_stop = 100, n_grams = 1) {
+grab_words <- function(df, n_recipes = 5, n_grams = 1) {
+  
   df <- df %>% 
-    slice(row_start:row_stop) %>% 
     group_by(recipe_name) %>% 
-    mutate(ingredient_num = row_number()) %>% 
+    nest() %>% 
+    mutate(    # Give each recipe a recipe number
+      recipe_num = 1:nrow(.)
+    ) %>% 
+    sample_n(n_recipes) %>% 
+    unnest() %>% 
+    mutate(
+      ingredient_num = row_number()) %>% 
     ungroup() %>% 
     unnest_tokens(word, ingredients, token = "ngrams", n = n_grams) %>% 
     select(recipe_name, word, everything())
@@ -34,7 +44,7 @@ bigrams <- grab_words(more_recipes_df, n_grams = 2)
 
 # Filter out numbers
 unigrams <- unigrams %>%
-  dobtools::find_nums(contains_num = FALSE) %>%   # Add a column showing whether 
+  dobtools::find_nums(add_contains_num = FALSE) %>%   # Add a column showing whether 
   filter(is_num == FALSE) %>% 
   select(-is_num)
 

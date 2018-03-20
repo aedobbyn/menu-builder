@@ -9,7 +9,9 @@ library(dobtools)
 
 # Source in script for grabbing all the types of measurements (pound, ounce, etc. and their abbreviations in abbrev_dict())
 # source("./scripts/scrape/urls.R")
-# source("./scripts/scrape/get_measurement_types.R")   # <-- don't uncomment or will currenlty break dobdown
+# source("./scripts/scrape/get_measurement_types.R")   # <-- DON'T uncomment or will currenlty break dobdown
+# Get a dictionary of our portion measurements; this gives us measurement_types() and abbrev_dict()
+# get_measurement_types(from_file = TRUE)
 
 remove_whitespace <- function(str) {
   str <- str %>% str_split(" ") %>% as_vector()
@@ -118,9 +120,6 @@ dfize <- function(lst, remove_bad_urls = TRUE) {
   return(df)
 }
 
-
-# Get a dictionary of our portion measurements; this gives us measurement_types() and abbrev_dict()
-get_measurement_types(from_file = TRUE)
 
 # Match any number, even if it has a decimal or slash in it
 portions_reg <- "[[:digit:]]+\\.*[[:digit:]]*+\\/*[[:digit:]]*"
