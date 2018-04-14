@@ -9,13 +9,15 @@ library(dobtools)
 library(here)
 import_scripts(here("scripts", "scrape"))
 
+abbrev_dict <- read_feather("./data/derived/abbrev_dict.feather")
 more_recipes_df <- read_feather("./data/derived/more_recipes_df.feather")
+units <- read_rds("./data/derived/units.rds")
 # Load in stopwords to remove
 data(stop_words)
 
 # Get a dataframe of all units (need plurals for abbrev_dict ones)
 all_units <- c(units, abbrev_dict$name, abbrev_dict$key, "inch")
-all_units_df <- tibble(word = all_units) 
+all_units_df <- tibble(word = all_units) %>% unnest()
 
 
 # Get a sample (can't be random because we need foods that come from the same menus) and 

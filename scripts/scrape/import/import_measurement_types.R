@@ -32,7 +32,6 @@ units <- c(
   "bottles", "bottle"
 )
 
-
 ## This actually doesn't remove plurals with "es"
 # remove_plurals <- function(vec) {
 #   plurals <- seq(1, length(vec), by = 2)
