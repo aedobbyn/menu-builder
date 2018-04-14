@@ -12,3 +12,4 @@ accessdb.sql
 .idea/
 ./scripts/tests/testthat/test_fake.R
 compile/writeup_cache
+.here
