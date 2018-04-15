@@ -62,9 +62,10 @@ for (p in paths) {
 # some_recipes_df <- read_feather("./data/derived/some_recipes_df.feather")
 status_spectrum <- read_feather("./data/derived/status_spectrum.feather")
 rec_spectrum <- read_feather("./data/derived/rec_spectrum.feather")
-more_recipes_raw <- readRDS("./data/derived/more_recipes_raw.rds")
+more_recipes_raw <- read_rds("./data/derived/more_recipes_raw.rds")
 more_recipes_df <- read_feather("./data/derived/more_recipes_df.feather")
 recipes_df <- read_feather("./data/derived/recipes_df.feather")   # With converted units
+get_measurement_types(from_file = TRUE)  # read in measures_collapsed
 ```
 
 
@@ -1326,16 +1327,13 @@ Cool, so we've got three functions now, one for reading the content from a URL a
 Dupes come up because multiple IDs can point to the same recipe which means that two different URLs could resolve to the same page. I figured there were two routes we could go to see whether a recipe is a dupe or not; one, just go off of the recipe name or two, go off of the recipe name and content. By going off of the name, we don't go through the trouble of pulling in duped recipe content if we think we've got a dupe; we just skip it. Going off of content and checking whether the recipe content exists in our list so far would be safer (we'd only skip the recipes that we definitely already have), but slower because we have to both `get_recipe_name()` and `get_recipe_content()`. I went with the faster way; in `get_recipes()` we just check the recipe name we're on against all the recipe names in our list with `if (!recipe_name %in% names(out))`.
 
 
-```{r get_recipes}
+```{r get_recipes, warning=FALSE}
 get_recipes <- function(urls, sleep = 5, verbose = TRUE, append_bad_URLs = TRUE) {
   bad_url_counter <- 0
   duped_recipe_counter <- 0
   
-  if (append_bad_URLs == TRUE) {
-    out <- vector(length = length(urls))    
-  } else {
-    out <- NULL       # In this case we don't know how long our list will be 
-  }
+  out <- NULL       # In this case we don't know how long our list will be 
+
   
   for (url in urls) {
     Sys.sleep(sleep)    # Sleep in between requests to avoid 429 (too many requests)
@@ -1790,7 +1788,9 @@ get_portions <- function(df, add_abbrevs = FALSE, pare_portion_info = FALSE) {
 
 
 ```{r do_get_portions_and_abbrevs}
-some_recipes_tester %>% get_portions(pare_portion_info = TRUE) %>% add_abbrevs() %>% kable(format = "html")
+some_recipes_tester %>%
+  get_portions(pare_portion_info = TRUE) %>% 
+  add_abbrevs() %>% kable(format = "html")
 ```
 
 
@@ -1955,18 +1955,28 @@ recipes_df %>%
 ## NLP
 
 
-```{r}
+Next we'll do a quick text analysis of words in these freshly scraped recipes.
 
+We'll put all of our units into a dataframe
+```{r all_units_df}
 # Get a dataframe of all units (need plurals for abbrev_dict ones)
 all_units <- c(units, abbrev_dict$name, abbrev_dict$key, "inch")
-all_units_df <- list(word = all_units) %>% as_tibble()
+(all_units_df <- list(word = all_units) %>% as_tibble())
+```
 
+Next let's take a sample of recipes and extract all the ngrams in those recipes to get into `n_buckets` bags of words. We want to take a sample of whole recipes and not just of ingredients because we'll want a full set of all the ingredients for a particular recipe; an ingredient isn't a meaningful unit for us outside the context of its recipe.
 
-# Get a sample (can't be random because we need foods that come from the same menus) and 
-# unnest words
-grab_words <- function(df, row_start = 1, row_stop = 100, n_grams = 1) {
+We'll use `tidytext::unnest_tokens()` to get sets of `n_grams` for each recipe. If `n_grams` is 1, that's every word in a recipe. If `n_grams` is 3, that's every instance of 3 words that occur in a row.
+
+```{r grab_words}
+grab_words <- function(df, n_buckets = 5, n_grams = 1) {
+  recipes_to_keep <- df %>% 
+    distinct(recipe_name) %>% 
+    sample_n(n_buckets) %>% 
+    pull("recipe_name")
+  
   df <- df %>% 
-    slice(row_start:row_stop) %>% 
+    filter(recipe_name %in% recipes_to_keep) %>% 
     group_by(recipe_name) %>% 
     mutate(ingredient_num = row_number()) %>% 
     ungroup() %>% 
@@ -1975,32 +1985,88 @@ grab_words <- function(df, row_start = 1, row_stop = 100, n_grams = 1) {
   
   return(df)
 }
-
-unigrams <- grab_words(more_recipes_df)
-bigrams <- grab_words(more_recipes_df, n_grams = 2)
+```
 
 
-# Logical for whether an word is a number or not
-# we could have as easily done this w a regex
-find_nums <- function(df) {
-  df <- df %>% mutate(
-    num = suppressWarnings(as.numeric(word)),    # we could have as easily done this w a regex
-    is_num = case_when(
+Let's get just unigrams (single words),
+
+```{r unigrams}
+unigrams <- grab_words(recipes_df)
+
+unigrams %>% print(10) %>% kable()
+```
+
+ and bigrams.
+ 
+```{r bigrams}
+bigrams <- grab_words(recipes_df, n_grams = 2)
+
+bigrams %>% print(10) %>% kable()
+```
+
+
+
+Now that we've got all our individual words, we want to do some cleaning to make sure we only keep words that are actually meaningful in our context. The `tidytext` package helpfully supplies a `stop_words` dataset that can be easily `anti_join`ed to our unigrams. 
+
+Just like we don't want "the"s and "and"s muddying our recipe content waters, we also want to pare out any ngrams that are (or possibly contain) numbers. Here a quick helper for determining that by adding a column with a logical `is_num`. We could as easily have used a regex, but instead we'll use an appraoch of seeing if we can coerce a value to numeric. If we can, it's definitely a number.
+
+```{r find_nums}
+find_nums <- function(df, col = word, add_contains_num = TRUE) {
+  quo_col <- rlang::enquo(col)
+
+  df <- df %>% dplyr::mutate(
+    num = suppressWarnings(as.numeric(!!quo_col)),    # we could have as easily done this w a regex
+    is_num = dplyr::case_when(
       !is.na(num) ~ TRUE,
       is.na(num) ~ FALSE
     )
-  ) %>% select(-num)
-  
+  )
+
+  if (add_contains_num == TRUE) {
+    df <- df %>%
+      dplyr::mutate(
+        contains_num = dplyr::case_when(
+          grepl("\\d+", !!quo_col) ~ TRUE,
+          !(grepl("\\d+", !!quo_col)) ~ FALSE
+        )
+      )
+  }
+
+  df <- df %>% dplyr::select(-num)
+
   return(df)
 }
+```
 
-# Filter out numbers
+This works like so:
+
+```{r test_find_nums}
+test_nums <- tibble(
+  a = runif(3),
+  b = janeaustenr::mansfieldpark[1:3]
+)
+
+test_nums %>% 
+  find_nums(a)
+
+test_nums %>% 
+  find_nums(b)
+```
+
+
+
+For now we won't worry about whether a unigram contains a number (for instance, the A1 in [A1 Sauce](https://en.wikipedia.org/wiki/A.1._Sauce) contains a number but I'd consider it fair game as an ingredient.)
+
+But we will filter out anything in `unigrams` that is a straight up number.
+
+```{r}
 unigrams <- unigrams %>%
-  find_nums() %>%
+  find_nums(add_contains_num = FALSE) %>%
   filter(is_num == FALSE) %>% 
   select(-is_num)
+```
 
-
+```{r}
 # Looking at pairs of words within a recipe (not neccessarily bigrams), which paris tend to co-occur?
 # i.e., higher frequency within the same recipe
 per_rec_freq <- unigrams %>% 

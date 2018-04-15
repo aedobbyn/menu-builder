@@ -111,6 +111,12 @@ pairwise_per_rec %>%
 
 
 
+# --------
+
+more_recipes_df %>% 
+  select(-range_portion, - mult_add_portion, -portion_name) %>% 
+  arrange(desc(portion))
+
 
 
 
