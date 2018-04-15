@@ -82,7 +82,7 @@ The meat of the project surrounds building menus and changing them until they ar
 
 The data we'll be using here is conveniently located in an Excel file called ABBREV.xlsx on the USDA website. As the name suggests, this is an abbreviated version of all the foods in their database. 
 
-If you do want the full list, they provide a Microsoft Access SQL dump as well (which requires that you have Access). The USDA also does have an open API so you can create an API key and grab foods from them with requests along the lines of a quick example I'll go through. The [API documentation](https://ndb.nal.usda.gov/ndb/doc/apilist/API-FOOD-REPORTV2.md) walks through the format for requesting data in more detail. I'll walk through an exmaple of how to get some foods and a few of their associated nutrient values.
+If you do want the full list, they provide a Microsoft Access SQL dump as well (which requires that you have Access). The USDA also does have an open API so you can create an API key and grab foods from them with requests along the lines of a quick example I'll go through. The [API documentation](https://ndb.nal.usda.gov/ndb/doc/apilist/API-FOOD-REPORTV2.md) walks through the format for requesting data in more detail. I'll walk through an example of how to get some foods and a few of their associated nutrient values.
 
 The base URL we'll want is `http://api.nal.usda.gov/ndb/`.
 
@@ -135,7 +135,7 @@ That's because missing values are coded as `--`.
 foods$nutrients[[100]] %>% as_tibble() 
 ```
 
-This becomes an issue for two of these columns, `gm` and `value` because `gm` gets coded as type numeric if there are no mising values and character otherwise. Consider the case where we have no missing values: here we see that `gm` is numeric.
+This becomes an issue for two of these columns, `gm` and `value` because `gm` gets coded as type numeric if there are no musing values and character otherwise. Consider the case where we have no missing values: here we see that `gm` is numeric.
 
 ```{r}
 foods$nutrients[[200]] %>% as_tibble()
@@ -234,7 +234,7 @@ dim(abbrev_raw)
 
 You can read in depth the prep I did on this file in `/scripts/prep`. Mainly this involved a bit of cleaning like stripping out parentheses from column names, e.g., `Vit_C_(mg)` becomes `Vit_C_mg`.
 
-In there you'll also find a dataframe called `all_nut_and_mr_df` where I define the nutritional constraints on menus. If a nutrient is among the "must restricts," that is, it's one of `r stringr::str_c(mr_df$must_restrict, collapse = ", ")`, then its corresponding value is a daily *upper* bound. Otherwise, the nutrient is a "positive nutrient" and its vlaue is a lower bound. For example, you're supposed to have at least 18mg of Iron and no more than 2400mg of Sodium per day. (As someone who puts salt on everything indiscriminately I'd be shocked if I've ever been under that threshold.)
+In there you'll also find a dataframe called `all_nut_and_mr_df` where I define the nutritional constraints on menus. If a nutrient is among the "must restricts," that is, it's one of `r stringr::str_c(mr_df$must_restrict, collapse = ", ")`, then its corresponding value is a daily *upper* bound. Otherwise, the nutrient is a "positive nutrient" and its value is a lower bound. For example, you're supposed to have at least 18mg of Iron and no more than 2400mg of Sodium per day. (As someone who puts salt on everything indiscriminately I'd be shocked if I've ever been under that threshold.)
 
 ```{r all_nut_and_mr_df}
 all_nut_and_mr_df %>% kable(format = "html")
@@ -315,7 +315,7 @@ abbrev[1:20, ] %>% kable(format = "html")
 
 **Per 100g vs. Raw**
 
-Note how our column titles have aways end with `_g` or `_mg`. That's because this column is giving us the value of each nutrient, *per 100g of this food*. The value we've got in that column isn't the raw value. Our contraints, though, are in raw terms. We'll need a way to know whether we've gotten our 1000mg of Calcium from the foods in our menu, each of which list how much Calcium they provide per 100g of that food.
+Note how our column titles have always end with `_g` or `_mg`. That's because this column is giving us the value of each nutrient, *per 100g of this food*. The value we've got in that column isn't the raw value. Our constraints, though, are in raw terms. We'll need a way to know whether we've gotten our 1000mg of Calcium from the foods in our menu, each of which list how much Calcium they provide per 100g of that food.
 
 In order to get to the raw value of a nutrient, for each food in our menu we'll multiply the 100g value of that nutrient by the weight of the food in grams, or its `GmWt_1`:
 
@@ -490,7 +490,7 @@ Now I want an objective and preferably single scalar metric by which to judge me
 * You do, however, keep getting penalized for going farther and farther above the minimum on `must_restricts`
     * There's no cap on how bad an increase in bad stuff will keep 
     
-For simplicity and because I'm not a doctor, we'll assume a linear relationship between increasing and decreasing nutrients and their effect on our score. Though they're really two different dimensions, I want to be able to combine a must restrict score with a postiive score to get a single number out. The directionality of the scores will also have to be the same if we want to combine them; so in both cases, *more positive scores mean worse*.
+For simplicity and because I'm not a doctor, we'll assume a linear relationship between increasing and decreasing nutrients and their effect on our score. Though they're really two different dimensions, I want to be able to combine a must restrict score with a positive score to get a single number out. The directionality of the scores will also have to be the same if we want to combine them; so in both cases, *more positive scores mean worse*.
 
 Similar to how we tested compliance, I'll do is go through a given menu and multiply the nutrient value per 100g by `GmWt_1`, the amount of the food we have. That will give us the raw amount of this nutrient. Then I'll see how much that raw amount differs from the minimum or maximum daily value of that nutrient we're supposed to have and give it a score accordingly. Then I'll add it up.
 
@@ -525,7 +525,7 @@ Similar story for the positives: we'll take the difference between our minimum r
 
 $\sum_{i=1}^{k} (-1) * (MaxAllowedAmount_{i} - AmountWeHave_{i})$ 
 
-where `k` is the total number of positive nutrients in our constriants.
+where `k` is the total number of positive nutrients in our constraints.
 
 That means that if we've got less than the amount we need, this value will be negative; if we've got more than we need it'll be positive. Next, to make the best score 0 I'll turn everything greater than 0 into 0. This takes away the extra brownie points for going above and beyond. Same as with must restricts, lower scores mean "better." 
 
@@ -578,9 +578,9 @@ our_random_menu %>% score_menu()
 
 Solving our menus is the next step. We've got a fixes set of constraints and an objective function: to minimize cost.
 
-Given these conditions, it makes sense to use a simple linear programming algorithm. The implementation we use for solving is the [GNU linear program solver](https://cran.r-project.org/web/packages/Rglpk/Rglpk.pdf) which has an R interface via the `Rglpk` package. (You'll need to `brew install glpk` or otherwise install the GLPK in order to be able ot install the `Rglpk` package.)
+Given these conditions, it makes sense to use a simple linear programming algorithm. The implementation we use for solving is the [GNU linear program solver](https://cran.r-project.org/web/packages/Rglpk/Rglpk.pdf) which has an R interface via the `Rglpk` package. (You'll need to `brew install glpk` or otherwise install the GLPK in order to be able to install the `Rglpk` package.)
 
-The `Rglpk_solve_LP()` function is going to do the work for us. What `solve_it()` below will do is grab the elements of a menu that we need for this function, pass them to the solver in the format it needs, and return a solution that is a list of a few things we're intersted in: the cost of our final menu, the original menu, and the multiplier on each food's portion size.
+The `Rglpk_solve_LP()` function is going to do the work for us. What `solve_it()` below will do is grab the elements of a menu that we need for this function, pass them to the solver in the format it needs, and return a solution that is a list of a few things we're interested in: the cost of our final menu, the original menu, and the multiplier on each food's portion size.
 
 Kind of a lot going on in `solve_it()`, which I'll walk through below. If you're only interested in what we get out of it, feel free to skip this section `r emo::ji("grin")`.
 
@@ -721,7 +721,7 @@ Okay so our output of `solve_it()` is an informative but long list. It has all t
 
 `solve_menu()` takes one main argument: the result of a call to `solve_it()`. Since we've written the return value of `solve_it()` to contain the original menu *and* a vector of solution amounts -- that is, the amount we're multiplying each portion size by in order to arrive at our solution -- we can combine these to get our solved menu.
 
-We also return a message, if `verbose` is TRUE, telling us which food we've got the most servings of, as this might be something we'd want to decrease. (Now that I'm thining about it, maybe a more helpful message would take a threshold portion size and only alert us if we've exceeded that threshold.)
+We also return a message, if `verbose` is TRUE, telling us which food we've got the most servings of, as this might be something we'd want to decrease. (Now that I'm thinking about it, maybe a more helpful message would take a threshold portion size and only alert us if we've exceeded that threshold.)
 
 ```{r solve_menu}
 solve_menu <- function(sol, verbose = TRUE) {
@@ -769,7 +769,7 @@ our_solved_menu %>% kable(format = "html")
 
 ### Solve nutrients
 
-We'll want to do something with nutrients that's analagous to what we're doing in `solve_menu()`. This function will let us find what the raw nutrient amounts in our solved menu are, and let us know which nutrient we've overshot the lower bound on the most. Like `solve_menu()`, a result from `solve_it()` can be piped nicely in here.
+We'll want to do something with nutrients that's analogous to what we're doing in `solve_menu()`. This function will let us find what the raw nutrient amounts in our solved menu are, and let us know which nutrient we've overshot the lower bound on the most. Like `solve_menu()`, a result from `solve_it()` can be piped nicely in here.
 
 One part of the solution returned by the solver is a vector of the values of the constraints -- that is, our nutrients -- at solution. That lives in `$auxiliary$primal` and becomes our `solved_nutrient_value` in the function below. 
 
@@ -825,7 +825,7 @@ In these cases, we'll need to change up our lineup.
 
 ### Single Swap
 
-I only use single swapping for the cases where we're above the max threshold on must restricts, but you could imagine implementing the same funcitons to deal with positives.
+I only use single swapping for the cases where we're above the max threshold on must restricts, but you could imagine implementing the same functions to deal with positives.
 
 The idea with a single swap is to see which must restricts are not satisfied, find the food that is the `max_offender` on that must restrict (i.e., contributes the most in absolute terms to the value of the must restrict) and then swap it out. We try to `replace_food_w_better()`, that is, swap it out for a food from a pool of better foods on that dimension. We define better as foods that score above a user-specified z-score `cutoff` on that must_restrict. If there are no foods that satisfy that cutoff, we choose a food at random from the pool of all possible foods.
 
@@ -967,7 +967,7 @@ fully_solved %>% kable(format = "html")
 
 Cool, so we've got a mechanism for creating and solving menus. But what portion of our menus are even solvable from the get-go? We'll stipulate that solvable means solvable at a minimum portion size of 1 without doing any swapping. To answer that, I set about making a way to run a some simulations.
 
-First, a helper funciton for just `pluck`ing the status portion of our `solve_it()` response telling us whether we solved the menu or not. The result of `get_status()` should always be either a 1 for unsolvable or 0 for solved. 
+First, a helper function for just `pluck`ing the status portion of our `solve_it()` response telling us whether we solved the menu or not. The result of `get_status()` should always be either a 1 for unsolvable or 0 for solved. 
 
 ```{r get_status}
 get_status <- function(seed = NULL, min_food_amount = 0.5, verbose = TRUE) {  
@@ -1007,7 +1007,7 @@ I named this next function `simulate_spectrum()` because it allows us to take a 
 
 We specify the lower bound for the min portion size spectrum with `from` and the upper bound with `to`. How spaced out those points are and how many of them there are are set with `n_intervals` and `n_sims`; in other words, `n_intervals` is the number of chunks we want to split the spectrum of `from` to `to` into and `n_sims` is the number of times we want to repeat the simulation at each point. 
 
-Instead of a vector, this time we'll return a dataframe in order to be able to match up the minimim portion size (`min_amount`, which we're varying) with whether or not the menu was solvable.
+Instead of a vector, this time we'll return a dataframe in order to be able to match up the minimum portion size (`min_amount`, which we're varying) with whether or not the menu was solvable.
 
 ```{r simulate_spectrum}
 simulate_spectrum <- function(n_intervals = 10, n_sims = 2, from = -1, to = 1,
@@ -1193,7 +1193,7 @@ ggplot() +
 ```
 
 
-So we don't have a linear relationship between portion size and the porportion of menus that are solvable at that portion size.
+So we don't have a linear relationship between portion size and the proportion of menus that are solvable at that portion size.
 
 
 We can do the same for our swap spectrum. 
@@ -1418,9 +1418,9 @@ a_couple_recipes_df %>% kable(format = "html")
 
 Great, so we've got a tidy dataframe that we can start to get some useful data out of.
 
-One of the goals here is to see what portion of a menu tends to be devoted to, say, meat or spices or a word that appears in the receipe name etc. In order to answer that, we'll need to extract portion names and portion sizes from the text. That wouldn't be pretty simple with a fixed list of portion names ("gram", "lb") if portion sizes were always just a single number.
+One of the goals here is to see what portion of a menu tends to be devoted to, say, meat or spices or a word that appears in the recipe name etc. In order to answer that, we'll need to extract portion names and portion sizes from the text. That wouldn't be pretty simple with a fixed list of portion names ("gram", "lb") if portion sizes were always just a single number.
 
-But, as it happens, protion sizes don't usually consist of just one number. There are a few hurdles: 
+But, as it happens, portion sizes don't usually consist of just one number. There are a few hurdles: 
 
 1) Complex fractions
 * `2 1/3 cups` of flour should become: `2.3333` cups of flour
@@ -1448,7 +1448,7 @@ We'll need a few regexes to extract our numbers.
 
 `portions_reg` will match any digit even if it contains a decimal or a slash in it, which will be important for capturing complex fractions.
 
-`multiplier_reg` covers all cases of numbers that might need to be multiplied in the Allrecipes data, because these are always sepearated by `" ("`, whereas `multiplier_reg_looser` is a more loosely-defined case matching numbers separated just by `" "`.
+`multiplier_reg` covers all cases of numbers that might need to be multiplied in the Allrecipes data, because these are always separated by `" ("`, whereas `multiplier_reg_looser` is a more loosely-defined case matching numbers separated just by `" "`.
 
 ```{r regs}
 # Match any number, even if it has a decimal or slash in it
@@ -1952,21 +1952,14 @@ recipes_df %>%
 
 
 
-## NLP
+## Recipe Text NLP Analysis
 
+Now we'll do a quick text analysis of words in these freshly scraped recipes. The text we'll be pulling ngrams out of is the `ingredients` column, where all the action happens.
 
-Next we'll do a quick text analysis of words in these freshly scraped recipes.
-
-We'll put all of our units into a dataframe
-```{r all_units_df}
-# Get a dataframe of all units (need plurals for abbrev_dict ones)
-all_units <- c(units, abbrev_dict$name, abbrev_dict$key, "inch")
-(all_units_df <- list(word = all_units) %>% as_tibble())
-```
-
-Next let's take a sample of recipes and extract all the ngrams in those recipes to get into `n_buckets` bags of words. We want to take a sample of whole recipes and not just of ingredients because we'll want a full set of all the ingredients for a particular recipe; an ingredient isn't a meaningful unit for us outside the context of its recipe.
+Let's take a sample of recipes and extract all the ngrams in those recipes to get into `n_buckets` bags of words. We want to take a sample of whole recipes and not just of ingredients because we'll want a full set of all the ingredients for a particular recipe; an ingredient isn't a meaningful unit for us outside the context of its recipe.
 
 We'll use `tidytext::unnest_tokens()` to get sets of `n_grams` for each recipe. If `n_grams` is 1, that's every word in a recipe. If `n_grams` is 3, that's every instance of 3 words that occur in a row.
+
 
 ```{r grab_words}
 grab_words <- function(df, n_buckets = 5, n_grams = 1) {
@@ -1993,7 +1986,7 @@ Let's get just unigrams (single words),
 ```{r unigrams}
 unigrams <- grab_words(recipes_df)
 
-unigrams %>% print(10) %>% kable()
+unigrams[1:10, ] %>% kable()
 ```
 
  and bigrams.
@@ -2001,21 +1994,24 @@ unigrams %>% print(10) %>% kable()
 ```{r bigrams}
 bigrams <- grab_words(recipes_df, n_grams = 2)
 
-bigrams %>% print(10) %>% kable()
+bigrams[1:10, ] %>% kable()
 ```
 
 
+We'll focus on just the unigrams for now.
+
+### Cleaning unigrams
 
 Now that we've got all our individual words, we want to do some cleaning to make sure we only keep words that are actually meaningful in our context. The `tidytext` package helpfully supplies a `stop_words` dataset that can be easily `anti_join`ed to our unigrams. 
 
-Just like we don't want "the"s and "and"s muddying our recipe content waters, we also want to pare out any ngrams that are (or possibly contain) numbers. Here a quick helper for determining that by adding a column with a logical `is_num`. We could as easily have used a regex, but instead we'll use an appraoch of seeing if we can coerce a value to numeric. If we can, it's definitely a number.
+Just like we don't want "the"s and "and"s muddying our recipe content waters, we also want to pare out any ngrams that are (or possibly contain) numbers. Here a quick helper for determining that by adding a column with a logical `is_num`. We could as easily have used a regex, but instead we'll use an approach of seeing if we can coerce a value to numeric. If we can, it's definitely a number.
 
 ```{r find_nums}
 find_nums <- function(df, col = word, add_contains_num = TRUE) {
   quo_col <- rlang::enquo(col)
 
   df <- df %>% dplyr::mutate(
-    num = suppressWarnings(as.numeric(!!quo_col)),    # we could have as easily done this w a regex
+    num = suppressWarnings(as.numeric(!!quo_col)),  
     is_num = dplyr::case_when(
       !is.na(num) ~ TRUE,
       is.na(num) ~ FALSE
@@ -2059,16 +2055,27 @@ For now we won't worry about whether a unigram contains a number (for instance, 
 
 But we will filter out anything in `unigrams` that is a straight up number.
 
-```{r}
+```{r pare_out_nums}
 unigrams <- unigrams %>%
   find_nums(add_contains_num = FALSE) %>%
   filter(is_num == FALSE) %>% 
   select(-is_num)
 ```
 
-```{r}
-# Looking at pairs of words within a recipe (not neccessarily bigrams), which paris tend to co-occur?
-# i.e., higher frequency within the same recipe
+
+We also want to filter out anything that's a unit. We'll put all of our units, including the plurals, into a dataframe so it can be `anti_join`ed on our words.
+
+```{r all_units_df}
+all_units <- c(units, abbrev_dict$name, abbrev_dict$key, "inch")
+(all_units_df <- list(word = all_units) %>% as_tibble())
+```
+
+
+### Finding Patterns
+
+Now looking at pairs of words within a recipe, which pairs tend to co-occur, i.e., have a higher frequency within the same recipe?
+
+```{r per_rec_freq, message=FALSE}
 per_rec_freq <- unigrams %>% 
   anti_join(stop_words) %>% 
   anti_join(all_units_df) %>% 
@@ -2091,40 +2098,59 @@ all_rec_totals <- per_rec_freq %>%
   summarise(total_this_recipe = sum(n_this_rec))
   
 # Join that on the sums we've found
-per_rec_freq_out <- per_rec_freq %>% 
+per_rec_freq <- per_rec_freq %>% 
   mutate(
     total_overall = sum(n_this_rec)
   ) %>% 
   left_join(per_rec_totals) %>% 
   left_join(all_rec_totals)
 
+per_rec_freq[1:20, ] %>% 
+  kable()
+```
 
-# See tfidf
-per_rec_freq %>% 
+Let's use our `per_rec_freq` to find the TFIDF (term frequency inverse document frequency), a measure of how frequently a word appears in this document as compared to how much it's seen in all the other documents. If a word has a high TFIDF, it's more common in this document (i.e., recipe) than it is in the general population of recipes, which is an indication that it's an important word for the recipe in question
+
+```{r tfidf}
+recipe_tf_idf <- per_rec_freq %>% 
   bind_tf_idf(word, recipe_name, n_this_rec) %>% 
   arrange(desc(tf_idf))
 
+recipe_tf_idf[1:20, ] %>% kable()
+```
 
 
+Next we'll get a measure of how frequently words co-occur with one another in these recipes. We'll find the pairwise correlation between `word`s in each recipe using `widyr::pairwise_cor()`. The `feature` term we're grouping on is `recipe_name`.
 
-# --------- Pairwise ---------
-
-# Get the pairwise correlation between words in each recipe
+```{r pairwise_per_rec}
 pairwise_per_rec <- per_rec_freq %>% 
-  group_by(recipe_name) %>%      # <---- Not sure if we should be grouping here
   pairwise_cor(word, recipe_name, sort = TRUE) 
 
-# Graph the correlations between a few words and their highest correlated neighbors
+pairwise_per_rec %>% kable()
+```
+
+Now that we have the correlations between each word, we can graph the relationships between words using `igraph::graph_from_data_frame()`, which takes a dataframe and turns it into a graph structure, and `ggraph` to display the network graph using `ggplot2`.
+
+Since there are a lot of words, it'll make sense to choose just a few to make the graph readable. We'll also set a `correlation_cutoff` to keep only relationships above a certain threshold.
+
+```{r food_features}
+food_features <- c("cheese", "garlic", "onion", "sugar")
+correlation_cutoff <- 0.5
+```
+
+
+Now all that remains is to graph the correlations between a few words and their highest correlated neighbors.
+
+```{r graph_pairwise_per_rec}
 pairwise_per_rec %>%
-  filter(item1 %in% c("cheese", "garlic", "onion", "sugar")) %>% 
-  filter(correlation > .5) %>%
+  filter(item1 %in% food_features) %>% 
+  filter(correlation > correlation_cutoff) %>%
   graph_from_data_frame() %>%
   ggraph(layout = "fr") +
   geom_edge_link(aes(edge_alpha = correlation), show.legend = FALSE) +
   geom_node_point(color = "lightblue", size = 5) +
   geom_node_text(aes(label = name), repel = TRUE) +
   theme_void()
-
 ```
 
 
