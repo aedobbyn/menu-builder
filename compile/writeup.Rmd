@@ -1799,7 +1799,7 @@ We've got some units! Next step will be to convert all units into grams, so that
 
 **Converting to Grams**
 
-Rather than rolling our own conversion dictionary, let's turn to the `measurements` package that sports the `conv_unit()` function for going from one unit to another. For example, coverting 12 inches to centimeters, we get:
+Rather than rolling our own conversion dictionary, let's turn to the `measurements` package that sports the `conv_unit()` function for going from one unit to another. For example, converting 12 inches to centimeters, we get:
 
 ```{r inch_to_cm}
 conv_unit(12, "inch", "cm")
@@ -1820,7 +1820,7 @@ We'll set up exception handling so that `conv_unit()` gives us an `NA` rather th
 try_conv <- possibly(conv_unit, otherwise = NA)
 ```
 
-We'll mutate our abbreviation dictionary, adding a new column to convert to either grams in the case that our unit is a solid or mililieters if it's a liquid. These have a 1-to-1 conversion (1g = 1ml) so we'll take whichever one of these is not a missing value and put that in our `converted` column.
+We'll mutate our abbreviation dictionary, adding a new column to convert to either grams in the case that our unit is a solid or milliliters if it's a liquid. These have a 1-to-1 conversion (1g = 1ml) so we'll take whichever one of these is not a missing value and put that in our `converted` column.
 
 We'll use a sample value of 10 for everything.
 
@@ -1962,7 +1962,7 @@ We'll use `tidytext::unnest_tokens()` to get sets of `n_grams` for each recipe. 
 
 
 ```{r grab_words}
-grab_words <- function(df, n_buckets = 5, n_grams = 1) {
+grab_words <- function(df, n_buckets = 50, n_grams = 1) {
   recipes_to_keep <- df %>% 
     distinct(recipe_name) %>% 
     sample_n(n_buckets) %>% 
@@ -1980,8 +1980,17 @@ grab_words <- function(df, n_buckets = 5, n_grams = 1) {
 }
 ```
 
+First, a glance at what our data look like before we slice it up in to unigrams:
 
-Let's get just unigrams (single words),
+```{r recipes_df_display}
+recipes_df %>% 
+  sample_n(10) %>% 
+  select(ingredients, recipe_name, portion_abbrev, portion, converted) %>% 
+  kable()
+```
+
+
+Let's unspool this into one unigram (single word) per row:
 
 ```{r unigrams}
 unigrams <- grab_words(recipes_df)
@@ -1989,7 +1998,7 @@ unigrams <- grab_words(recipes_df)
 unigrams[1:10, ] %>% kable()
 ```
 
- and bigrams.
+ and do the same for bigrams. This replaces our `ingredients` column with a new `word` column
  
 ```{r bigrams}
 bigrams <- grab_words(recipes_df, n_grams = 2)
@@ -2002,7 +2011,7 @@ We'll focus on just the unigrams for now.
 
 ### Cleaning unigrams
 
-Now that we've got all our individual words, we want to do some cleaning to make sure we only keep words that are actually meaningful in our context. The `tidytext` package helpfully supplies a `stop_words` dataset that can be easily `anti_join`ed to our unigrams. 
+Now that we've got all our individual words, we want to do some cleaning to make sure we only keep words that are actually meaningful in our context. The `tidytext` package helpfully supplies a `stop_words` dataset that can be easily `anti_join`ed to our unigrams. We'll do that in a minute.
 
 Just like we don't want "the"s and "and"s muddying our recipe content waters, we also want to pare out any ngrams that are (or possibly contain) numbers. Here a quick helper for determining that by adding a column with a logical `is_num`. We could as easily have used a regex, but instead we'll use an approach of seeing if we can coerce a value to numeric. If we can, it's definitely a number.
 
@@ -2080,10 +2089,10 @@ per_rec_freq <- unigrams %>%
   anti_join(stop_words) %>% 
   anti_join(all_units_df) %>% 
   group_by(recipe_name) %>% 
-  add_count(word, sort = TRUE) %>%    # Count of number of times this word appears in this recipe
+  add_count(word) %>%    # Count of number of times this word appears in this recipe
   rename(n_this_rec = n) %>% 
   ungroup() %>% 
-  add_count(word, sort = TRUE) %>%    # Count of number of times this word appears in all recipes
+  add_count(word) %>%    # Count of number of times this word appears in all recipes
   rename(n_all_rec = n) %>%
   select(recipe_name, word, n_this_rec, n_all_rec)
 
@@ -2105,7 +2114,9 @@ per_rec_freq <- per_rec_freq %>%
   left_join(per_rec_totals) %>% 
   left_join(all_rec_totals)
 
-per_rec_freq[1:20, ] %>% 
+per_rec_freq %>% 
+  arrange(desc(n_all_rec)) %>% 
+  slice(1:10) %>% 
   kable()
 ```
 
@@ -2116,7 +2127,9 @@ recipe_tf_idf <- per_rec_freq %>%
   bind_tf_idf(word, recipe_name, n_this_rec) %>% 
   arrange(desc(tf_idf))
 
-recipe_tf_idf[1:20, ] %>% kable()
+recipe_tf_idf %>% 
+  top_n(10) %>% 
+  kable()
 ```
 
 
@@ -2126,7 +2139,7 @@ Next we'll get a measure of how frequently words co-occur with one another in th
 pairwise_per_rec <- per_rec_freq %>% 
   pairwise_cor(word, recipe_name, sort = TRUE) 
 
-pairwise_per_rec %>% kable()
+pairwise_per_rec %>% sample_n(10) %>% kable()
 ```
 
 Now that we have the correlations between each word, we can graph the relationships between words using `igraph::graph_from_data_frame()`, which takes a dataframe and turns it into a graph structure, and `ggraph` to display the network graph using `ggplot2`.
