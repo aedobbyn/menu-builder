@@ -2075,7 +2075,7 @@ unigrams <- unigrams %>%
 We also want to filter out anything that's a unit. We'll put all of our units, including the plurals, into a dataframe so it can be `anti_join`ed on our words.
 
 ```{r all_units_df}
-all_units <- c(units, abbrev_dict$name, abbrev_dict$key, "inch")
+all_units <- c(ingredient_units, abbrev_dict$name, abbrev_dict$key, "inch")
 (all_units_df <- list(word = all_units) %>% as_tibble())
 ```
 
@@ -2128,7 +2128,7 @@ recipe_tf_idf <- per_rec_freq %>%
   arrange(desc(tf_idf))
 
 recipe_tf_idf %>% 
-  top_n(10) %>% 
+  sample_n(10) %>% 
   kable()
 ```
 
@@ -2165,6 +2165,30 @@ pairwise_per_rec %>%
   geom_node_text(aes(label = name), repel = TRUE) +
   theme_void()
 ```
+
+
+
+
+
+### Food Groups
+
+Let's see if we can assign food groups to ingredients in our recipe.
+
+
+```{r}
+query_term <- "butter"
+
+butter_req <- 
+  paste0("https://api.nal.usda.gov/ndb/search/?format=json&q=", query_term, "&sort=n&max=25&offset=0&api_key=", key)
+
+butter_res <- butter_req %>% jsonlite::fromJSON()
+```
+
+
+
+
+
+
 
 
 
