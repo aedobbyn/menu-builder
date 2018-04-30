@@ -3,7 +3,7 @@ library(feather)
 
 # Other measurement types from https://github.com/NYTimes/ingredient-phrase-tagger/blob/master/ingredient_phrase_tagger/training/utils.py
 
-units <- c(
+ingredient_units <- c(
   "cups", "cup",
   "tablespoons", "tablespoon",
   "teaspoons", "teaspoon",
@@ -32,7 +32,6 @@ units <- c(
   "bottles", "bottle"
 )
 
-
 ## This actually doesn't remove plurals with "es"
 # remove_plurals <- function(vec) {
 #   plurals <- seq(1, length(vec), by = 2)
@@ -40,11 +39,11 @@ units <- c(
 #   return(vec)
 # }
 # 
-# units <- remove_plurals(units)
+# ingredient_units <- remove_plurals(ingredient_units)
 
 
 add_other_measurement_types <- function() {
-  all_measurement_types_vec <- c(measurement_types$name, units) %>% unique()
+  all_measurement_types_vec <- c(measurement_types$name, ingredient_units) %>% unique()
   
   all_measurement_types <- list(name = all_measurement_types_vec) %>% as_tibble()
   return(all_measurement_types)
@@ -157,7 +156,7 @@ get_measurement_types_from_source_collapsed <- function() {
 
 
 
-# write_rds(units, "./data/derived/units.rds")
+# write_rds(ingredient_units, "./data/derived/units.rds")
 # write_feather(abbrev_dict, "./data/derived/abbrev_dict.feather")
 # write_feather(abbrev_dict_w_accepted, "./data/derived/abbrev_dict_w_accepted.feather")
 # write_rds(mc, "./data/derived/measurement_types.rds")
